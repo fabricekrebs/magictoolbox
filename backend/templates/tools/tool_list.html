@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Tools - MagicToolbox{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row mb-4">
+    <div class="col-12">
+      <h1 class="display-5 fw-bold">
+        <i class="bi bi-tools text-primary me-2"></i>
+        Available Tools
+      </h1>
+      <p class="lead text-muted">Browse and use our collection of file and image processing tools</p>
+    </div>
+  </div>
+
+  <!-- Search and Filter -->
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <div class="input-group">
+        <span class="input-group-text">
+          <i class="bi bi-search"></i>
+        </span>
+        <input type="text" class="form-control" id="toolSearch" placeholder="Search tools...">
+      </div>
+    </div>
+  </div>
+
+  <!-- Tools Grid -->
+  <div class="row g-4" id="toolsGrid">
+    {% for tool in tools %}
+      <div class="col-md-6 col-lg-4 tool-card" data-name="{{ tool.name|lower }}" data-description="{{ tool.description|lower }}">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title">
+              <i class="bi bi-{{ tool.icon|default:'box' }} text-primary me-2"></i>
+              {{ tool.name }}
+            </h5>
+            <p class="card-text text-muted">{{ tool.description }}</p>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <a href="{% url 'tools:tool_detail' tool.slug %}" class="btn btn-primary btn-sm">
+                Use Tool <i class="bi bi-arrow-right ms-1"></i>
+              </a>
+              <small class="text-muted">
+                <i class="bi bi-clock me-1"></i>{{ tool.estimated_time|default:"1-2 sec" }}
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <div class="col-12">
+        <div class="alert alert-info text-center" role="alert">
+          <i class="bi bi-info-circle me-2"></i>
+          No tools available yet. Check back soon!
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Simple client-side search functionality
+  document.getElementById('toolSearch').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const toolCards = document.querySelectorAll('.tool-card');
+    
+    toolCards.forEach(card => {
+      const name = card.dataset.name;
+      const description = card.dataset.description;
+      
+      if (name.includes(searchTerm) || description.includes(searchTerm)) {
+        card.style.display = '';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  });
+</script>
+{% endblock %}

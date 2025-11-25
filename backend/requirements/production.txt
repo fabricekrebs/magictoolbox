@@ -1,0 +1,12 @@
+# Production dependencies
+-r base.txt
+
+# Application server
+gunicorn>=21.2,<21.3
+
+# Monitoring and logging
+opencensus-ext-azure>=1.1,<1.2
+opencensus-ext-django>=0.8,<0.9
+
+# Security
+django-ratelimit>=4.1,<4.2
