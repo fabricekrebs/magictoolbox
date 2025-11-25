@@ -4,10 +4,14 @@ This directory contains Django templates for the MagicToolbox application.
 
 ## Structure
 
-- `base.html` - Base template with Bootstrap 5 layout
-- `home.html` - Homepage
+- `base.html` - Base template with Bootstrap 5 layout, JSZip for bulk downloads
+- `home.html` - Homepage with hero section and tool showcase
 - `includes/` - Reusable template fragments (navbar, footer, messages)
 - `tools/` - Tool-specific templates
+  - `tool_list.html` - Browse all tools
+  - `tool_detail.html` - Generic tool interface
+  - `image_format_converter.html` - Image converter (15+ formats, bulk)
+  - `gpx_kml_converter.html` - GPS file converter (bidirectional, bulk)
 - `authentication/` - Authentication templates (login, register, profile)
 - `errors/` - Error page templates (404, 500)
 
@@ -32,3 +36,15 @@ Available blocks for child templates:
 ## Django Crispy Forms
 
 Forms use django-crispy-forms with Bootstrap 5 styling for consistent form rendering.
+
+## Tool Template Patterns
+
+All tool templates follow a standardized structure:
+- File upload with multiple file support (`name="files[]" multiple`)
+- Progress bar with percentage tracking
+- Single file result section
+- Bulk result section with table and ZIP download
+- Sidebar with supported formats and features
+- Consistent JavaScript patterns (handleSingleConversion, handleBulkConversion)
+
+See `.github/copilot-tool-development-instructions.md` for complete guidelines.

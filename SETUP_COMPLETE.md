@@ -7,9 +7,10 @@ The complete Django backend has been scaffolded with the following structure:
 ### Core Structure
 
 ```
-backend/
+magictoolbox/
+├── .github/                       # GitHub workflows and instructions
 ├── manage.py                      # Django management script
-├── magictoolbox/                  # Project root
+├── magictoolbox/                  # Django project root
 │   ├── __init__.py
 │   ├── celery.py                  # Celery configuration
 │   ├── urls.py                    # Root URL configuration
@@ -75,9 +76,11 @@ backend/
 - ✅ Split settings (base, development, production)
 - ✅ Custom User model with email authentication
 - ✅ JWT authentication with SimpleJWT
+- ✅ Session-based auth for web UI
 - ✅ CORS configuration
-- ✅ Celery for async tasks
-- ✅ Redis for caching and sessions
+- ✅ Celery for async tasks (optional)
+- ✅ Redis for caching and sessions (optional)
+- ✅ Django Templates + Bootstrap 5 frontend
 
 ### 2. Core App
 - ✅ Base abstract models (TimeStampedModel, UUIDModel, SoftDeleteModel)
@@ -100,9 +103,12 @@ backend/
 - ✅ Tool registry with auto-discovery
 - ✅ ToolExecution model for tracking
 - ✅ Tool API endpoints (list, retrieve, process)
-- ✅ Async processing with Celery
-- ✅ Example image format converter tool
+- ✅ Web UI with Bootstrap templates
+- ✅ **Image Format Converter** - 15+ formats, HEIC support, bulk upload
+- ✅ **GPX/KML Converter** - Bidirectional conversion, bulk upload
 - ✅ File validation and error handling
+- ✅ Proper temp file cleanup
+- ✅ ZIP download for bulk conversions
 
 ### 5. API Structure
 - ✅ Versioned API (v1)
@@ -136,7 +142,6 @@ backend/
 ### 1. Install Dependencies
 
 ```bash
-cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements/development.txt

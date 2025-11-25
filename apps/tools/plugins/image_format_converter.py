@@ -228,6 +228,11 @@ class ImageFormatConverter(BaseTool):
             
             output_size = os.path.getsize(temp_output)
             self.logger.info(f"Successfully converted {input_file.name} to {output_format} ({output_size / 1024:.1f} KB)")
+            
+            # Cleanup input temp file
+            if temp_input and os.path.exists(temp_input):
+                os.unlink(temp_input)
+            
             return temp_output, output_filename
         
         except Exception as e:
