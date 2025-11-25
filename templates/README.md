@@ -12,6 +12,7 @@ This directory contains Django templates for the MagicToolbox application.
   - `tool_detail.html` - Generic tool interface
   - `image_format_converter.html` - Image converter (15+ formats, bulk)
   - `gpx_kml_converter.html` - GPS file converter (bidirectional, bulk)
+  - `gpx_speed_modifier.html` - GPX track analyzer and speed modifier (bulk)
 - `authentication/` - Authentication templates (login, register, profile)
 - `errors/` - Error page templates (404, 500)
 

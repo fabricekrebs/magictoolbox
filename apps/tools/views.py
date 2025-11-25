@@ -167,6 +167,12 @@ class ToolViewSet(viewsets.ViewSet):
         if request.data.get('name'):
             parameters['name'] = request.data.get('name')
         
+        # GPX Speed Modifier parameters
+        if request.data.get('mode'):
+            parameters['mode'] = request.data.get('mode')
+        if request.data.get('speed_multiplier'):
+            parameters['speed_multiplier'] = request.data.get('speed_multiplier')
+        
         # Process multiple files
         if len(files) > 1:
             # Create a ZIP file with all converted images
@@ -217,6 +223,20 @@ class ToolViewSet(viewsets.ViewSet):
                 # Process synchronously for immediate response
                 output_path, output_filename = tool_instance.process(file, parameters)
                 
+                # Special handling for JSON responses (e.g., GPX analyze mode)
+                file_ext = output_filename.split('.')[-1].lower()
+                if file_ext == 'json':
+                    # Read JSON and return as JSON response
+                    import json
+                    with open(output_path, 'r', encoding='utf-8') as f:
+                        json_data = json.load(f)
+                    
+                    # Cleanup
+                    tool_instance.cleanup(output_path)
+                    
+                    # Return JSON response
+                    return Response(json_data)
+                
                 # Read the output file
                 with open(output_path, 'rb') as f:
                     output_data = f.read()
@@ -225,7 +245,6 @@ class ToolViewSet(viewsets.ViewSet):
                 tool_instance.cleanup(output_path)
                 
                 # Determine content type based on file extension
-                file_ext = output_filename.split('.')[-1].lower()
                 content_type_map = {
                     'jpg': 'image/jpeg',
                     'jpeg': 'image/jpeg',
