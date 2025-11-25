@@ -61,8 +61,9 @@ def tool_detail(request, tool_slug):
     template_name = f'tools/{tool_slug.replace("-", "_")}.html'
     try:
         return render(request, template_name, context)
-    except:
+    except Exception as e:
         # Fall back to generic template
+        logger.warning(f"Error rendering {template_name}: {e}")
         return render(request, 'tools/tool_detail.html', context)
 
 
@@ -104,18 +105,23 @@ class ToolViewSet(viewsets.ViewSet):
         return Response(serializer.data)
     
     @action(detail=True, methods=['post'], url_path='convert')
-    def convert_image(self, request, pk=None):
+    def convert_file(self, request, pk=None):
         """
-        Synchronous image conversion endpoint with bulk upload support.
+        Synchronous file conversion endpoint with bulk upload support.
         
         POST /api/v1/tools/{tool_name}/convert/
         
-        Request body:
+        For image-format-converter:
         - file or files[]: Image file(s) to convert (single or multiple)
         - output_format: Target format (jpg, png, webp, etc.)
         - quality: Quality 1-100 (optional)
         - width: Target width in pixels (optional)
         - height: Target height in pixels (optional)
+        
+        For gpx-kml-converter:
+        - file: GPS file to convert
+        - conversion_type: gpx_to_kml or kml_to_gpx (optional, auto-detected)
+        - name: Document name (optional)
         """
         from django.http import HttpResponse
         import zipfile
@@ -142,16 +148,24 @@ class ToolViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Get parameters from request
-        parameters = {
-            'output_format': request.data.get('output_format', 'jpg'),
-            'quality': request.data.get('quality', 85),
-        }
+        # Get parameters from request - handle different tool types
+        parameters = {}
         
+        # Image converter parameters
+        if request.data.get('output_format'):
+            parameters['output_format'] = request.data.get('output_format')
+        if request.data.get('quality'):
+            parameters['quality'] = request.data.get('quality')
         if request.data.get('width'):
             parameters['width'] = request.data.get('width')
         if request.data.get('height'):
             parameters['height'] = request.data.get('height')
+        
+        # GPX/KML converter parameters
+        if request.data.get('conversion_type'):
+            parameters['conversion_type'] = request.data.get('conversion_type')
+        if request.data.get('name'):
+            parameters['name'] = request.data.get('name')
         
         # Process multiple files
         if len(files) > 1:
@@ -210,8 +224,27 @@ class ToolViewSet(viewsets.ViewSet):
                 # Cleanup
                 tool_instance.cleanup(output_path)
                 
-                # Return the converted image
-                response = HttpResponse(output_data, content_type=f'image/{parameters["output_format"]}')
+                # Determine content type based on file extension
+                file_ext = output_filename.split('.')[-1].lower()
+                content_type_map = {
+                    'jpg': 'image/jpeg',
+                    'jpeg': 'image/jpeg',
+                    'png': 'image/png',
+                    'webp': 'image/webp',
+                    'gif': 'image/gif',
+                    'bmp': 'image/bmp',
+                    'tiff': 'image/tiff',
+                    'tif': 'image/tiff',
+                    'ico': 'image/x-icon',
+                    'svg': 'image/svg+xml',
+                    'gpx': 'application/gpx+xml',
+                    'kml': 'application/vnd.google-earth.kml+xml',
+                    'xml': 'application/xml',
+                }
+                content_type = content_type_map.get(file_ext, 'application/octet-stream')
+                
+                # Return the converted file
+                response = HttpResponse(output_data, content_type=content_type)
                 response['Content-Disposition'] = f'attachment; filename="{output_filename}"'
                 return response
                 

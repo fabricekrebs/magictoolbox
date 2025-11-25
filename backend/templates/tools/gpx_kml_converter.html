@@ -1,0 +1,611 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}GPX/KML Converter - MagicToolbox{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row mb-4">
+    <div class="col">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'tools:tool_list' %}">Tools</a></li>
+          <li class="breadcrumb-item active" aria-current="page">GPX/KML Converter</li>
+        </ol>
+      </nav>
+      
+      <h1 class="display-4 mb-3">
+        <i class="bi bi-geo-alt text-primary me-3"></i>
+        GPX/KML Converter
+      </h1>
+      <p class="lead text-muted">
+        Convert GPS files between GPX and KML formats. Preserves waypoints, tracks, and routes.
+      </p>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Main Content -->
+    <div class="col-lg-8">
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-arrow-left-right me-2"></i>Convert GPS File
+          </h5>
+        </div>
+        <div class="card-body">
+          <form id="gpxKmlConverterForm" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+              <label for="gpsFile" class="form-label">
+                Select GPS File(s)
+                <span class="badge bg-info">GPX or KML</span>
+                <span class="badge bg-success">Bulk supported!</span>
+              </label>
+              <input type="file" class="form-control" id="gpsFile" name="files[]" accept=".gpx,.kml" multiple required>
+              <div class="form-text">
+                <i class="bi bi-info-circle me-1"></i>
+                Select one or multiple files (max 50MB per file). Supports GPX 1.1 and KML 2.2 formats.
+              </div>
+              <div id="fileList" class="mt-2"></div>
+            </div>
+
+            <div class="mb-3">
+              <label for="conversionType" class="form-label">Conversion Direction</label>
+              <select class="form-select" id="conversionType" name="conversion_type" required>
+                <option value="">Auto-detect from file</option>
+                <option value="gpx_to_kml">GPX → KML</option>
+                <option value="kml_to_gpx">KML → GPX</option>
+              </select>
+              <div class="form-text">
+                Leave as "Auto-detect" to automatically determine conversion based on file type.
+              </div>
+            </div>
+
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary btn-lg" id="convertBtn">
+                <i class="bi bi-arrow-left-right me-2"></i>Convert File
+              </button>
+            </div>
+          </form>
+
+          <!-- Progress Section -->
+          <div id="progressSection" class="mt-4" style="display: none;">
+            <div class="progress" style="height: 30px;">
+              <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                   role="progressbar" 
+                   id="progressBar"
+                   style="width: 0%">
+                <span id="progressText">0%</span>
+              </div>
+            </div>
+            <p class="text-center text-muted mt-2" id="progressMessage">Converting your GPS file...</p>
+          </div>
+
+          <!-- Result Section (Single File) -->
+          <div id="resultSection" class="mt-4" style="display: none;">
+            <div class="alert alert-success" role="alert">
+              <h5 class="alert-heading">
+                <i class="bi bi-check-circle me-2"></i>Conversion Successful!
+              </h5>
+              <p class="mb-0">Your GPS file has been converted successfully.</p>
+            </div>
+
+            <!-- File Information -->
+            <div class="card mb-3">
+              <div class="card-header">
+                <h6 class="mb-0">Conversion Details</h6>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-6">
+                    <h6 class="text-muted mb-2">Original File</h6>
+                    <p class="mb-1" id="originalFileName"></p>
+                    <small class="text-muted" id="originalFileInfo"></small>
+                  </div>
+                  <div class="col-md-6">
+                    <h6 class="text-muted mb-2">Converted File</h6>
+                    <p class="mb-1" id="convertedFileName"></p>
+                    <small class="text-muted" id="convertedFileInfo"></small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Download Button -->
+            <div class="d-grid gap-2">
+              <a href="#" id="downloadBtn" class="btn btn-success btn-lg" download>
+                <i class="bi bi-download me-2"></i>Download Converted File
+              </a>
+              <button type="button" class="btn btn-outline-primary" onclick="location.reload()">
+                <i class="bi bi-arrow-clockwise me-2"></i>Convert Another File
+              </button>
+            </div>
+          </div>
+
+          <!-- Bulk Result Section -->
+          <div id="bulkResultSection" class="mt-4" style="display: none;">
+            <div class="alert alert-success" role="alert">
+              <h5 class="alert-heading">
+                <i class="bi bi-check-circle me-2"></i>Bulk Conversion Complete!
+              </h5>
+              <p class="mb-0">Successfully converted <span id="successCount">0</span> file(s).</p>
+            </div>
+
+            <!-- Conversion Results Table -->
+            <div class="card mb-3">
+              <div class="card-header">
+                <h6 class="mb-0">Conversion Results</h6>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-sm">
+                    <thead>
+                      <tr>
+                        <th>Original File</th>
+                        <th>Status</th>
+                        <th>Converted File</th>
+                        <th>Size</th>
+                      </tr>
+                    </thead>
+                    <tbody id="bulkResultsTable">
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Download Buttons -->
+            <div class="d-grid gap-2">
+              <a href="#" id="downloadZipBtn" class="btn btn-success btn-lg" download>
+                <i class="bi bi-file-earmark-zip me-2"></i>Download All as ZIP
+              </a>
+              <button type="button" class="btn btn-outline-primary" onclick="location.reload()">
+                <i class="bi bi-arrow-clockwise me-2"></i>Convert More Files
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tool Information -->
+    <div class="col-lg-4">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header bg-light">
+          <h6 class="mb-0">
+            <i class="bi bi-info-circle me-2"></i>Supported Formats
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="text-primary">
+              <i class="bi bi-filetype-xml me-1"></i>GPX (GPS Exchange Format)
+            </h6>
+            <p class="small text-muted mb-0">
+              XML-based format for GPS data. Widely supported by GPS devices and mapping applications.
+            </p>
+          </div>
+          <div>
+            <h6 class="text-primary">
+              <i class="bi bi-geo-alt-fill me-1"></i>KML (Keyhole Markup Language)
+            </h6>
+            <p class="small text-muted mb-0">
+              Google Earth format for geographic data. Used for visualization and sharing.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mb-3">
+        <div class="card-header bg-light">
+          <h6 class="mb-0">
+            <i class="bi bi-list-check me-2"></i>Preserved Data
+          </h6>
+        </div>
+        <div class="card-body">
+          <ul class="small mb-0">
+            <li><i class="bi bi-check-circle text-success me-1"></i>Waypoints with names & descriptions</li>
+            <li><i class="bi bi-check-circle text-success me-1"></i>GPS tracks with elevation data</li>
+            <li><i class="bi bi-check-circle text-success me-1"></i>Routes with multiple points</li>
+            <li><i class="bi bi-check-circle text-success me-1"></i>Coordinates (latitude, longitude, elevation)</li>
+            <li><i class="bi bi-check-circle text-success me-1"></i>Metadata (names, descriptions)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-header bg-light">
+          <h6 class="mb-0">
+            <i class="bi bi-lightbulb me-2"></i>Usage Tips
+          </h6>
+        </div>
+        <div class="card-body">
+          <ul class="small mb-0">
+            <li>Use GPX for GPS devices and fitness apps</li>
+            <li>Use KML for Google Earth and Google Maps</li>
+            <li>Conversion preserves all waypoints and tracks</li>
+            <li>Auto-detect determines format from file extension</li>
+            <li>Both formats support full coordinate precision</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Show file information when selected
+const fileInput = document.getElementById('gpsFile');
+const fileListDiv = document.getElementById('fileList');
+const conversionTypeSelect = document.getElementById('conversionType');
+
+fileInput.addEventListener('change', function() {
+  const files = Array.from(fileInput.files);
+  if (files.length === 0) {
+    fileListDiv.innerHTML = '';
+    return;
+  }
+
+  let html = '<div class="list-group">';
+  let totalSize = 0;
+  let suggestedConversion = '';
+  
+  files.forEach((file, index) => {
+    const fileExt = file.name.split('.').pop().toLowerCase();
+    let fileType = 'Unknown';
+    let icon = 'file-earmark-text';
+    
+    if (fileExt === 'gpx') {
+      fileType = 'GPX';
+      icon = 'geo-alt';
+      if (!suggestedConversion) suggestedConversion = 'gpx_to_kml';
+    } else if (fileExt === 'kml') {
+      fileType = 'KML';
+      icon = 'pin-map';
+      if (!suggestedConversion) suggestedConversion = 'kml_to_gpx';
+    }
+    
+    totalSize += file.size;
+    
+    html += `
+      <div class="list-group-item">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <i class="bi bi-${icon} me-2 text-primary"></i>
+            <strong>${file.name}</strong>
+            <span class="badge bg-secondary ms-2">${fileType}</span>
+          </div>
+          <small class="text-muted">${MagicToolbox.formatFileSize(file.size)}</small>
+        </div>
+      </div>
+    `;
+  });
+  
+  html += '</div>';
+  
+  if (files.length > 1) {
+    html += `
+      <div class="alert alert-info mt-2 mb-0">
+        <i class="bi bi-info-circle me-1"></i>
+        <strong>${files.length} files selected</strong> (Total size: ${MagicToolbox.formatFileSize(totalSize)})
+      </div>
+    `;
+  }
+  
+  fileListDiv.innerHTML = html;
+
+  // Auto-select conversion type if set to auto-detect
+  if (conversionTypeSelect.value === '' && suggestedConversion) {
+    conversionTypeSelect.value = suggestedConversion;
+  }
+});
+
+// Handle form submission
+document.getElementById('gpxKmlConverterForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const fileInput = document.getElementById('gpsFile');
+  const files = Array.from(fileInput.files);
+  
+  if (files.length === 0) {
+    MagicToolbox.showNotification('Please select at least one GPS file', 'error');
+    return;
+  }
+
+  const convertBtn = document.getElementById('convertBtn');
+  const progressSection = document.getElementById('progressSection');
+  const resultSection = document.getElementById('resultSection');
+  const bulkResultSection = document.getElementById('bulkResultSection');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  const progressMessage = document.getElementById('progressMessage');
+  
+  // Show progress
+  convertBtn.disabled = true;
+  progressSection.style.display = 'block';
+  resultSection.style.display = 'none';
+  bulkResultSection.style.display = 'none';
+  
+  // Determine if bulk mode (multiple files)
+  const isBulk = files.length > 1;
+  
+  if (isBulk) {
+    progressMessage.textContent = `Converting ${files.length} files...`;
+  } else {
+    progressMessage.textContent = 'Converting your GPS file...';
+  }
+  
+  try {
+    console.log('Starting conversion, isBulk:', isBulk, 'fileCount:', files.length);
+    if (isBulk) {
+      // Bulk conversion: convert each file sequentially
+      await handleBulkConversion(files, progressBar, progressText);
+    } else {
+      // Single file conversion
+      await handleSingleConversion(files[0], progressBar, progressText, this);
+    }
+  } catch (error) {
+    console.error('Conversion error:', error);
+    console.error('Error stack:', error.stack);
+    MagicToolbox.showNotification(error.message || 'Conversion failed', 'error');
+    progressSection.style.display = 'none';
+  } finally {
+    convertBtn.disabled = false;
+  }
+});
+
+// Handle single file conversion
+async function handleSingleConversion(file, progressBar, progressText, form) {
+  const progressSection = document.getElementById('progressSection');
+  const resultSection = document.getElementById('resultSection');
+  
+  let progress = 0;
+  const progressInterval = setInterval(() => {
+    progress += 15;
+    progressBar.style.width = Math.min(progress, 90) + '%';
+    progressText.textContent = Math.min(progress, 90) + '%';
+    
+    if (progress >= 90) {
+      clearInterval(progressInterval);
+    }
+  }, 150);
+  
+  const formData = new FormData(form);
+  // Replace files[] with single file parameter
+  formData.delete('files[]');
+  formData.append('file', file);
+  
+  try {
+    const response = await fetch('/api/v1/tools/gpx-kml-converter/convert/', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': '{{ csrf_token }}'
+      }
+    });
+    
+    clearInterval(progressInterval);
+    
+    if (!response.ok) {
+      let errorMsg = 'Conversion failed';
+      try {
+        const errorData = await response.json();
+        errorMsg = errorData.error || errorMsg;
+      } catch (e) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        errorMsg = `Server error: ${response.status} ${response.statusText}`;
+      }
+      throw new Error(errorMsg);
+    }
+    
+    // Check content type to make sure we got a file, not HTML
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('text/html')) {
+      console.error('Received HTML instead of file');
+      throw new Error('Server returned an error page instead of the converted file');
+    }
+    
+    // Complete progress
+    progressBar.style.width = '100%';
+    progressText.textContent = '100%';
+    
+    // Get the converted file
+    const blob = await response.blob();
+    const convertedFileUrl = URL.createObjectURL(blob);
+    
+    // Get filename from Content-Disposition header or generate one
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let convertedFilename = 'converted_file';
+    if (contentDisposition) {
+      const matches = /filename="([^"]+)"/.exec(contentDisposition);
+      if (matches) {
+        convertedFilename = matches[1];
+      }
+    } else {
+      // Generate filename based on conversion
+      const fileExt = file.name.split('.').pop().toLowerCase();
+      const baseName = file.name.replace(/\.[^/.]+$/, '');
+      convertedFilename = fileExt === 'gpx' ? `${baseName}.kml` : `${baseName}.gpx`;
+    }
+    
+    // Show file information
+    document.getElementById('originalFileName').textContent = file.name;
+    document.getElementById('originalFileInfo').textContent = 
+      `${file.name.split('.').pop().toUpperCase()} | ${MagicToolbox.formatFileSize(file.size)}`;
+    
+    document.getElementById('convertedFileName').textContent = convertedFilename;
+    document.getElementById('convertedFileInfo').textContent = 
+      `${convertedFilename.split('.').pop().toUpperCase()} | ${MagicToolbox.formatFileSize(blob.size)}`;
+    
+    // Set up download
+    const downloadBtn = document.getElementById('downloadBtn');
+    downloadBtn.href = convertedFileUrl;
+    downloadBtn.download = convertedFilename;
+    
+    // Show results
+    setTimeout(() => {
+      progressSection.style.display = 'none';
+      resultSection.style.display = 'block';
+      MagicToolbox.showNotification('Conversion successful!', 'success');
+    }, 500);
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Handle bulk conversion
+async function handleBulkConversion(files, progressBar, progressText) {
+  console.log('handleBulkConversion started with', files.length, 'files');
+  const progressSection = document.getElementById('progressSection');
+  const bulkResultSection = document.getElementById('bulkResultSection');
+  const conversionType = document.getElementById('conversionType').value;
+  
+  const results = [];
+  const convertedBlobs = [];
+  let successCount = 0;
+  
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const percent = Math.round(((i + 1) / files.length) * 100);
+    
+    progressBar.style.width = percent + '%';
+    progressText.textContent = `${percent}% (${i + 1}/${files.length})`;
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (conversionType) formData.append('conversion_type', conversionType);
+      
+      const response = await fetch('/api/v1/tools/gpx-kml-converter/convert/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}'
+        }
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = '';
+        if (contentDisposition) {
+          const matches = /filename="([^"]+)"/.exec(contentDisposition);
+          if (matches) filename = matches[1];
+        } else {
+          const fileExt = file.name.split('.').pop().toLowerCase();
+          const baseName = file.name.replace(/\.[^/.]+$/, '');
+          filename = fileExt === 'gpx' ? `${baseName}.kml` : `${baseName}.gpx`;
+        }
+        
+        convertedBlobs.push({ blob, filename });
+        results.push({
+          originalName: file.name,
+          convertedName: filename,
+          size: blob.size,
+          status: 'success'
+        });
+        successCount++;
+      } else {
+        results.push({
+          originalName: file.name,
+          status: 'error',
+          error: 'Conversion failed'
+        });
+      }
+    } catch (error) {
+      results.push({
+        originalName: file.name,
+        status: 'error',
+        error: error.message
+      });
+    }
+  }
+  
+  // Display results
+  const tableBody = document.getElementById('bulkResultsTable');
+  if (!tableBody) {
+    console.error('bulkResultsTable element not found');
+    throw new Error('Results table not found in DOM');
+  }
+  
+  tableBody.innerHTML = '';
+  
+  results.forEach(result => {
+    const row = document.createElement('tr');
+    if (result.status === 'success') {
+      row.innerHTML = `
+        <td>${result.originalName}</td>
+        <td><span class="badge bg-success">Success</span></td>
+        <td>${result.convertedName}</td>
+        <td>${MagicToolbox.formatFileSize(result.size)}</td>
+      `;
+    } else {
+      row.innerHTML = `
+        <td>${result.originalName}</td>
+        <td><span class="badge bg-danger">Failed</span></td>
+        <td colspan="2"><small class="text-danger">${result.error}</small></td>
+      `;
+    }
+    tableBody.appendChild(row);
+  });
+  
+  const successCountEl = document.getElementById('successCount');
+  if (successCountEl) {
+    successCountEl.textContent = successCount;
+  } else {
+    console.error('successCount element not found');
+  }
+  
+  console.log('Creating ZIP with', successCount, 'successful conversions');
+  
+  // Create ZIP file
+  if (successCount > 0) {
+    const JSZip = window.JSZip;
+    console.log('JSZip available:', !!JSZip);
+    if (JSZip) {
+      try {
+        const zip = new JSZip();
+        convertedBlobs.forEach(({ blob, filename }) => {
+          console.log('Adding to ZIP:', filename, blob.size);
+          zip.file(filename, blob);
+        });
+        
+        console.log('Generating ZIP blob...');
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        console.log('ZIP created:', zipBlob.size, 'bytes');
+        const zipUrl = URL.createObjectURL(zipBlob);
+        
+        const downloadZipBtn = document.getElementById('downloadZipBtn');
+        if (downloadZipBtn) {
+          downloadZipBtn.href = zipUrl;
+          downloadZipBtn.download = 'converted_gps_files.zip';
+          console.log('ZIP download button set up');
+        } else {
+          console.error('downloadZipBtn element not found');
+        }
+      } catch (zipError) {
+        console.error('Error creating ZIP:', zipError);
+        throw zipError;
+      }
+    } else {
+      console.error('JSZip library not loaded');
+    }
+  }
+  
+  console.log('Showing bulk results section');
+  // Show results
+  setTimeout(() => {
+    progressSection.style.display = 'none';
+    bulkResultSection.style.display = 'block';
+    MagicToolbox.showNotification(`Converted ${successCount} of ${files.length} files`, successCount > 0 ? 'success' : 'error');
+    console.log('Bulk results displayed');
+  }, 500);
+}
+</script>
+{% endblock %}
