@@ -5,7 +5,10 @@ param uniqueSuffix string
 param tags object
 param environment string
 param logAnalyticsWorkspaceId string
+
+@secure()
 param applicationInsightsConnectionString string
+
 param acrLoginServer string
 param keyVaultName string
 param storageAccountName string
@@ -124,6 +127,10 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: 'magictoolbox.settings.production'
             }
             {
+              name: 'ENVIRONMENT'
+              value: environment
+            }
+            {
               name: 'SECRET_KEY'
               secretRef: 'django-secret-key'
             }
@@ -182,6 +189,14 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             {
               name: 'KEY_VAULT_NAME'
               value: keyVaultName
+            }
+            {
+              name: 'REDIS_HOST'
+              value: redisHostName
+            }
+            {
+              name: 'REDIS_ACCESS_KEY'
+              secretRef: 'redis-access-key'
             }
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'

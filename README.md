@@ -134,20 +134,32 @@ MagicToolbox is designed for deployment on Azure Container Apps with full infras
 
 **Important Azure-Specific Configurations:**
 
-This repository includes fixes for common Azure Container Apps deployment issues:
+This repository includes comprehensive Azure integration following DevOps best practices:
 
-1. **Health Check Middleware** (`apps/core/middleware.py`)
+1. **Azure Key Vault Integration** 
+   - Secure secret management with managed identity
+   - RBAC-based access control (no access policies)
+   - Automatic secret retrieval with fallback to environment variables
+   - See [AZURE_KEYVAULT_APPINSIGHTS.md](AZURE_KEYVAULT_APPINSIGHTS.md)
+
+2. **Application Insights Telemetry**
+   - Distributed tracing with OpenCensus
+   - Exception logging and performance metrics
+   - Custom sampling rates per environment
+   - Comprehensive observability and diagnostics
+
+3. **Health Check Middleware** (`apps/core/middleware.py`)
    - Handles Azure internal health probe IPs (100.100.0.0/16)
    - Bypasses ALLOWED_HOSTS validation for health endpoints
    - Ensures Container App revisions show as "Healthy"
 
-2. **SSL Termination** (`magictoolbox/settings/production.py`)
+4. **SSL Termination** (`magictoolbox/settings/production.py`)
    - `SECURE_SSL_REDIRECT = False` - Azure handles SSL at ingress
    - `SECURE_PROXY_SSL_HEADER` configured for Azure proxy
    - Prevents infinite redirect loops
 
-3. **Static Files with WhiteNoise**
-   - Serves CSS/JS efficiently from container
+5. **Static Files with WhiteNoise**
+   - Serves CSS/JS efficiently from container with Brotli compression
    - Azure Blob Storage used only for private user uploads
    - Fixes "Public access not permitted" errors
    - Includes Brotli compression and cache-busting

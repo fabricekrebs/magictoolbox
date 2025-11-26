@@ -9,6 +9,9 @@ param tenantId string
 // Keep it short: kv + appname + env + 6 chars = max 20 chars
 var keyVaultName = 'kv${take(replace(namingPrefix, '-', ''), 12)}${take(uniqueSuffix, 6)}'
 
+@description('Environment (dev, staging, prod)')
+param environment string = 'dev'
+
 resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' = {
   name: keyVaultName
   location: location
@@ -19,8 +22,8 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' = {
     enabledForTemplateDeployment: true
     tenantId: tenantId
     enableSoftDelete: true
-    softDeleteRetentionInDays: 7 // Minimum for dev, 90 for production
-    enableRbacAuthorization: true // Use RBAC instead of access policies
+    softDeleteRetentionInDays: environment == 'prod' ? 90 : 7
+    enableRbacAuthorization: true // Use RBAC for access control (best practice)
     publicNetworkAccess: 'Enabled'
     sku: {
       family: 'A'
@@ -28,10 +31,59 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' = {
     }
     networkAcls: {
       bypass: 'AzureServices'
-      defaultAction: 'Allow' // Change to 'Deny' for production with VNet integration
+      defaultAction: 'Allow' // Use 'Deny' with private endpoints for production
       ipRules: []
       virtualNetworkRules: []
     }
+  }
+}
+
+// Store secrets in Key Vault
+@secure()
+param djangoSecretKey string
+
+@secure()
+param postgresAdminPassword string
+
+@secure()
+param redisAccessKey string
+
+@secure()
+param storageAccountKey string
+
+resource djangoSecretKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' = {
+  parent: keyVault
+  name: 'django-secret-key'
+  properties: {
+    value: djangoSecretKey
+    contentType: 'text/plain'
+  }
+}
+
+resource postgresPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' = {
+  parent: keyVault
+  name: 'postgres-password'
+  properties: {
+    value: postgresAdminPassword
+    contentType: 'text/plain'
+  }
+}
+
+resource redisAccessKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' = {
+  parent: keyVault
+  name: 'redis-access-key'
+  properties: {
+    value: redisAccessKey
+    contentType: 'text/plain'
+  }
+}
+
+resource storageAccountKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' = {
+  parent: keyVault
+  name: 'storage-account-key'
+  properties: {
+    value: storageAccountKey
+    contentType: 'text/plain'
   }
 }
 

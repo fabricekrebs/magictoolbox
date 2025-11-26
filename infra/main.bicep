@@ -72,6 +72,11 @@ module keyVault './modules/keyvault.bicep' = {
     uniqueSuffix: uniqueSuffix
     tags: tags
     tenantId: subscription().tenantId
+    environment: environment
+    djangoSecretKey: djangoSecretKey
+    postgresAdminPassword: postgresAdminPassword
+    redisAccessKey: redis.outputs.accessKey
+    storageAccountKey: storage.outputs.storageAccountKey
   }
 }
 
@@ -134,14 +139,16 @@ module containerApps './modules/container-apps.bicep' = {
     postgresAdminPassword: postgresAdminPassword
     djangoSecretKey: djangoSecretKey
   }
-  dependsOn: [
-    monitoring
-    acr
-    keyVault
-    storage
-    redis
-    postgresql
-  ]
+}
+
+// RBAC role assignments for Managed Identity
+module rbac './modules/rbac.bicep' = {
+  name: 'rbac-deployment'
+  params: {
+    keyVaultName: keyVault.outputs.keyVaultName
+    storageAccountName: storage.outputs.storageAccountName
+    containerAppIdentityPrincipalId: containerApps.outputs.containerAppIdentityPrincipalId
+  }
 }
 
 // Outputs

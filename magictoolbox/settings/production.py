@@ -4,8 +4,19 @@ Production settings for MagicToolbox project.
 These settings are optimized for Azure Container Apps deployment with
 enhanced security and Azure service integrations.
 """
+import logging
 from .base import *
 from decouple import config
+
+# Configure logging first
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Get environment name
+ENVIRONMENT = config('ENVIRONMENT', default='dev')
 
 # SECURITY
 DEBUG = False
@@ -44,12 +55,12 @@ AZURE_CONTAINER = config('AZURE_STORAGE_CONTAINER_UPLOADS', default='uploads')
 AZURE_CUSTOM_DOMAIN = f'{AZURE_ACCOUNT_NAME}.blob.core.windows.net'
 MEDIA_URL = f'https://{AZURE_CUSTOM_DOMAIN}/{AZURE_CONTAINER}/'
 
-# Use Azure Key Vault for secrets (optional - requires azure-identity package)
-# Note: Container Apps provides secrets via environment variables by default
-# Uncomment below if you want to fetch additional secrets from Key Vault
+# Azure Key Vault for secrets management
+# Use Managed Identity for secure, keyless authentication
 try:
     from azure.identity import DefaultAzureCredential
     from azure.keyvault.secrets import SecretClient
+    from azure.core.exceptions import AzureError
     
     KEY_VAULT_NAME = config('KEY_VAULT_NAME', default='')
     if KEY_VAULT_NAME:
@@ -57,51 +68,106 @@ try:
         credential = DefaultAzureCredential()
         secret_client = SecretClient(vault_url=AZURE_KEY_VAULT_URL, credential=credential)
         
-        # Example: Override SECRET_KEY from Key Vault (if not using Container Apps secrets)
-        # try:
-        #     SECRET_KEY = secret_client.get_secret('django-secret-key').value
-        # except Exception as e:
-        #     print(f"Warning: Could not retrieve django-secret-key from Key Vault: {e}")
-except ImportError:
-    print("Warning: azure-identity not installed. Using environment variables for secrets.")
+        # Retrieve secrets from Key Vault with fallback to environment variables
+        def get_secret_or_env(secret_name: str, env_var_name: str, required: bool = True) -> str:
+            """Retrieve secret from Key Vault or fall back to environment variable."""
+            try:
+                secret_value = secret_client.get_secret(secret_name).value
+                logger.info(f"Retrieved {secret_name} from Key Vault")
+                return secret_value
+            except AzureError as e:
+                logger.warning(f"Could not retrieve {secret_name} from Key Vault: {e}. Using environment variable.")
+                value = config(env_var_name, default='')
+                if required and not value:
+                    raise ValueError(f"Secret {secret_name} not found in Key Vault or environment variable {env_var_name}")
+                return value
+        
+        # Override secrets with Key Vault values (with fallback to env vars)
+        try:
+            SECRET_KEY = get_secret_or_env('django-secret-key', 'SECRET_KEY', required=True)
+            
+            # Database credentials
+            DB_PASSWORD = get_secret_or_env('postgres-password', 'DB_PASSWORD', required=True)
+            DATABASES['default']['PASSWORD'] = DB_PASSWORD
+            
+            # Redis credentials
+            REDIS_ACCESS_KEY = get_secret_or_env('redis-access-key', 'REDIS_ACCESS_KEY', required=False)
+            if REDIS_ACCESS_KEY:
+                REDIS_HOST = config('REDIS_HOST', default='')
+                CACHES['default']['LOCATION'] = f'rediss://:{REDIS_ACCESS_KEY}@{REDIS_HOST}:6380/0?ssl_cert_reqs=required'
+            
+            # Storage credentials (for non-Managed Identity scenarios)
+            STORAGE_ACCOUNT_KEY = get_secret_or_env('storage-account-key', 'AZURE_STORAGE_ACCOUNT_KEY', required=False)
+            
+            logger.info("Successfully configured secrets from Key Vault")
+        except Exception as e:
+            logger.error(f"Error configuring secrets from Key Vault: {e}")
+            raise
+    else:
+        logger.info("KEY_VAULT_NAME not set. Using environment variables for secrets.")
+except ImportError as e:
+    logger.warning(f"Azure Key Vault packages not installed: {e}. Using environment variables for secrets.")
 
-# Application Insights for monitoring and logging
+# Application Insights for monitoring, logging, and telemetry
 try:
     from opencensus.ext.azure.log_exporter import AzureLogHandler
     from opencensus.ext.azure.trace_exporter import AzureExporter
     from opencensus.trace.samplers import ProbabilitySampler
+    from opencensus.ext.azure.metrics_exporter import MetricsExporter
     
     APPLICATIONINSIGHTS_CONNECTION_STRING = config('APPLICATIONINSIGHTS_CONNECTION_STRING', default='')
     
     if APPLICATIONINSIGHTS_CONNECTION_STRING:
-        # Add Application Insights middleware
+        logger.info("Configuring Application Insights telemetry")
+        
+        # Add Application Insights middleware for request tracing
         MIDDLEWARE += [
             'opencensus.ext.django.middleware.OpencensusMiddleware',
         ]
         
-        # OpenCensus Configuration
+        # OpenCensus Configuration for distributed tracing
+        # Sample rate: 1.0 (100%) for dev/staging, 0.1-0.5 (10-50%) for production
+        sample_rate = 1.0 if ENVIRONMENT in ['dev', 'staging'] else 0.5
+        
         OPENCENSUS = {
             'TRACE': {
-                'SAMPLER': ProbabilitySampler(rate=1.0),
+                'SAMPLER': ProbabilitySampler(rate=sample_rate),
                 'EXPORTER': AzureExporter(
                     connection_string=APPLICATIONINSIGHTS_CONNECTION_STRING
                 ),
-            }
+            },
+            'METRICS': {
+                'EXPORTER': MetricsExporter(
+                    connection_string=APPLICATIONINSIGHTS_CONNECTION_STRING
+                ),
+            },
         }
         
-        # Add Azure Log Handler to logging
+        # Add Azure Log Handler to logging configuration
         LOGGING['handlers']['azure'] = {
             'level': 'INFO',
             'class': 'opencensus.ext.azure.log_exporter.AzureLogHandler',
             'connection_string': APPLICATIONINSIGHTS_CONNECTION_STRING,
+            'formatter': 'verbose',
         }
         
-        # Add azure handler to loggers
+        # Add azure handler to loggers for comprehensive telemetry
         LOGGING['root']['handlers'].append('azure')
         LOGGING['loggers']['django']['handlers'].append('azure')
         LOGGING['loggers']['apps']['handlers'].append('azure')
-except ImportError:
-    print("Warning: opencensus-ext-azure not installed. Application Insights logging disabled.")
+        
+        # Track exceptions automatically
+        LOGGING['loggers']['django.request'] = {
+            'handlers': ['console', 'file', 'azure'],
+            'level': 'ERROR',
+            'propagate': False,
+        }
+        
+        logger.info(f"Application Insights enabled with {sample_rate*100}% sampling rate")
+    else:
+        logger.warning("APPLICATIONINSIGHTS_CONNECTION_STRING not set. Application Insights disabled.")
+except ImportError as e:
+    logger.warning(f"Application Insights packages not installed: {e}. Telemetry disabled.")
 
 # Email Configuration (configure based on your email service)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
