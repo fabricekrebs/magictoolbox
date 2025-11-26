@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environment": {
+      "value": "dev"
+    },
+    "location": {
+      "value": "westeurope"
+    },
+    "appName": {
+      "value": "magictoolbox"
+    },
+    "postgresAdminUsername": {
+      "value": "mtbadmin"
+    },
+    "postgresAdminPassword": {
+      "value": "KU2IYiqi8Wc3y/zjoAq8+6694iN9zZIX"
+    },
+    "djangoSecretKey": {
+      "value": "django-QIxHUP1clwGKY21TWoZeyt3FPGHvFUlZLmQkV6kh3V0T25Aj2e"
+    }
+  }
+}

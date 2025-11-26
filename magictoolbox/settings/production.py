@@ -28,7 +28,13 @@ CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_HTTPONLY = True
 
-# Azure Blob Storage for media files using Managed Identity
+# Static files - served by WhiteNoise from container
+# Use WhiteNoise to serve static files efficiently from the container
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Azure Blob Storage for media files (uploads) using Managed Identity
 from azure.identity import DefaultAzureCredential
 DEFAULT_FILE_STORAGE = 'storages.backends.azure_storage.AzureStorage'
 AZURE_ACCOUNT_NAME = config('AZURE_STORAGE_ACCOUNT_NAME', default='')
@@ -37,11 +43,6 @@ AZURE_TOKEN_CREDENTIAL = DefaultAzureCredential()
 AZURE_CONTAINER = config('AZURE_STORAGE_CONTAINER_UPLOADS', default='uploads')
 AZURE_CUSTOM_DOMAIN = f'{AZURE_ACCOUNT_NAME}.blob.core.windows.net'
 MEDIA_URL = f'https://{AZURE_CUSTOM_DOMAIN}/{AZURE_CONTAINER}/'
-
-# Static files storage using Azure Blob Storage with Managed Identity
-STATICFILES_STORAGE = 'storages.backends.azure_storage.AzureStorage'
-AZURE_STATIC_CONTAINER = config('AZURE_STORAGE_CONTAINER_STATIC', default='static')
-STATIC_URL = f'https://{AZURE_CUSTOM_DOMAIN}/{AZURE_STATIC_CONTAINER}/'
 
 # Use Azure Key Vault for secrets (optional - requires azure-identity package)
 # Note: Container Apps provides secrets via environment variables by default

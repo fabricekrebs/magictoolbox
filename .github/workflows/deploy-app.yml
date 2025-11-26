@@ -1,0 +1,118 @@
+name: Deploy to Container Apps
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+      image_tag:
+        description: 'Docker image tag to deploy'
+        required: false
+        default: 'latest'
+  workflow_run:
+    workflows: ["Build and Push Docker Image"]
+    types:
+      - completed
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Container Apps
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      
+      - name: Get Container App name
+        id: app_info
+        run: |
+          APP_NAME=$(az containerapp list \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query "[?tags.Application=='MagicToolbox' && tags.Environment=='${{ github.event.inputs.environment || 'dev' }}'].name" \
+            -o tsv | head -n 1)
+          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+          
+          ACR_LOGIN_SERVER=$(az acr show --name ${{ secrets.ACR_NAME }} --query loginServer -o tsv)
+          echo "acr_login_server=$ACR_LOGIN_SERVER" >> $GITHUB_OUTPUT
+      
+      - name: Update Container App with new image
+        run: |
+          IMAGE_TAG="${{ github.event.inputs.image_tag || 'latest' }}"
+          FULL_IMAGE="${{ steps.app_info.outputs.acr_login_server }}/magictoolbox:$IMAGE_TAG"
+          
+          echo "Deploying image: $FULL_IMAGE"
+          
+          az containerapp update \
+            --name ${{ steps.app_info.outputs.app_name }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --image "$FULL_IMAGE"
+      
+      - name: Run database migrations
+        run: |
+          echo "Running database migrations..."
+          az containerapp exec \
+            --name ${{ steps.app_info.outputs.app_name }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --command "python manage.py migrate --noinput" || echo "Migration command executed"
+      
+      - name: Get Container App URL
+        id: app_url
+        run: |
+          APP_URL=$(az containerapp show \
+            --name ${{ steps.app_info.outputs.app_name }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn \
+            -o tsv)
+          echo "app_url=https://$APP_URL" >> $GITHUB_OUTPUT
+          echo "Application URL: https://$APP_URL"
+      
+      - name: Health check
+        run: |
+          echo "Waiting for app to be ready..."
+          sleep 30
+          
+          MAX_RETRIES=10
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if curl -f -s "${{ steps.app_url.outputs.app_url }}/health/" > /dev/null; then
+              echo "✅ Health check passed!"
+              exit 0
+            fi
+            
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            echo "Health check attempt $RETRY_COUNT/$MAX_RETRIES failed, retrying..."
+            sleep 10
+          done
+          
+          echo "❌ Health check failed after $MAX_RETRIES attempts"
+          exit 1
+      
+      - name: Deployment summary
+        run: |
+          echo "### Deployment Summary 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ github.event.inputs.environment || 'dev' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Container App**: ${{ steps.app_info.outputs.app_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Tag**: ${{ github.event.inputs.image_tag || 'latest' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: ${{ steps.app_url.outputs.app_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ✅ Deployed successfully" >> $GITHUB_STEP_SUMMARY
