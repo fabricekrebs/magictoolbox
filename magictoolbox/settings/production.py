@@ -17,35 +17,50 @@ X_FRAME_OPTIONS = 'DENY'
 SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-SECURE_SSL_REDIRECT = True
+
+# Azure Container Apps handles SSL termination at ingress
+# Don't redirect to HTTPS in Django, trust the X-Forwarded-Proto header
+SECURE_SSL_REDIRECT = False
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_HTTPONLY = True
 
-# Azure Blob Storage for media files
+# Azure Blob Storage for media files using Managed Identity
+from azure.identity import DefaultAzureCredential
 DEFAULT_FILE_STORAGE = 'storages.backends.azure_storage.AzureStorage'
 AZURE_ACCOUNT_NAME = config('AZURE_STORAGE_ACCOUNT_NAME', default='')
-AZURE_ACCOUNT_KEY = config('AZURE_STORAGE_ACCOUNT_KEY', default='')
-AZURE_CONTAINER = config('AZURE_STORAGE_CONTAINER', default='media')
+# Use Managed Identity instead of account key
+AZURE_TOKEN_CREDENTIAL = DefaultAzureCredential()
+AZURE_CONTAINER = config('AZURE_STORAGE_CONTAINER_UPLOADS', default='uploads')
 AZURE_CUSTOM_DOMAIN = f'{AZURE_ACCOUNT_NAME}.blob.core.windows.net'
 MEDIA_URL = f'https://{AZURE_CUSTOM_DOMAIN}/{AZURE_CONTAINER}/'
 
+# Static files storage using Azure Blob Storage with Managed Identity
+STATICFILES_STORAGE = 'storages.backends.azure_storage.AzureStorage'
+AZURE_STATIC_CONTAINER = config('AZURE_STORAGE_CONTAINER_STATIC', default='static')
+STATIC_URL = f'https://{AZURE_CUSTOM_DOMAIN}/{AZURE_STATIC_CONTAINER}/'
+
 # Use Azure Key Vault for secrets (optional - requires azure-identity package)
+# Note: Container Apps provides secrets via environment variables by default
+# Uncomment below if you want to fetch additional secrets from Key Vault
 try:
     from azure.identity import DefaultAzureCredential
     from azure.keyvault.secrets import SecretClient
     
-    AZURE_KEY_VAULT_URL = config('AZURE_KEY_VAULT_URL', default='')
-    if AZURE_KEY_VAULT_URL:
+    KEY_VAULT_NAME = config('KEY_VAULT_NAME', default='')
+    if KEY_VAULT_NAME:
+        AZURE_KEY_VAULT_URL = f'https://{KEY_VAULT_NAME}.vault.azure.net/'
         credential = DefaultAzureCredential()
         secret_client = SecretClient(vault_url=AZURE_KEY_VAULT_URL, credential=credential)
         
-        # Override SECRET_KEY from Key Vault
-        try:
-            SECRET_KEY = secret_client.get_secret('django-secret-key').value
-        except Exception as e:
-            print(f"Warning: Could not retrieve django-secret-key from Key Vault: {e}")
+        # Example: Override SECRET_KEY from Key Vault (if not using Container Apps secrets)
+        # try:
+        #     SECRET_KEY = secret_client.get_secret('django-secret-key').value
+        # except Exception as e:
+        #     print(f"Warning: Could not retrieve django-secret-key from Key Vault: {e}")
 except ImportError:
     print("Warning: azure-identity not installed. Using environment variables for secrets.")
 
