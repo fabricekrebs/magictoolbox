@@ -30,49 +30,85 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Azure Login
+      - name: Set environment variables
+        run: |
+          ENV_UPPER=$(echo "${{ github.event.inputs.environment }}" | tr '[:lower:]' '[:upper:]')
+          echo "ENV_UPPER=$ENV_UPPER" >> $GITHUB_ENV
+      
+      - name: Azure Login (Dev)
+        if: github.event.inputs.environment == 'dev'
         uses: azure/login@v1
         with:
-          creds: ${{ secrets[format('AZURE_CREDENTIALS_{0}', upper(github.event.inputs.environment))] }}
+          creds: ${{ secrets.AZURE_CREDENTIALS_DEV }}
+      
+      - name: Azure Login (Prod)
+        if: github.event.inputs.environment == 'prod'
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_PROD }}
       
       - name: Validate Bicep templates
         run: |
           az bicep build --file ./infra/main.bicep
       
+      - name: Set secrets for Dev
+        if: github.event.inputs.environment == 'dev' && github.event.inputs.destroy != 'true'
+        run: |
+          echo "RESOURCE_GROUP=${{ secrets.RESOURCE_GROUP_DEV }}" >> $GITHUB_ENV
+          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_ADMIN_PASSWORD_DEV }}" >> $GITHUB_ENV
+          echo "DJANGO_SECRET=${{ secrets.DJANGO_SECRET_KEY_DEV }}" >> $GITHUB_ENV
+      
+      - name: Set secrets for Prod
+        if: github.event.inputs.environment == 'prod' && github.event.inputs.destroy != 'true'
+        run: |
+          echo "RESOURCE_GROUP=${{ secrets.RESOURCE_GROUP_PROD }}" >> $GITHUB_ENV
+          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_ADMIN_PASSWORD_PROD }}" >> $GITHUB_ENV
+          echo "DJANGO_SECRET=${{ secrets.DJANGO_SECRET_KEY_PROD }}" >> $GITHUB_ENV
+      
       - name: Deploy infrastructure (What-If)
         if: github.event.inputs.destroy != 'true'
         run: |
           az deployment group what-if \
-            --resource-group ${{ secrets[format('RESOURCE_GROUP_{0}', upper(github.event.inputs.environment))] }} \
+            --resource-group $RESOURCE_GROUP \
             --template-file ./infra/main.bicep \
             --parameters ./infra/parameters.${{ github.event.inputs.environment }}.json \
             --parameters \
-              postgresAdminPassword="${{ secrets[format('POSTGRES_ADMIN_PASSWORD_{0}', upper(github.event.inputs.environment))] }}" \
-              djangoSecretKey="${{ secrets[format('DJANGO_SECRET_KEY_{0}', upper(github.event.inputs.environment))] }}"
+              postgresAdminPassword="$POSTGRES_PASSWORD" \
+              djangoSecretKey="$DJANGO_SECRET"
       
       - name: Deploy infrastructure
         if: github.event.inputs.destroy != 'true'
         run: |
           az deployment group create \
-            --resource-group ${{ secrets[format('RESOURCE_GROUP_{0}', upper(github.event.inputs.environment))] }} \
+            --resource-group $RESOURCE_GROUP \
             --template-file ./infra/main.bicep \
             --parameters ./infra/parameters.${{ github.event.inputs.environment }}.json \
             --parameters \
-              postgresAdminPassword="${{ secrets[format('POSTGRES_ADMIN_PASSWORD_{0}', upper(github.event.inputs.environment))] }}" \
-              djangoSecretKey="${{ secrets[format('DJANGO_SECRET_KEY_{0}', upper(github.event.inputs.environment))] }}"
+              postgresAdminPassword="$POSTGRES_PASSWORD" \
+              djangoSecretKey="$DJANGO_SECRET"
+      
+      - name: Set resource group for destroy (Dev)
+        if: github.event.inputs.environment == 'dev' && github.event.inputs.destroy == 'true'
+        run: |
+          echo "RESOURCE_GROUP=${{ secrets.RESOURCE_GROUP_DEV }}" >> $GITHUB_ENV
+      
+      - name: Set resource group for destroy (Prod)
+        if: github.event.inputs.environment == 'prod' && github.event.inputs.destroy == 'true'
+        run: |
+          echo "RESOURCE_GROUP=${{ secrets.RESOURCE_GROUP_PROD }}" >> $GITHUB_ENV
       
       - name: Destroy infrastructure (if requested)
         if: github.event.inputs.destroy == 'true'
         run: |
           echo "⚠️ DESTROYING INFRASTRUCTURE - This action cannot be undone!"
           az deployment group delete \
-            --resource-group ${{ secrets[format('RESOURCE_GROUP_{0}', upper(github.event.inputs.environment))] }} \
+            --resource-group $RESOURCE_GROUP \
             --name main
       
       - name: Output deployment results
         if: github.event.inputs.destroy != 'true'
         run: |
           az deployment group show \
-            --resource-group ${{ secrets[format('RESOURCE_GROUP_{0}', upper(github.event.inputs.environment))] }} \
+            --resource-group $RESOURCE_GROUP \
             --name main \
             --query properties.outputs
