@@ -235,7 +235,7 @@ class GPXSpeedModifier(BaseTool):
                     if time_elem is not None and time_elem.text:
                         try:
                             time = datetime.fromisoformat(time_elem.text.replace("Z", "+00:00"))
-                        except:
+                        except (ValueError, AttributeError):
                             pass
 
                     all_points.append({"lat": lat, "lon": lon, "ele": ele, "time": time})
