@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "15891190870248009759"
+      "templateHash": "5373158125246906583"
     }
   },
   "parameters": {
@@ -66,8 +66,7 @@
     }
   },
   "variables": {
-    "namingPrefix": "[format('{0}-{1}', parameters('appName'), parameters('environment'))]",
-    "uniqueSuffix": "[uniqueString(resourceGroup().id)]"
+    "namingPrefix": "[format('{0}-{1}', parameters('appName'), parameters('environment'))]"
   },
   "resources": [
     {
@@ -87,7 +86,7 @@
             "value": "[variables('namingPrefix')]"
           },
           "uniqueSuffix": {
-            "value": "[variables('uniqueSuffix')]"
+            "value": ""
           },
           "tags": {
             "value": "[parameters('tags')]"
@@ -100,7 +99,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "17877960568976701134"
+              "templateHash": "7025837781612352107"
             }
           },
           "parameters": {
@@ -117,11 +116,14 @@
               "type": "object"
             }
           },
+          "variables": {
+            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'westeurope', if(equals(parameters('location'), 'northeurope'), 'northeurope', if(equals(parameters('location'), 'eastus'), 'eastus', if(equals(parameters('location'), 'eastus2'), 'eastus2', parameters('location')))))]"
+          },
           "resources": [
             {
               "type": "Microsoft.OperationalInsights/workspaces",
               "apiVersion": "2022-10-01",
-              "name": "[format('{0}-logs-{1}', parameters('namingPrefix'), parameters('uniqueSuffix'))]",
+              "name": "[format('law-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))]",
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
               "properties": {
@@ -142,46 +144,46 @@
             {
               "type": "Microsoft.Insights/components",
               "apiVersion": "2020-02-02",
-              "name": "[format('{0}-ai-{1}', parameters('namingPrefix'), parameters('uniqueSuffix'))]",
+              "name": "[format('ai-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))]",
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
               "kind": "web",
               "properties": {
                 "Application_Type": "web",
-                "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-logs-{1}', parameters('namingPrefix'), parameters('uniqueSuffix')))]",
+                "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', format('law-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix')))]",
                 "IngestionMode": "LogAnalytics",
                 "publicNetworkAccessForIngestion": "Enabled",
                 "publicNetworkAccessForQuery": "Enabled"
               },
               "dependsOn": [
-                "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-logs-{1}', parameters('namingPrefix'), parameters('uniqueSuffix')))]"
+                "[resourceId('Microsoft.OperationalInsights/workspaces', format('law-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix')))]"
               ]
             }
           ],
           "outputs": {
             "logAnalyticsWorkspaceId": {
               "type": "string",
-              "value": "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-logs-{1}', parameters('namingPrefix'), parameters('uniqueSuffix')))]"
+              "value": "[resourceId('Microsoft.OperationalInsights/workspaces', format('law-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix')))]"
             },
             "logAnalyticsWorkspaceName": {
               "type": "string",
-              "value": "[format('{0}-logs-{1}', parameters('namingPrefix'), parameters('uniqueSuffix'))]"
+              "value": "[format('law-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))]"
             },
             "applicationInsightsId": {
               "type": "string",
-              "value": "[resourceId('Microsoft.Insights/components', format('{0}-ai-{1}', parameters('namingPrefix'), parameters('uniqueSuffix')))]"
+              "value": "[resourceId('Microsoft.Insights/components', format('ai-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix')))]"
             },
             "applicationInsightsName": {
               "type": "string",
-              "value": "[format('{0}-ai-{1}', parameters('namingPrefix'), parameters('uniqueSuffix'))]"
+              "value": "[format('ai-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))]"
             },
             "applicationInsightsConnectionString": {
               "type": "string",
-              "value": "[reference(resourceId('Microsoft.Insights/components', format('{0}-ai-{1}', parameters('namingPrefix'), parameters('uniqueSuffix'))), '2020-02-02').ConnectionString]"
+              "value": "[reference(resourceId('Microsoft.Insights/components', format('ai-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))), '2020-02-02').ConnectionString]"
             },
             "applicationInsightsInstrumentationKey": {
               "type": "string",
-              "value": "[reference(resourceId('Microsoft.Insights/components', format('{0}-ai-{1}', parameters('namingPrefix'), parameters('uniqueSuffix'))), '2020-02-02').InstrumentationKey]"
+              "value": "[reference(resourceId('Microsoft.Insights/components', format('ai-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))), '2020-02-02').InstrumentationKey]"
             }
           }
         }
@@ -204,7 +206,7 @@
             "value": "[variables('namingPrefix')]"
           },
           "uniqueSuffix": {
-            "value": "[variables('uniqueSuffix')]"
+            "value": ""
           },
           "tags": {
             "value": "[parameters('tags')]"
@@ -217,7 +219,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "12607998410211312530"
+              "templateHash": "146927862985086242"
             }
           },
           "parameters": {
@@ -235,7 +237,8 @@
             }
           },
           "variables": {
-            "acrName": "[replace(format('{0}acr{1}', parameters('namingPrefix'), parameters('uniqueSuffix')), '-', '')]"
+            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'we', if(equals(parameters('location'), 'northeurope'), 'ne', if(equals(parameters('location'), 'eastus'), 'eu', if(equals(parameters('location'), 'eastus2'), 'eu2', 'we'))))]",
+            "acrName": "[format('acr{0}{1}01', variables('locationAbbr'), replace(parameters('namingPrefix'), '-', ''))]"
           },
           "resources": [
             {
@@ -314,13 +317,31 @@
             "value": "[variables('namingPrefix')]"
           },
           "uniqueSuffix": {
-            "value": "[variables('uniqueSuffix')]"
+            "value": ""
           },
           "tags": {
             "value": "[parameters('tags')]"
           },
           "tenantId": {
             "value": "[subscription().tenantId]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "djangoSecretKey": {
+            "value": "[parameters('djangoSecretKey')]"
+          },
+          "postgresAdminPassword": {
+            "value": "[parameters('postgresAdminPassword')]"
+          },
+          "redisAccessKey": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'redis-deployment'), '2025-04-01').outputs.accessKey.value]"
+          },
+          "storageAccountKey": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage-deployment'), '2025-04-01').outputs.storageAccountKey.value]"
+          },
+          "applicationInsightsConnectionString": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring-deployment'), '2025-04-01').outputs.applicationInsightsConnectionString.value]"
           }
         },
         "template": {
@@ -330,7 +351,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "13077893678067928607"
+              "templateHash": "10006975210365483844"
             }
           },
           "parameters": {
@@ -348,10 +369,33 @@
             },
             "tenantId": {
               "type": "string"
+            },
+            "environment": {
+              "type": "string",
+              "defaultValue": "dev",
+              "metadata": {
+                "description": "Environment (dev, staging, prod)"
+              }
+            },
+            "djangoSecretKey": {
+              "type": "securestring"
+            },
+            "postgresAdminPassword": {
+              "type": "securestring"
+            },
+            "redisAccessKey": {
+              "type": "securestring"
+            },
+            "storageAccountKey": {
+              "type": "securestring"
+            },
+            "applicationInsightsConnectionString": {
+              "type": "securestring"
             }
           },
           "variables": {
-            "keyVaultName": "[format('{0}-kv-{1}', parameters('namingPrefix'), parameters('uniqueSuffix'))]"
+            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'we', if(equals(parameters('location'), 'northeurope'), 'ne', if(equals(parameters('location'), 'eastus'), 'eu', if(equals(parameters('location'), 'eastus2'), 'eu2', 'we'))))]",
+            "keyVaultName": "[format('kv{0}{1}01', variables('locationAbbr'), replace(parameters('namingPrefix'), '-', ''))]"
           },
           "resources": [
             {
@@ -366,7 +410,7 @@
                 "enabledForTemplateDeployment": true,
                 "tenantId": "[parameters('tenantId')]",
                 "enableSoftDelete": true,
-                "softDeleteRetentionInDays": 7,
+                "softDeleteRetentionInDays": "[if(equals(parameters('environment'), 'prod'), 90, 7)]",
                 "enableRbacAuthorization": true,
                 "publicNetworkAccess": "Enabled",
                 "sku": {
@@ -380,6 +424,66 @@
                   "virtualNetworkRules": []
                 }
               }
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2023-02-01",
+              "name": "[format('{0}/{1}', variables('keyVaultName'), 'django-secret-key')]",
+              "properties": {
+                "value": "[parameters('djangoSecretKey')]",
+                "contentType": "text/plain"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2023-02-01",
+              "name": "[format('{0}/{1}', variables('keyVaultName'), 'postgres-password')]",
+              "properties": {
+                "value": "[parameters('postgresAdminPassword')]",
+                "contentType": "text/plain"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2023-02-01",
+              "name": "[format('{0}/{1}', variables('keyVaultName'), 'redis-access-key')]",
+              "properties": {
+                "value": "[parameters('redisAccessKey')]",
+                "contentType": "text/plain"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2023-02-01",
+              "name": "[format('{0}/{1}', variables('keyVaultName'), 'storage-account-key')]",
+              "properties": {
+                "value": "[parameters('storageAccountKey')]",
+                "contentType": "text/plain"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2023-02-01",
+              "name": "[format('{0}/{1}', variables('keyVaultName'), 'appinsights-connection-string')]",
+              "properties": {
+                "value": "[parameters('applicationInsightsConnectionString')]",
+                "contentType": "text/plain"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+              ]
             }
           ],
           "outputs": {
@@ -397,7 +501,12 @@
             }
           }
         }
-      }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'monitoring-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'redis-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'storage-deployment')]"
+      ]
     },
     {
       "type": "Microsoft.Resources/deployments",
@@ -416,7 +525,7 @@
             "value": "[variables('namingPrefix')]"
           },
           "uniqueSuffix": {
-            "value": "[variables('uniqueSuffix')]"
+            "value": ""
           },
           "tags": {
             "value": "[parameters('tags')]"
@@ -429,7 +538,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "8106311186378268500"
+              "templateHash": "14087762756741986013"
             }
           },
           "parameters": {
@@ -447,7 +556,8 @@
             }
           },
           "variables": {
-            "storageAccountName": "[replace(format('{0}st{1}', parameters('namingPrefix'), parameters('uniqueSuffix')), '-', '')]"
+            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'we', if(equals(parameters('location'), 'northeurope'), 'ne', if(equals(parameters('location'), 'eastus'), 'eu', if(equals(parameters('location'), 'eastus2'), 'eu2', 'we'))))]",
+            "storageAccountName": "[format('sa{0}{1}01', variables('locationAbbr'), replace(parameters('namingPrefix'), '-', ''))]"
           },
           "resources": [
             {
@@ -551,7 +661,7 @@
               "apiVersion": "2023-01-01",
               "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'static')]",
               "properties": {
-                "publicAccess": "Blob"
+                "publicAccess": "None"
               },
               "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts/blobServices', take(toLower(variables('storageAccountName')), 24), 'default')]"
@@ -596,7 +706,7 @@
             "value": "[variables('namingPrefix')]"
           },
           "uniqueSuffix": {
-            "value": "[variables('uniqueSuffix')]"
+            "value": ""
           },
           "tags": {
             "value": "[parameters('tags')]"
@@ -609,7 +719,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "14479909215507975720"
+              "templateHash": "10921078266645462142"
             }
           },
           "parameters": {
@@ -627,7 +737,8 @@
             }
           },
           "variables": {
-            "redisName": "[format('{0}-redis-{1}', parameters('namingPrefix'), parameters('uniqueSuffix'))]"
+            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'westeurope', if(equals(parameters('location'), 'northeurope'), 'northeurope', if(equals(parameters('location'), 'eastus'), 'eastus', if(equals(parameters('location'), 'eastus2'), 'eastus2', parameters('location')))))]",
+            "redisName": "[format('red-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))]"
           },
           "resources": [
             {
@@ -698,7 +809,7 @@
             "value": "[variables('namingPrefix')]"
           },
           "uniqueSuffix": {
-            "value": "[variables('uniqueSuffix')]"
+            "value": ""
           },
           "tags": {
             "value": "[parameters('tags')]"
@@ -720,7 +831,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "4909469238476016036"
+              "templateHash": "2523857326701066409"
             }
           },
           "parameters": {
@@ -747,7 +858,8 @@
             }
           },
           "variables": {
-            "postgresServerName": "[format('{0}-psql-{1}', parameters('namingPrefix'), parameters('uniqueSuffix'))]",
+            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'westeurope', if(equals(parameters('location'), 'northeurope'), 'northeurope', if(equals(parameters('location'), 'eastus'), 'eastus', if(equals(parameters('location'), 'eastus2'), 'eastus2', parameters('location')))))]",
+            "postgresServerName": "[format('psql-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))]",
             "databaseName": "magictoolbox",
             "skuTier": "[if(equals(parameters('environment'), 'prod'), 'GeneralPurpose', 'Burstable')]",
             "skuName": "[if(equals(parameters('environment'), 'prod'), 'Standard_D2ds_v4', 'Standard_B1ms')]"
@@ -816,6 +928,8 @@
                 "source": "user-override"
               },
               "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/databases', variables('postgresServerName'), variables('databaseName'))]",
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/firewallRules', variables('postgresServerName'), 'AllowAzureServices')]",
                 "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('postgresServerName'))]"
               ]
             }
@@ -862,7 +976,7 @@
             "value": "[variables('namingPrefix')]"
           },
           "uniqueSuffix": {
-            "value": "[variables('uniqueSuffix')]"
+            "value": ""
           },
           "tags": {
             "value": "[parameters('tags')]"
@@ -878,6 +992,12 @@
           },
           "acrLoginServer": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acr-deployment'), '2025-04-01').outputs.loginServer.value]"
+          },
+          "acrUsername": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acr-deployment'), '2025-04-01').outputs.acrUsername.value]"
+          },
+          "acrPassword": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acr-deployment'), '2025-04-01').outputs.acrPassword.value]"
           },
           "keyVaultName": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault-deployment'), '2025-04-01').outputs.keyVaultName.value]"
@@ -917,7 +1037,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "12971971614258905479"
+              "templateHash": "62749665369378783"
             }
           },
           "parameters": {
@@ -940,10 +1060,16 @@
               "type": "string"
             },
             "applicationInsightsConnectionString": {
-              "type": "string"
+              "type": "securestring"
             },
             "acrLoginServer": {
               "type": "string"
+            },
+            "acrUsername": {
+              "type": "string"
+            },
+            "acrPassword": {
+              "type": "securestring"
             },
             "keyVaultName": {
               "type": "string"
@@ -977,9 +1103,11 @@
             }
           },
           "variables": {
-            "containerAppsEnvironmentName": "[format('{0}-env-{1}', parameters('namingPrefix'), parameters('uniqueSuffix'))]",
-            "containerAppName": "[format('{0}-app-{1}', parameters('namingPrefix'), parameters('uniqueSuffix'))]",
-            "imageName": "[format('{0}/magictoolbox:latest', parameters('acrLoginServer'))]",
+            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'we', if(equals(parameters('location'), 'northeurope'), 'ne', if(equals(parameters('location'), 'eastus'), 'eu', if(equals(parameters('location'), 'eastus2'), 'eu2', 'we'))))]",
+            "containerAppsEnvironmentName": "[format('env-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))]",
+            "containerAppName": "[format('app-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))]",
+            "imageTag": "[if(equals(parameters('environment'), 'prod'), 'main', 'develop')]",
+            "imageName": "[format('{0}/magictoolbox:{1}', parameters('acrLoginServer'), variables('imageTag'))]",
             "minReplicas": "[if(equals(parameters('environment'), 'prod'), 2, 1)]",
             "maxReplicas": "[if(equals(parameters('environment'), 'prod'), 10, 3)]",
             "cpuCores": "[if(equals(parameters('environment'), 'prod'), '1.0', '0.5')]",
@@ -1031,10 +1159,15 @@
                   "registries": [
                     {
                       "server": "[parameters('acrLoginServer')]",
-                      "identity": "system"
+                      "username": "[parameters('acrUsername')]",
+                      "passwordSecretRef": "acr-password"
                     }
                   ],
                   "secrets": [
+                    {
+                      "name": "acr-password",
+                      "value": "[parameters('acrPassword')]"
+                    },
                     {
                       "name": "django-secret-key",
                       "value": "[parameters('djangoSecretKey')]"
@@ -1072,6 +1205,10 @@
                           "value": "magictoolbox.settings.production"
                         },
                         {
+                          "name": "ENVIRONMENT",
+                          "value": "[parameters('environment')]"
+                        },
+                        {
                           "name": "SECRET_KEY",
                           "secretRef": "django-secret-key"
                         },
@@ -1084,12 +1221,36 @@
                           "value": "False"
                         },
                         {
-                          "name": "DATABASE_URL",
-                          "value": "[format('postgresql://{0}:{1}@{2}:5432/{3}?sslmode=require', parameters('postgresAdminUsername'), parameters('postgresAdminPassword'), parameters('postgresHost'), parameters('postgresDatabase'))]"
+                          "name": "DB_NAME",
+                          "value": "[parameters('postgresDatabase')]"
+                        },
+                        {
+                          "name": "DB_USER",
+                          "value": "[parameters('postgresAdminUsername')]"
+                        },
+                        {
+                          "name": "DB_PASSWORD",
+                          "value": "[parameters('postgresAdminPassword')]"
+                        },
+                        {
+                          "name": "DB_HOST",
+                          "value": "[parameters('postgresHost')]"
+                        },
+                        {
+                          "name": "DB_PORT",
+                          "value": "5432"
                         },
                         {
                           "name": "REDIS_URL",
                           "value": "[format('rediss://:{0}@{1}:6380/0?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))]"
+                        },
+                        {
+                          "name": "CELERY_BROKER_URL",
+                          "value": "[format('rediss://:{0}@{1}:6380/1?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))]"
+                        },
+                        {
+                          "name": "CELERY_RESULT_BACKEND",
+                          "value": "[format('rediss://:{0}@{1}:6380/1?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))]"
                         },
                         {
                           "name": "AZURE_STORAGE_ACCOUNT_NAME",
@@ -1114,6 +1275,14 @@
                         {
                           "name": "KEY_VAULT_NAME",
                           "value": "[parameters('keyVaultName')]"
+                        },
+                        {
+                          "name": "REDIS_HOST",
+                          "value": "[parameters('redisHostName')]"
+                        },
+                        {
+                          "name": "REDIS_ACCESS_KEY",
+                          "secretRef": "redis-access-key"
                         },
                         {
                           "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
@@ -1219,6 +1388,116 @@
         "[resourceId('Microsoft.Resources/deployments', 'monitoring-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'postgresql-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'redis-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'storage-deployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "rbac-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "keyVaultName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault-deployment'), '2025-04-01').outputs.keyVaultName.value]"
+          },
+          "storageAccountName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage-deployment'), '2025-04-01').outputs.storageAccountName.value]"
+          },
+          "acrName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acr-deployment'), '2025-04-01').outputs.acrName.value]"
+          },
+          "containerAppIdentityPrincipalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'container-apps-deployment'), '2025-04-01').outputs.containerAppIdentityPrincipalId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "12772465946344370189"
+            }
+          },
+          "parameters": {
+            "keyVaultName": {
+              "type": "string"
+            },
+            "storageAccountName": {
+              "type": "string"
+            },
+            "acrName": {
+              "type": "string"
+            },
+            "containerAppIdentityPrincipalId": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "keyVaultSecretsUserRoleId": "4633458b-17de-408a-b874-0445c86b69e6",
+            "storageBlobDataContributorRoleId": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+            "acrPullRoleId": "7f951dda-4ed3-4680-a7ca-43fe172d538d"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.KeyVault/vaults/{0}', parameters('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('containerAppIdentityPrincipalId'), variables('keyVaultSecretsUserRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('keyVaultSecretsUserRoleId'))]",
+                "principalId": "[parameters('containerAppIdentityPrincipalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.Storage/storageAccounts/{0}', parameters('storageAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('containerAppIdentityPrincipalId'), variables('storageBlobDataContributorRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('storageBlobDataContributorRoleId'))]",
+                "principalId": "[parameters('containerAppIdentityPrincipalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.ContainerRegistry/registries/{0}', parameters('acrName'))]",
+              "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), parameters('containerAppIdentityPrincipalId'), variables('acrPullRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('acrPullRoleId'))]",
+                "principalId": "[parameters('containerAppIdentityPrincipalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            }
+          ],
+          "outputs": {
+            "keyVaultRoleAssignmentId": {
+              "type": "string",
+              "value": "[extensionResourceId(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('containerAppIdentityPrincipalId'), variables('keyVaultSecretsUserRoleId')))]"
+            },
+            "storageRoleAssignmentId": {
+              "type": "string",
+              "value": "[extensionResourceId(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('containerAppIdentityPrincipalId'), variables('storageBlobDataContributorRoleId')))]"
+            },
+            "acrRoleAssignmentId": {
+              "type": "string",
+              "value": "[extensionResourceId(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), parameters('containerAppIdentityPrincipalId'), variables('acrPullRoleId')))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'acr-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'container-apps-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'keyvault-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'storage-deployment')]"
       ]
     }

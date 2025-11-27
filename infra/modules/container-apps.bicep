@@ -1,13 +1,9 @@
 // Azure Container Apps Environment and App
 param location string
 param namingPrefix string
-param uniqueSuffix string
 param tags object
 param environment string
 param logAnalyticsWorkspaceId string
-
-@secure()
-param applicationInsightsConnectionString string
 
 param acrLoginServer string
 param acrUsername string
@@ -21,18 +17,6 @@ param redisHostName string
 param postgresHost string
 param postgresDatabase string
 param postgresAdminUsername string
-
-@secure()
-param storageAccountKey string
-
-@secure()
-param redisAccessKey string
-
-@secure()
-param postgresAdminPassword string
-
-@secure()
-param djangoSecretKey string
 
 // Location abbreviation for naming (Container Apps have 32 char limit)
 var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
@@ -106,27 +90,32 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
       secrets: [
         {
           name: 'acr-password'
-          value: acrPassword
+          value: acrPassword // ACR password is not stored in Key Vault, passed from ACR module
         }
         {
           name: 'django-secret-key'
-          value: djangoSecretKey
+          keyVaultUrl: 'https://${keyVaultName}.${az.environment().suffixes.keyvaultDns}/secrets/django-secret-key'
+          identity: 'system'
         }
         {
           name: 'postgres-password'
-          value: postgresAdminPassword
+          keyVaultUrl: 'https://${keyVaultName}.${az.environment().suffixes.keyvaultDns}/secrets/postgres-password'
+          identity: 'system'
         }
         {
           name: 'redis-access-key'
-          value: redisAccessKey
+          keyVaultUrl: 'https://${keyVaultName}.${az.environment().suffixes.keyvaultDns}/secrets/redis-access-key'
+          identity: 'system'
         }
         {
           name: 'storage-account-key'
-          value: storageAccountKey
+          keyVaultUrl: 'https://${keyVaultName}.${az.environment().suffixes.keyvaultDns}/secrets/storage-account-key'
+          identity: 'system'
         }
         {
           name: 'appinsights-connection-string'
-          value: applicationInsightsConnectionString
+          keyVaultUrl: 'https://${keyVaultName}.${az.environment().suffixes.keyvaultDns}/secrets/appinsights-connection-string'
+          identity: 'system'
         }
       ]
     }
@@ -170,7 +159,7 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             }
             {
               name: 'DB_PASSWORD'
-              value: postgresAdminPassword
+              secretRef: 'postgres-password'
             }
             {
               name: 'DB_HOST'
@@ -181,16 +170,24 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: '5432'
             }
             {
+              name: 'REDIS_HOST'
+              value: redisHostName
+            }
+            {
+              name: 'REDIS_ACCESS_KEY'
+              secretRef: 'redis-access-key'
+            }
+            {
               name: 'REDIS_URL'
-              value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/0?ssl_cert_reqs=required'
+              value: 'rediss://default@${redisHostName}:6380/0?ssl_cert_reqs=required'
             }
             {
               name: 'CELERY_BROKER_URL'
-              value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/1?ssl_cert_reqs=required'
+              value: 'rediss://default@${redisHostName}:6380/1?ssl_cert_reqs=required'
             }
             {
               name: 'CELERY_RESULT_BACKEND'
-              value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/1?ssl_cert_reqs=required'
+              value: 'rediss://default@${redisHostName}:6380/1?ssl_cert_reqs=required'
             }
             {
               name: 'AZURE_STORAGE_ACCOUNT_NAME'

@@ -122,24 +122,18 @@ module containerApps './modules/container-apps.bicep' = {
   params: {
     location: location
     namingPrefix: namingPrefix
-    uniqueSuffix: '' // Not used with new naming convention
     tags: tags
     environment: environment
     logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
-    applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
     acrLoginServer: acr.outputs.loginServer
     acrUsername: acr.outputs.acrUsername
     acrPassword: acr.outputs.acrPassword
     keyVaultName: keyVault.outputs.keyVaultName
     storageAccountName: storage.outputs.storageAccountName
-    storageAccountKey: storage.outputs.storageAccountKey
     redisHostName: redis.outputs.hostName
-    redisAccessKey: redis.outputs.accessKey
     postgresHost: postgresql.outputs.fqdn
     postgresDatabase: postgresql.outputs.databaseName
     postgresAdminUsername: postgresAdminUsername
-    postgresAdminPassword: postgresAdminPassword
-    djangoSecretKey: djangoSecretKey
   }
 }
 
