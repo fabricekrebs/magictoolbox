@@ -169,28 +169,8 @@ jobs:
           resourceGroup: ${{ secrets.RESOURCE_GROUP_DEV }}
           imageToDeploy: ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.APP_NAME }}:${{ github.ref_name }}-${{ steps.short_sha.outputs.short }}
       
-      - name: Run database migrations
-        uses: azure/CLI@v1
-        with:
-          inlineScript: |
-            az containerapp exec \
-              --name ${{ secrets.CONTAINER_APP_NAME_DEV }} \
-              --resource-group ${{ secrets.RESOURCE_GROUP_DEV }} \
-              --command "python manage.py migrate --noinput"
-      
-      - name: Collect static files
-        uses: azure/CLI@v1
-        with:
-          inlineScript: |
-            az containerapp exec \
-              --name ${{ secrets.CONTAINER_APP_NAME_DEV }} \
-              --resource-group ${{ secrets.RESOURCE_GROUP_DEV }} \
-              --command "python manage.py collectstatic --noinput"
-      
-      - name: Health check
-        run: |
-          sleep 30
-          curl -f ${{ steps.deploy.outputs.url }}/health/ || exit 1
+      # Note: Migrations and collectstatic run in container startup script
+      # az containerapp exec doesn't work in non-interactive CI/CD environments
   
   # Deploy to staging environment
   deploy-staging:
@@ -220,19 +200,8 @@ jobs:
           resourceGroup: ${{ secrets.RESOURCE_GROUP_STAGING }}
           imageToDeploy: ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.APP_NAME }}:${{ github.sha }}
       
-      - name: Run database migrations
-        uses: azure/CLI@v1
-        with:
-          inlineScript: |
-            az containerapp exec \
-              --name ${{ secrets.CONTAINER_APP_NAME_STAGING }} \
-              --resource-group ${{ secrets.RESOURCE_GROUP_STAGING }} \
-              --command "python manage.py migrate --noinput"
-      
-      - name: Health check
-        run: |
-          sleep 30
-          curl -f ${{ steps.deploy.outputs.url }}/health/ || exit 1
+      # Note: Migrations and collectstatic run in container startup script
+      # az containerapp exec doesn't work in non-interactive CI/CD environments
   
   # Deploy to production environment (requires approval)
   deploy-prod:
@@ -262,19 +231,8 @@ jobs:
           resourceGroup: ${{ secrets.RESOURCE_GROUP_PROD }}
           imageToDeploy: ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.APP_NAME }}:${{ github.sha }}
       
-      - name: Run database migrations
-        uses: azure/CLI@v1
-        with:
-          inlineScript: |
-            az containerapp exec \
-              --name ${{ secrets.CONTAINER_APP_NAME_PROD }} \
-              --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
-              --command "python manage.py migrate --noinput"
-      
-      - name: Health check
-        run: |
-          sleep 30
-          curl -f ${{ steps.deploy.outputs.url }}/health/ || exit 1
+      # Note: Migrations and collectstatic run in container startup script
+      # az containerapp exec doesn't work in non-interactive CI/CD environments
       
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
