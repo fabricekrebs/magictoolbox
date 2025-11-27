@@ -41,7 +41,9 @@ var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ?
 // Using abbreviated names to fit within 32 char limit
 var containerAppsEnvironmentName = 'env-${locationAbbr}-${namingPrefix}-01'
 var containerAppName = 'app-${locationAbbr}-${namingPrefix}-01'
-var imageName = '${acrLoginServer}/magictoolbox:latest'
+// Use environment-specific image tags: develop for dev, main for prod
+var imageTag = environment == 'prod' ? 'main' : 'develop'
+var imageName = '${acrLoginServer}/magictoolbox:${imageTag}'
 
 // Minimum and maximum replicas based on environment
 var minReplicas = environment == 'prod' ? 2 : 1
