@@ -59,28 +59,8 @@
               <div id="fileList" class="mt-2"></div>
             </div>
 
-            <!-- Mode Selection -->
+            <!-- Speed Modifier -->
             <div class="mb-3">
-              <label class="form-label">Action</label>
-              <div class="btn-group w-100" role="group">
-                <input type="radio" class="btn-check" name="mode" id="modeAnalyze" value="analyze" checked>
-                <label class="btn btn-outline-primary" for="modeAnalyze">
-                  <i class="bi bi-bar-chart me-2"></i>Analyze Only
-                </label>
-                
-                <input type="radio" class="btn-check" name="mode" id="modeModify" value="modify">
-                <label class="btn btn-outline-primary" for="modeModify">
-                  <i class="bi bi-speedometer2 me-2"></i>Modify Speed
-                </label>
-              </div>
-              <div class="form-text">
-                Analyze: Get statistics without modifying the file<br>
-                Modify: Change speed and download modified GPX
-              </div>
-            </div>
-
-            <!-- Speed Modifier (shown only in modify mode) -->
-            <div id="speedModifierSection" class="mb-3" style="display: none;">
               <label for="speedMultiplier" class="form-label">
                 Speed Multiplier: <span id="speedValue">1.0</span>x
                 <small class="text-muted">(Average speed will be multiplied by this factor)</small>
@@ -104,7 +84,7 @@
             <!-- Submit Button -->
             <div class="d-grid gap-2">
               <button type="submit" class="btn btn-primary btn-lg" id="convertBtn">
-                <i class="bi bi-play-circle me-2"></i><span id="btnText">Analyze Track</span>
+                <i class="bi bi-play-circle me-2"></i>Modify Track Speed
               </button>
             </div>
           </form>
@@ -122,64 +102,7 @@
             <p class="text-center text-muted mt-2" id="progressMessage">Processing your file...</p>
           </div>
 
-          <!-- ==================== ANALYSIS RESULT ==================== -->
-          <div id="analysisSection" class="mt-4" style="display: none;">
-            <div class="alert alert-success" role="alert">
-              <h5 class="alert-heading">
-                <i class="bi bi-check-circle me-2"></i>Analysis Complete!
-              </h5>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Track Statistics</h6>
-              </div>
-              <div class="card-body">
-                <div class="row">
-                  <div class="col-md-6 mb-3">
-                    <h6 class="text-primary"><i class="bi bi-map me-2"></i>Distance</h6>
-                    <p class="h4 mb-0" id="statDistance">-</p>
-                  </div>
-                  <div class="col-md-6 mb-3">
-                    <h6 class="text-primary"><i class="bi bi-clock me-2"></i>Duration</h6>
-                    <p class="h4 mb-0" id="statDuration">-</p>
-                  </div>
-                  <div class="col-md-6 mb-3">
-                    <h6 class="text-primary"><i class="bi bi-speedometer me-2"></i>Average Speed</h6>
-                    <p class="h4 mb-0" id="statAvgSpeed">-</p>
-                  </div>
-                  <div class="col-md-6 mb-3">
-                    <h6 class="text-primary"><i class="bi bi-lightning me-2"></i>Max Speed</h6>
-                    <p class="h4 mb-0" id="statMaxSpeed">-</p>
-                  </div>
-                  <div class="col-md-6 mb-3">
-                    <h6 class="text-primary"><i class="bi bi-arrow-up-circle me-2"></i>Elevation Gain</h6>
-                    <p class="h4 mb-0" id="statElevGain">-</p>
-                  </div>
-                  <div class="col-md-6 mb-3">
-                    <h6 class="text-primary"><i class="bi bi-arrow-down-circle me-2"></i>Elevation Loss</h6>
-                    <p class="h4 mb-0" id="statElevLoss">-</p>
-                  </div>
-                  <div class="col-md-6 mb-3">
-                    <h6 class="text-primary"><i class="bi bi-geo-alt me-2"></i>Elevation Range</h6>
-                    <p class="h4 mb-0" id="statElevRange">-</p>
-                  </div>
-                  <div class="col-md-6 mb-3">
-                    <h6 class="text-primary"><i class="bi bi-pin me-2"></i>Track Points</h6>
-                    <p class="h4 mb-0" id="statPoints">-</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="d-grid gap-2 mt-3">
-              <button type="button" class="btn btn-outline-primary" onclick="location.reload()">
-                <i class="bi bi-arrow-clockwise me-2"></i>Analyze Another File
-              </button>
-            </div>
-          </div>
-
-          <!-- ==================== SINGLE FILE RESULT (MODIFY MODE) ==================== -->
+          <!-- ==================== SINGLE FILE RESULT ==================== -->
           <div id="resultSection" class="mt-4" style="display: none;">
             <div class="alert alert-success" role="alert">
               <h5 class="alert-heading">
@@ -272,13 +195,12 @@
         </div>
         <div class="card-body">
           <ul class="list-unstyled mb-0">
-            <li><i class="bi bi-check-circle text-success me-2"></i>Detailed track analysis</li>
-            <li><i class="bi bi-check-circle text-success me-2"></i>Distance and duration</li>
-            <li><i class="bi bi-check-circle text-success me-2"></i>Speed statistics</li>
-            <li><i class="bi bi-check-circle text-success me-2"></i>Elevation data</li>
             <li><i class="bi bi-check-circle text-success me-2"></i>Modify average speed</li>
             <li><i class="bi bi-check-circle text-success me-2"></i>Preserves distance & elevation</li>
+            <li><i class="bi bi-check-circle text-success me-2"></i>Adjust timestamps only</li>
+            <li><i class="bi bi-check-circle text-success me-2"></i>Speed range: 0.1x to 10x</li>
             <li><i class="bi bi-check-circle text-success me-2"></i>Bulk processing support</li>
+            <li><i class="bi bi-check-circle text-success me-2"></i>Original route preserved</li>
           </ul>
         </div>
       </div>
@@ -291,11 +213,7 @@
           </h6>
         </div>
         <div class="card-body">
-          <p class="small mb-2"><strong>Analyze Mode:</strong></p>
-          <p class="small text-muted mb-3">Extracts all statistics from your GPX file without making any changes.</p>
-          
-          <p class="small mb-2"><strong>Modify Mode:</strong></p>
-          <p class="small text-muted mb-0">Adjusts the timestamps in your GPX file to achieve the desired average speed. The route, distance, and elevation data remain unchanged - only the time between points is recalculated.</p>
+          <p class="small text-muted mb-0">The tool adjusts the timestamps in your GPX file to achieve the desired average speed. The route, distance, and elevation data remain unchanged - only the time between points is recalculated. Use the speed multiplier slider to set your desired speed: values below 1.0 slow down the track, while values above 1.0 speed it up.</p>
         </div>
       </div>
 
@@ -308,11 +226,11 @@
         </div>
         <div class="card-body">
           <ul class="small mb-0">
-            <li>Analyze recorded tracks</li>
             <li>Create training plans with different paces</li>
             <li>Adjust virtual ride speeds</li>
             <li>Compare different speed scenarios</li>
             <li>Generate realistic activity times</li>
+            <li>Simulate faster or slower performances</li>
           </ul>
         </div>
       </div>
@@ -323,23 +241,6 @@
 
 {% block extra_js %}
 <script>
-// ==================== MODE SWITCHING ====================
-const modeRadios = document.querySelectorAll('input[name="mode"]');
-const speedModifierSection = document.getElementById('speedModifierSection');
-const btnText = document.getElementById('btnText');
-
-modeRadios.forEach(radio => {
-  radio.addEventListener('change', function() {
-    if (this.value === 'modify') {
-      speedModifierSection.style.display = 'block';
-      btnText.textContent = 'Modify Track Speed';
-    } else {
-      speedModifierSection.style.display = 'none';
-      btnText.textContent = 'Analyze Track';
-    }
-  });
-});
-
 // ==================== SPEED MULTIPLIER SLIDER ====================
 const speedSlider = document.getElementById('speedMultiplier');
 const speedValue = document.getElementById('speedValue');
@@ -402,10 +303,8 @@ document.getElementById('toolForm').addEventListener('submit', async function(e)
     return;
   }
 
-  const mode = document.querySelector('input[name="mode"]:checked').value;
   const convertBtn = document.getElementById('convertBtn');
   const progressSection = document.getElementById('progressSection');
-  const analysisSection = document.getElementById('analysisSection');
   const resultSection = document.getElementById('resultSection');
   const bulkResultSection = document.getElementById('bulkResultSection');
   const progressBar = document.getElementById('progressBar');
@@ -415,7 +314,6 @@ document.getElementById('toolForm').addEventListener('submit', async function(e)
   // Show progress
   convertBtn.disabled = true;
   progressSection.style.display = 'block';
-  analysisSection.style.display = 'none';
   resultSection.style.display = 'none';
   bulkResultSection.style.display = 'none';
   
@@ -427,13 +325,9 @@ document.getElementById('toolForm').addEventListener('submit', async function(e)
   
   try {
     if (isBulk) {
-      await handleBulkProcessing(files, mode, progressBar, progressText);
+      await handleBulkProcessing(files, progressBar, progressText);
     } else {
-      if (mode === 'analyze') {
-        await handleSingleAnalysis(files[0], progressBar, progressText, this);
-      } else {
-        await handleSingleModification(files[0], progressBar, progressText, this);
-      }
+      await handleSingleModification(files[0], progressBar, progressText, this);
     }
   } catch (error) {
     console.error('Processing error:', error);
@@ -443,70 +337,6 @@ document.getElementById('toolForm').addEventListener('submit', async function(e)
     convertBtn.disabled = false;
   }
 });
-
-// ==================== SINGLE FILE ANALYSIS ====================
-async function handleSingleAnalysis(file, progressBar, progressText, form) {
-  const progressSection = document.getElementById('progressSection');
-  const analysisSection = document.getElementById('analysisSection');
-  
-  // Animate progress
-  let progress = 0;
-  const progressInterval = setInterval(() => {
-    progress += 15;
-    progressBar.style.width = Math.min(progress, 90) + '%';
-    progressText.textContent = Math.min(progress, 90) + '%';
-    if (progress >= 90) clearInterval(progressInterval);
-  }, 150);
-  
-  // Prepare form data
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('mode', 'analyze');
-  
-  try {
-    const response = await fetch('/api/v1/tools/gpx-speed-modifier/convert/', {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'X-CSRFToken': '{{ csrf_token }}'
-      }
-    });
-    
-    clearInterval(progressInterval);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Server error: ${response.status}`);
-    }
-    
-    // Complete progress
-    progressBar.style.width = '100%';
-    progressText.textContent = '100%';
-    
-    // Get JSON analysis result
-    const stats = await response.json();
-    
-    // Display statistics
-    document.getElementById('statDistance').textContent = `${stats.total_distance_km} km`;
-    document.getElementById('statDuration').textContent = stats.total_duration_formatted;
-    document.getElementById('statAvgSpeed').textContent = `${stats.average_speed_kmh} km/h`;
-    document.getElementById('statMaxSpeed').textContent = `${stats.max_speed_kmh} km/h`;
-    document.getElementById('statElevGain').textContent = `${stats.elevation_gain_m} m`;
-    document.getElementById('statElevLoss').textContent = `${stats.elevation_loss_m} m`;
-    document.getElementById('statElevRange').textContent = 
-      `${stats.min_elevation_m} - ${stats.max_elevation_m} m`;
-    document.getElementById('statPoints').textContent = stats.total_points;
-    
-    // Show results
-    setTimeout(() => {
-      progressSection.style.display = 'none';
-      analysisSection.style.display = 'block';
-      MagicToolbox.showNotification('Analysis complete!', 'success');
-    }, 500);
-  } catch (error) {
-    throw error;
-  }
-}
 
 // ==================== SINGLE FILE MODIFICATION ====================
 async function handleSingleModification(file, progressBar, progressText, form) {
@@ -586,10 +416,10 @@ async function handleSingleModification(file, progressBar, progressText, form) {
 }
 
 // ==================== BULK PROCESSING ====================
-async function handleBulkProcessing(files, mode, progressBar, progressText) {
+async function handleBulkProcessing(files, progressBar, progressText) {
   const progressSection = document.getElementById('progressSection');
   const bulkResultSection = document.getElementById('bulkResultSection');
-  const speedMultiplier = mode === 'modify' ? document.getElementById('speedMultiplier').value : null;
+  const speedMultiplier = document.getElementById('speedMultiplier').value;
   
   const results = [];
   const convertedBlobs = [];
@@ -606,10 +436,8 @@ async function handleBulkProcessing(files, mode, progressBar, progressText) {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('mode', mode);
-      if (mode === 'modify') {
-        formData.append('speed_multiplier', speedMultiplier);
-      }
+      formData.append('mode', 'modify');
+      formData.append('speed_multiplier', speedMultiplier);
       
       const response = await fetch('/api/v1/tools/gpx-speed-modifier/convert/', {
         method: 'POST',
@@ -695,7 +523,7 @@ async function handleBulkProcessing(files, mode, progressBar, progressText) {
       const downloadZipBtn = document.getElementById('downloadZipBtn');
       if (downloadZipBtn) {
         downloadZipBtn.href = zipUrl;
-        downloadZipBtn.download = `gpx_processed_${mode}.zip`;
+        downloadZipBtn.download = 'gpx_speed_modified.zip';
       }
     }
   }

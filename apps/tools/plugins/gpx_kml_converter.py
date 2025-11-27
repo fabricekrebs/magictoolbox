@@ -28,8 +28,8 @@ class GPXKMLConverter(BaseTool):
 
     # Tool metadata
     name = "gpx-kml-converter"
-    display_name = "GPX/KML Converter"
-    description = "Convert GPS files between GPX and KML formats"
+    display_name = "GPX ↔ KML Converter"
+    description = "Convert GPS files bidirectionally between GPX and KML formats with full preservation of waypoints, tracks, and routes. Supports both single file and bulk conversion for easy GPS data interchange."
     category = "file"
     version = "1.0.0"
     icon = "geo-alt"

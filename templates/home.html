@@ -64,27 +64,5 @@
     </div>
   </div>
 
-  <!-- Quick Access Tools -->
-  <div class="row">
-    <div class="col-12">
-      <h2 class="text-center mb-4">Popular Tools</h2>
-    </div>
-  </div>
-  <div class="row g-3">
-    <div class="col-md-6 col-lg-4">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title">
-            <i class="bi bi-image text-primary me-2"></i>Image Format Converter
-          </h5>
-          <p class="card-text text-muted">Convert images between different formats (JPG, PNG, WebP, etc.)</p>
-          <a href="{% url 'tools:tool_detail' 'image-format-converter' %}" class="btn btn-outline-primary btn-sm">
-            Try Now <i class="bi bi-arrow-right ms-1"></i>
-          </a>
-        </div>
-      </div>
-    </div>
-    <!-- Add more tool cards here as they are created -->
-  </div>
 </div>
 {% endblock %}

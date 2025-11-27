@@ -32,7 +32,8 @@ class ImageFormatConverter(BaseTool):
     name = "image-format-converter"
     display_name = "Image Format Converter"
     description = (
-        "Convert images between all common formats (JPG, PNG, WEBP, BMP, GIF, TIFF, ICO, and more)"
+        "Convert images between all common formats including JPG, PNG, WEBP, BMP, GIF, TIFF, and ICO. "
+        "Supports both single file and bulk conversion with quality preservation."
     )
     category = "image"
     version = "2.0.0"

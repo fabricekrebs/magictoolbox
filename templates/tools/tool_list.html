@@ -30,12 +30,12 @@
   <!-- Tools Grid -->
   <div class="row g-4" id="toolsGrid">
     {% for tool in tools %}
-      <div class="col-md-6 col-lg-4 tool-card" data-name="{{ tool.name|lower }}" data-description="{{ tool.description|lower }}">
+      <div class="col-md-6 col-lg-4 tool-card" data-name="{{ tool.display_name|lower }}" data-description="{{ tool.description|lower }}">
         <div class="card h-100 shadow-sm">
           <div class="card-body">
             <h5 class="card-title">
               <i class="bi bi-{{ tool.icon|default:'box' }} text-primary me-2"></i>
-              {{ tool.name }}
+              {{ tool.display_name }}
             </h5>
             <p class="card-text text-muted">{{ tool.description }}</p>
             <div class="d-flex justify-content-between align-items-center mt-3">
