@@ -10,6 +10,11 @@ param logAnalyticsWorkspaceId string
 param applicationInsightsConnectionString string
 
 param acrLoginServer string
+param acrUsername string
+
+@secure()
+param acrPassword string
+
 param keyVaultName string
 param storageAccountName string
 param redisHostName string
@@ -90,10 +95,15 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
       registries: [
         {
           server: acrLoginServer
-          identity: 'system' // Use managed identity to pull from ACR
+          username: acrUsername
+          passwordSecretRef: 'acr-password'
         }
       ]
       secrets: [
+        {
+          name: 'acr-password'
+          value: acrPassword
+        }
         {
           name: 'django-secret-key'
           value: djangoSecretKey

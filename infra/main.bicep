@@ -127,6 +127,8 @@ module containerApps './modules/container-apps.bicep' = {
     logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
     applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
     acrLoginServer: acr.outputs.loginServer
+    acrUsername: acr.outputs.acrUsername
+    acrPassword: acr.outputs.acrPassword
     keyVaultName: keyVault.outputs.keyVaultName
     storageAccountName: storage.outputs.storageAccountName
     storageAccountKey: storage.outputs.storageAccountKey
@@ -146,6 +148,7 @@ module rbac './modules/rbac.bicep' = {
   params: {
     keyVaultName: keyVault.outputs.keyVaultName
     storageAccountName: storage.outputs.storageAccountName
+    acrName: acr.outputs.acrName
     containerAppIdentityPrincipalId: containerApps.outputs.containerAppIdentityPrincipalId
   }
 }
