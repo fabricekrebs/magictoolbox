@@ -85,7 +85,7 @@ jobs:
           az deployment group what-if \
             --resource-group $RESOURCE_GROUP \
             --template-file ./infra/main.bicep \
-            --parameters ./infra/parameters.${{ github.event.inputs.environment }}.json \
+            --parameters ./infra/parameters.${{ steps.set_env.outputs.environment }}.json \
             --parameters \
               postgresAdminPassword="$POSTGRES_PASSWORD" \
               djangoSecretKey="$DJANGO_SECRET"
