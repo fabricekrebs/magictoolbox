@@ -29,10 +29,11 @@ param postgresAdminPassword string
 @secure()
 param djangoSecretKey string
 
-// Location abbreviation for naming
-var locationAbbr = location == 'westeurope' ? 'westeurope' : location == 'northeurope' ? 'northeurope' : location == 'eastus' ? 'eastus' : location == 'eastus2' ? 'eastus2' : location
+// Location abbreviation for naming (Container Apps have 32 char limit)
+var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
 
 // Container App names must be 2-32 chars, lowercase alphanumeric or '-', no '--', start with letter, end with alphanumeric
+// Using abbreviated names to fit within 32 char limit
 var containerAppsEnvironmentName = 'env-${locationAbbr}-${namingPrefix}-01'
 var containerAppName = 'app-${locationAbbr}-${namingPrefix}-01'
 var imageName = '${acrLoginServer}/magictoolbox:latest'
