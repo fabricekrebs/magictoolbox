@@ -40,6 +40,8 @@ SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"  # Better CSRF protection
+SESSION_COOKIE_AGE = 86400  # 24 hours
 
 # Static files - served by WhiteNoise from container
 # Use WhiteNoise to serve static files efficiently from the container
@@ -97,15 +99,22 @@ try:
             DB_PASSWORD = get_secret_or_env("postgres-password", "DB_PASSWORD", required=True)
             DATABASES["default"]["PASSWORD"] = DB_PASSWORD
 
-            # Redis credentials
+            # Redis credentials - Note: REDIS_URL is already set in environment variables
+            # Only override if we successfully get the key from Key Vault
             REDIS_ACCESS_KEY = get_secret_or_env(
                 "redis-access-key", "REDIS_ACCESS_KEY", required=False
             )
-            if REDIS_ACCESS_KEY:
+            # REDIS_URL from environment variables is already correctly formatted
+            # Only override CACHES if we have both REDIS_HOST and key from Key Vault
+            if REDIS_ACCESS_KEY and config("REDIS_HOST", default=""):
                 REDIS_HOST = config("REDIS_HOST", default="")
                 CACHES["default"][
                     "LOCATION"
                 ] = f"rediss://:{REDIS_ACCESS_KEY}@{REDIS_HOST}:6380/0?ssl_cert_reqs=required"
+                logger.info("Redis cache location updated from Key Vault credentials")
+            else:
+                # Use REDIS_URL from environment (set in container-apps.bicep)
+                logger.info("Using REDIS_URL from environment variables")
 
             # Storage credentials (for non-Managed Identity scenarios)
             STORAGE_ACCOUNT_KEY = get_secret_or_env(
@@ -122,6 +131,22 @@ except ImportError as e:
     logger.warning(
         f"Azure Key Vault packages not installed: {e}. Using environment variables for secrets."
     )
+
+# Validate Redis connection and fallback to database sessions if needed
+try:
+    import redis
+    from django_redis import get_redis_connection
+
+    # Test Redis connection
+    redis_conn = get_redis_connection("default")
+    redis_conn.ping()
+    logger.info("Redis connection successful - using cache-based sessions")
+except Exception as e:
+    logger.warning(f"Redis connection failed: {e}. Falling back to database sessions.")
+    # Fallback to database-backed sessions if Redis is unavailable
+    SESSION_ENGINE = "django.contrib.sessions.backends.db"
+    # Also update cache to use dummy backend as fallback
+    CACHES["default"]["BACKEND"] = "django.core.cache.backends.locmem.LocMemCache"
 
 # Application Insights for monitoring, logging, and telemetry
 try:

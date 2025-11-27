@@ -181,6 +181,14 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/0?ssl_cert_reqs=required'
             }
             {
+              name: 'CELERY_BROKER_URL'
+              value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/1?ssl_cert_reqs=required'
+            }
+            {
+              name: 'CELERY_RESULT_BACKEND'
+              value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/1?ssl_cert_reqs=required'
+            }
+            {
               name: 'AZURE_STORAGE_ACCOUNT_NAME'
               value: storageAccountName
             }
