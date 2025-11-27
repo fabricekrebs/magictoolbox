@@ -13,22 +13,6 @@
     },
     "postgresAdminUsername": {
       "value": "mtbadmin"
-    },
-    "postgresAdminPassword": {
-      "reference": {
-        "keyVault": {
-          "id": "/subscriptions/{subscription-id}/resourceGroups/{rg-name}/providers/Microsoft.KeyVault/vaults/{kv-name}"
-        },
-        "secretName": "postgres-admin-password"
-      }
-    },
-    "djangoSecretKey": {
-      "reference": {
-        "keyVault": {
-          "id": "/subscriptions/{subscription-id}/resourceGroups/{rg-name}/providers/Microsoft.KeyVault/vaults/{kv-name}"
-        },
-        "secretName": "django-secret-key"
-      }
     }
   }
 }
