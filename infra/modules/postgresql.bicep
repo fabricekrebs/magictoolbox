@@ -69,6 +69,7 @@ resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2023-03-0
 }
 
 // PostgreSQL extensions configuration
+// Must wait for database to be fully created before configuring extensions
 resource postgresConfiguration 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2023-03-01-preview' = {
   parent: postgresServer
   name: 'azure.extensions'
@@ -76,6 +77,10 @@ resource postgresConfiguration 'Microsoft.DBforPostgreSQL/flexibleServers/config
     value: 'uuid-ossp,pg_trgm,btree_gin,btree_gist'
     source: 'user-override'
   }
+  dependsOn: [
+    database
+    firewallRule
+  ]
 }
 
 // Outputs
