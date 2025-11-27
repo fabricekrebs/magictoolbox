@@ -2,8 +2,10 @@
 Tests for tool system.
 """
 
-import pytest
 from rest_framework import status
+
+import pytest
+
 from apps.tools.registry import tool_registry
 
 

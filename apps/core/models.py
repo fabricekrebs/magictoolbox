@@ -4,9 +4,10 @@ Base models for MagicToolbox.
 Provides abstract base classes with common fields and behaviors.
 """
 
+import uuid
+
 from django.db import models
 from django.utils import timezone
-import uuid
 
 
 class TimeStampedModel(models.Model):

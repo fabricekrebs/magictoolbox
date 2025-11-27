@@ -2,8 +2,9 @@
 Models for tool execution tracking.
 """
 
-from django.db import models
 from django.contrib.auth import get_user_model
+from django.db import models
+
 from apps.core.models import TimeStampedModel, UUIDModel
 
 User = get_user_model()

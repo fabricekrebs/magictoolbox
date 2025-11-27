@@ -4,9 +4,11 @@ Pytest fixtures for testing.
 Provides reusable test fixtures for authentication, users, and API clients.
 """
 
-import pytest
 from django.contrib.auth import get_user_model
+
 from rest_framework.test import APIClient
+
+import pytest
 from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()

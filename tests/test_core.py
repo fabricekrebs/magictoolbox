@@ -2,11 +2,13 @@
 Tests for core utilities.
 """
 
-import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+
+import pytest
+
 from apps.core.utils import (
-    get_file_hash,
     get_file_extension,
+    get_file_hash,
     get_mime_type,
     validate_file_size,
     validate_file_type,

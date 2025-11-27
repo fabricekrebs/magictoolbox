@@ -6,6 +6,7 @@ Extends Django's User model with additional fields and functionality.
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+
 from apps.core.models import TimeStampedModel
 
 

@@ -4,12 +4,13 @@ Custom middleware for MagicToolbox.
 Provides request tracking, logging, and monitoring functionality.
 """
 
-import uuid
-import time
-import logging
 import ipaddress
-from django.utils.deprecation import MiddlewareMixin
+import logging
+import time
+import uuid
+
 from django.conf import settings
+from django.utils.deprecation import MiddlewareMixin
 
 logger = logging.getLogger(__name__)
 

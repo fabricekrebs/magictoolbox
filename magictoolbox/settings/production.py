@@ -6,8 +6,10 @@ enhanced security and Azure service integrations.
 """
 
 import logging
-from .base import *
+
 from decouple import config
+
+from .base import *
 
 # Configure logging first
 logging.basicConfig(
@@ -59,9 +61,9 @@ MEDIA_URL = f"https://{AZURE_CUSTOM_DOMAIN}/{AZURE_CONTAINER}/"
 # Azure Key Vault for secrets management
 # Use Managed Identity for secure, keyless authentication
 try:
+    from azure.core.exceptions import AzureError
     from azure.identity import DefaultAzureCredential
     from azure.keyvault.secrets import SecretClient
-    from azure.core.exceptions import AzureError
 
     KEY_VAULT_NAME = config("KEY_VAULT_NAME", default="")
     if KEY_VAULT_NAME:
@@ -124,9 +126,9 @@ except ImportError as e:
 # Application Insights for monitoring, logging, and telemetry
 try:
     from opencensus.ext.azure.log_exporter import AzureLogHandler
+    from opencensus.ext.azure.metrics_exporter import MetricsExporter
     from opencensus.ext.azure.trace_exporter import AzureExporter
     from opencensus.trace.samplers import ProbabilitySampler
-    from opencensus.ext.azure.metrics_exporter import MetricsExporter
 
     APPLICATIONINSIGHTS_CONNECTION_STRING = config(
         "APPLICATIONINSIGHTS_CONNECTION_STRING", default=""

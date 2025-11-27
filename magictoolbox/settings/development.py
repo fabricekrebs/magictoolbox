@@ -5,8 +5,9 @@ These settings are optimized for local development with relaxed security
 and additional debugging tools.
 """
 
-from .base import *
 from decouple import config
+
+from .base import *
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True

@@ -2,15 +2,19 @@
 Celery tasks for async tool processing.
 """
 
-from celery import shared_task
-from django.core.files import File
-from django.utils import timezone
-from .models import ToolExecution
-from .registry import tool_registry
-from apps.core.exceptions import ToolExecutionError
 import logging
 import time
 from pathlib import Path
+
+from django.core.files import File
+from django.utils import timezone
+
+from celery import shared_task
+
+from apps.core.exceptions import ToolExecutionError
+
+from .models import ToolExecution
+from .registry import tool_registry
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +51,9 @@ def process_tool_async(
 
         # Open input file
         with open(input_file_path, "rb") as f:
-            from django.core.files.uploadedfile import InMemoryUploadedFile
             import io
+
+            from django.core.files.uploadedfile import InMemoryUploadedFile
 
             file_content = f.read()
             uploaded_file = InMemoryUploadedFile(

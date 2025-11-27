@@ -5,17 +5,19 @@ Analyzes GPX files and allows modification of track speeds while preserving
 distance and elevation data. Provides detailed statistics about the track.
 """
 
-from typing import Any, Dict, Optional, Tuple
-from django.core.files.uploadedfile import UploadedFile
-from apps.tools.base import BaseTool
-from apps.core.exceptions import ToolValidationError, ToolExecutionError
-from pathlib import Path
-import tempfile
-import os
-import xml.etree.ElementTree as ET
-from xml.dom import minidom
-from datetime import datetime, timedelta
 import math
+import os
+import tempfile
+import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
+from xml.dom import minidom
+
+from django.core.files.uploadedfile import UploadedFile
+
+from apps.core.exceptions import ToolExecutionError, ToolValidationError
+from apps.tools.base import BaseTool
 
 # Register namespaces once at module level to preserve original prefixes
 # Note: The order and prefixes must match Garmin's original GPX files

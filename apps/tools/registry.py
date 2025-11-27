@@ -4,9 +4,10 @@ Tool registry for plugin discovery and management.
 Provides centralized tool registration and lookup.
 """
 
-from typing import Dict, List, Optional, Type
-from .base import BaseTool
 import logging
+from typing import Dict, List, Optional, Type
+
+from .base import BaseTool
 
 logger = logging.getLogger(__name__)
 
@@ -102,10 +103,11 @@ class ToolRegistry:
         Scans the tools.plugins package for tool classes.
         """
         try:
-            from . import plugins
-            import pkgutil
-            import inspect
             import importlib
+            import inspect
+            import pkgutil
+
+            from . import plugins
 
             # Iterate through all modules in plugins package
             for importer, modname, ispkg in pkgutil.iter_modules(

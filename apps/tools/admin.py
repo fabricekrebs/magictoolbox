@@ -1,6 +1,7 @@
 """Admin configuration for Tools app."""
 
 from django.contrib import admin
+
 from .models import ToolExecution
 
 

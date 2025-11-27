@@ -2,11 +2,12 @@
 Core views for MagicToolbox including health checks and home page.
 """
 
+import logging
+
+from django.core.cache import cache
+from django.db import connection
 from django.http import JsonResponse
 from django.shortcuts import render
-from django.db import connection
-from django.core.cache import cache
-import logging
 
 logger = logging.getLogger(__name__)
 

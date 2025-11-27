@@ -2,25 +2,28 @@
 Views for tool operations (both web UI and API endpoints).
 """
 
-from django.shortcuts import render, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_http_methods
+import logging
+
 from django import forms
-from rest_framework import viewsets, status
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, render
+from django.views.decorators.http import require_http_methods
+
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
 from .models import ToolExecution
+from .registry import tool_registry
 from .serializers import (
+    ToolExecutionListSerializer,
+    ToolExecutionSerializer,
     ToolMetadataSerializer,
     ToolProcessRequestSerializer,
     ToolProcessResponseSerializer,
-    ToolExecutionSerializer,
-    ToolExecutionListSerializer,
 )
-from .registry import tool_registry
 from .tasks import process_tool_async
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -125,9 +128,10 @@ class ToolViewSet(viewsets.ViewSet):
         - conversion_type: gpx_to_kml or kml_to_gpx (optional, auto-detected)
         - name: Document name (optional)
         """
-        from django.http import HttpResponse
-        import zipfile
         import io
+        import zipfile
+
+        from django.http import HttpResponse
 
         tool_instance = tool_registry.get_tool_instance(pk)
         if not tool_instance:

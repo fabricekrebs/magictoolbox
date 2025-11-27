@@ -2,20 +2,23 @@
 Views for authentication (both web UI and API endpoints).
 """
 
-from django.shortcuts import render, redirect
-from django.contrib.auth import authenticate, login, logout, get_user_model
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
 from django import forms
-from rest_framework import generics, status, permissions
+from django.contrib import messages
+from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect, render
+
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
 from .serializers import (
-    UserSerializer,
-    UserRegistrationSerializer,
     CustomTokenObtainPairSerializer,
     PasswordChangeSerializer,
+    UserRegistrationSerializer,
+    UserSerializer,
 )
 
 User = get_user_model()
