@@ -77,6 +77,7 @@ module keyVault './modules/keyvault.bicep' = {
     redisAccessKey: redis.outputs.accessKey
     storageAccountKey: storage.outputs.storageAccountKey
     applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
+    acrPassword: acr.outputs.acrPassword
   }
 }
 
@@ -127,7 +128,6 @@ module containerApps './modules/container-apps.bicep' = {
     logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
     acrLoginServer: acr.outputs.loginServer
     acrUsername: acr.outputs.acrUsername
-    acrPassword: acr.outputs.acrPassword
     keyVaultName: keyVault.outputs.keyVaultName
     storageAccountName: storage.outputs.storageAccountName
     redisHostName: redis.outputs.hostName

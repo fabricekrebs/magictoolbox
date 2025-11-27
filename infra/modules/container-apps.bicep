@@ -8,9 +8,6 @@ param logAnalyticsWorkspaceId string
 param acrLoginServer string
 param acrUsername string
 
-@secure()
-param acrPassword string
-
 param keyVaultName string
 param storageAccountName string
 param redisHostName string
@@ -90,7 +87,8 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
       secrets: [
         {
           name: 'acr-password'
-          value: acrPassword // ACR password is not stored in Key Vault, passed from ACR module
+          keyVaultUrl: 'https://${keyVaultName}.${az.environment().suffixes.keyvaultDns}/secrets/acr-password'
+          identity: 'system'
         }
         {
           name: 'django-secret-key'
