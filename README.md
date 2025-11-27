@@ -190,3 +190,4 @@ Includes PostgreSQL, Redis, and MinIO (S3-compatible storage).
 ## Environment Variables
 
 See `.env.example` for all available configuration options.
+# Trigger rebuild - Thu Nov 27 15:58:16 CET 2025
