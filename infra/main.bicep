@@ -76,6 +76,7 @@ module keyVault './modules/keyvault.bicep' = {
     postgresAdminPassword: postgresAdminPassword
     redisAccessKey: redis.outputs.accessKey
     storageAccountKey: storage.outputs.storageAccountKey
+    applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
   }
 }
 

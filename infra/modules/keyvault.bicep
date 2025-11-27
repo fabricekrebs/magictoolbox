@@ -54,6 +54,9 @@ param redisAccessKey string
 @secure()
 param storageAccountKey string
 
+@secure()
+param applicationInsightsConnectionString string
+
 resource djangoSecretKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' = {
   parent: keyVault
   name: 'django-secret-key'
@@ -86,6 +89,15 @@ resource storageAccountKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' 
   name: 'storage-account-key'
   properties: {
     value: storageAccountKey
+    contentType: 'text/plain'
+  }
+}
+
+resource applicationInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' = {
+  parent: keyVault
+  name: 'appinsights-connection-string'
+  properties: {
+    value: applicationInsightsConnectionString
     contentType: 'text/plain'
   }
 }

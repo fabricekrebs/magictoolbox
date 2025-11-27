@@ -140,7 +140,23 @@ create_service_principal() {
             --scopes "$RG_ID" \
             --query "{clientId:appId, clientSecret:password, tenantId:tenant}" \
             -o json)
+        
+        # Get the service principal object ID for additional role assignment
+        SP_OBJECT_ID=$(az ad sp list --display-name "$SP_NAME" --query "[0].id" -o tsv)
     fi
+    
+    # Get service principal object ID if not set (for existing SP with reset credentials)
+    if [ -z "$SP_OBJECT_ID" ]; then
+        SP_OBJECT_ID=$(az ad sp list --display-name "$SP_NAME" --query "[0].id" -o tsv)
+    fi
+    
+    # Grant User Access Administrator role for RBAC role assignments
+    log_info "Granting User Access Administrator role to service principal..."
+    az role assignment create \
+        --assignee "$SP_OBJECT_ID" \
+        --role "User Access Administrator" \
+        --scope "$RG_ID" \
+        --output none 2>/dev/null || log_warning "User Access Administrator role may already be assigned"
     
     # Extract credentials
     CLIENT_ID=$(echo "$SP_CREDENTIALS" | jq -r '.clientId')
