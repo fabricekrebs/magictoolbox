@@ -127,12 +127,12 @@ az account set --subscription "Your Subscription Name"
 ```bash
 # Development environment
 az group create \
-  --name magictoolbox-dev-rg \
+  --name rg-westeurope-magictoolbox-dev-01 \
   --location westeurope
 
 # Production environment
 az group create \
-  --name magictoolbox-prod-rg \
+  --name rg-westeurope-magictoolbox-prod-01 \
   --location westeurope
 ```
 
@@ -237,7 +237,7 @@ az bicep build --file ./infra/main.bicep
 
 # Preview changes (What-If)
 az deployment group what-if \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --template-file ./infra/main.bicep \
   --parameters ./infra/parameters.dev.json \
   --parameters \
@@ -250,7 +250,7 @@ az deployment group what-if \
 ```bash
 # Deploy to Development
 az deployment group create \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --template-file ./infra/main.bicep \
   --parameters ./infra/parameters.dev.json \
   --parameters \
@@ -260,7 +260,7 @@ az deployment group create \
 
 # Deploy to Production
 az deployment group create \
-  --resource-group magictoolbox-prod-rg \
+  --resource-group rg-westeurope-magictoolbox-prod-01 \
   --template-file ./infra/main.bicep \
   --parameters ./infra/parameters.prod.json \
   --parameters \
@@ -276,18 +276,18 @@ Deployment takes approximately 10-15 minutes.
 ```bash
 # Get important outputs
 az deployment group show \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --name magictoolbox-dev-deployment \
   --query properties.outputs
 
 # Store outputs
 ACR_NAME=$(az deployment group show \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --name magictoolbox-dev-deployment \
   --query properties.outputs.acrLoginServer.value -o tsv)
 
 APP_URL=$(az deployment group show \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --name magictoolbox-dev-deployment \
   --query properties.outputs.containerAppUrl.value -o tsv)
 
@@ -307,7 +307,7 @@ Create a service principal for GitHub Actions:
 az ad sp create-for-rbac \
   --name magictoolbox-github-actions \
   --role Contributor \
-  --scopes /subscriptions/{subscription-id}/resourceGroups/magictoolbox-dev-rg \
+  --scopes /subscriptions/{subscription-id}/resourceGroups/rg-westeurope-magictoolbox-dev-01 \
   --sdk-auth
 ```
 
@@ -326,7 +326,7 @@ Add the following secrets:
 - `AZURE_SUBSCRIPTION_ID`: Your Azure subscription ID
 
 #### Resource Names
-- `AZURE_RESOURCE_GROUP`: `magictoolbox-dev-rg` (or `magictoolbox-prod-rg`)
+- `AZURE_RESOURCE_GROUP`: `rg-westeurope-magictoolbox-dev-01` (or `rg-westeurope-magictoolbox-prod-01`)
 - `ACR_NAME`: Your ACR name (without .azurecr.io)
 
 #### Application Secrets
@@ -401,13 +401,13 @@ APP_NAME="your-container-app-name"
 
 az containerapp update \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --image ${ACR_NAME}.azurecr.io/magictoolbox:latest
 
 # Run migrations
 az containerapp exec \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --command "python manage.py migrate --noinput"
 ```
 
@@ -421,13 +421,13 @@ az containerapp exec \
 # Check Container App status
 az containerapp show \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --query properties.runningStatus
 
 # Check revision health
 az containerapp revision list \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --query "[].{Name:name, Active:properties.active, Health:properties.healthState, Traffic:properties.trafficWeight}" \
   --output table
 
@@ -447,7 +447,7 @@ curl -s https://your-app-url.azurecontainerapps.io/ | grep -i stylesheet
 # View application logs
 az containerapp logs show \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --follow
 ```
 
@@ -457,7 +457,7 @@ az containerapp logs show \
 # Access container shell
 az containerapp exec \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --command "/bin/bash"
 
 # Inside container:
@@ -471,13 +471,13 @@ exit
 # Add custom domain
 az containerapp hostname add \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --hostname yourdomain.com
 
 # Bind SSL certificate
 az containerapp ssl upload \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --hostname yourdomain.com \
   --certificate-file /path/to/certificate.pfx \
   --certificate-password "cert-password"
@@ -490,7 +490,7 @@ Update environment variable in Container App:
 ```bash
 az containerapp update \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --set-env-vars "ALLOWED_HOSTS=.azurecontainerapps.io,yourdomain.com"
 ```
 
@@ -539,13 +539,13 @@ AppRequests
 # View revision history
 az containerapp revision list \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --output table
 
 # View replica count
 az containerapp show \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --query properties.template.scale
 ```
 
@@ -554,7 +554,7 @@ az containerapp show \
 ```bash
 # PostgreSQL connection
 PGHOST=$(az postgres flexible-server show \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --name your-postgres-server \
   --query fullyQualifiedDomainName -o tsv)
 
@@ -586,19 +586,19 @@ LIMIT 10;
 # Check logs
 az containerapp logs show \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --tail 100
 
 # Check system logs
 az containerapp logs show \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --type system
 
 # Restart container app
 az containerapp update \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg
+  --resource-group rg-westeurope-magictoolbox-dev-01
 ```
 
 ### Revision Shows "Unhealthy" Status
@@ -610,14 +610,14 @@ az containerapp update \
 # Check revision health
 az containerapp revision list \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --query "[].{Name:name, Health:properties.healthState, Traffic:properties.trafficWeight}" \
   --output table
 
 # Check logs for health probe errors
 az containerapp logs show \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --tail 100 | grep -i "health\|invalid"
 ```
 
@@ -683,12 +683,12 @@ Benefits:
 # Test PostgreSQL connectivity from container
 az containerapp exec \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --command "nc -zv postgres-host 5432"
 
 # Check firewall rules
 az postgres flexible-server firewall-rule list \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --name your-postgres-server
 ```
 
@@ -698,13 +698,13 @@ az postgres flexible-server firewall-rule list \
 # Test Redis connectivity
 az containerapp exec \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --command "nc -zv redis-host 6380"
 
 # Check Redis metrics
 az redis show \
   --name your-redis-cache \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --query provisioningState
 ```
 
@@ -717,13 +717,13 @@ az acr login --name $ACR_NAME
 # Check Container App managed identity
 az containerapp identity show \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg
+  --resource-group rg-westeurope-magictoolbox-dev-01
 
 # Grant AcrPull role (if needed)
 ACR_ID=$(az acr show --name $ACR_NAME --query id -o tsv)
 IDENTITY_ID=$(az containerapp identity show \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --query principalId -o tsv)
 
 az role assignment create \
@@ -738,14 +738,14 @@ az role assignment create \
 # Scale up replicas
 az containerapp update \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --min-replicas 2 \
   --max-replicas 10
 
 # Increase resources
 az containerapp update \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --cpu 1.0 \
   --memory 2Gi
 ```
@@ -756,13 +756,13 @@ az containerapp update \
 # List revisions
 az containerapp revision list \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --output table
 
 # Activate previous revision
 az containerapp revision activate \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --revision <revision-name>
 ```
 
@@ -781,13 +781,13 @@ az containerapp revision activate \
 # Stop Container App (scale to 0)
 az containerapp update \
   --name $APP_NAME \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --min-replicas 0 \
   --max-replicas 0
 
 # Stop PostgreSQL
 az postgres flexible-server stop \
-  --resource-group magictoolbox-dev-rg \
+  --resource-group rg-westeurope-magictoolbox-dev-01 \
   --name your-postgres-server
 ```
 

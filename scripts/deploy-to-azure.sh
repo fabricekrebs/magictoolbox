@@ -64,13 +64,13 @@ Optional arguments:
 
 Examples:
     # Deploy to dev environment
-    $0 --environment dev --resource-group magictoolbox-dev-rg
+    $0 --environment dev --resource-group rg-westeurope-magictoolbox-dev-01
 
     # Deploy to production with custom location
-    $0 --environment prod --resource-group magictoolbox-prod-rg --location eastus2
+    $0 --environment prod --resource-group rg-westeurope-magictoolbox-prod-01 --location eastus2
 
     # Only deploy application (skip infrastructure)
-    $0 --environment staging --resource-group magictoolbox-staging-rg --skip-infra
+    $0 --environment staging --resource-group rg-westeurope-magictoolbox-staging-01 --skip-infra
 EOF
     exit 1
 }

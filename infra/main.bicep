@@ -39,7 +39,6 @@ param tags object = {
 
 // Variables
 var namingPrefix = '${appName}-${environment}'
-var uniqueSuffix = uniqueString(resourceGroup().id)
 
 // Log Analytics Workspace and Application Insights (deploy first for monitoring)
 module monitoring './modules/monitoring.bicep' = {
@@ -47,7 +46,7 @@ module monitoring './modules/monitoring.bicep' = {
   params: {
     location: location
     namingPrefix: namingPrefix
-    uniqueSuffix: uniqueSuffix
+    uniqueSuffix: '' // Not used with new naming convention
     tags: tags
   }
 }
@@ -58,7 +57,7 @@ module acr './modules/acr.bicep' = {
   params: {
     location: location
     namingPrefix: namingPrefix
-    uniqueSuffix: uniqueSuffix
+    uniqueSuffix: '' // Not used with new naming convention
     tags: tags
   }
 }
@@ -69,7 +68,7 @@ module keyVault './modules/keyvault.bicep' = {
   params: {
     location: location
     namingPrefix: namingPrefix
-    uniqueSuffix: uniqueSuffix
+    uniqueSuffix: '' // Not used with new naming convention
     tags: tags
     tenantId: subscription().tenantId
     environment: environment
@@ -86,7 +85,7 @@ module storage './modules/storage.bicep' = {
   params: {
     location: location
     namingPrefix: namingPrefix
-    uniqueSuffix: uniqueSuffix
+    uniqueSuffix: '' // Not used with new naming convention
     tags: tags
   }
 }
@@ -97,7 +96,7 @@ module redis './modules/redis.bicep' = {
   params: {
     location: location
     namingPrefix: namingPrefix
-    uniqueSuffix: uniqueSuffix
+    uniqueSuffix: '' // Not used with new naming convention
     tags: tags
   }
 }
@@ -108,7 +107,7 @@ module postgresql './modules/postgresql.bicep' = {
   params: {
     location: location
     namingPrefix: namingPrefix
-    uniqueSuffix: uniqueSuffix
+    uniqueSuffix: '' // Not used with new naming convention
     tags: tags
     administratorLogin: postgresAdminUsername
     administratorLoginPassword: postgresAdminPassword
@@ -122,7 +121,7 @@ module containerApps './modules/container-apps.bicep' = {
   params: {
     location: location
     namingPrefix: namingPrefix
-    uniqueSuffix: uniqueSuffix
+    uniqueSuffix: '' // Not used with new naming convention
     tags: tags
     environment: environment
     logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId

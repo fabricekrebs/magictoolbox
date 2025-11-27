@@ -4,8 +4,12 @@ param namingPrefix string
 param uniqueSuffix string
 param tags object
 
-// Storage account name must be 3-24 lowercase alphanumeric characters
-var storageAccountName = replace('${namingPrefix}st${uniqueSuffix}', '-', '')
+// Location abbreviation for naming (shortened for storage 24 char limit)
+var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
+
+// Storage account name must be 3-24 lowercase alphanumeric characters (no hyphens)
+// Format: sa{locationAbbr}{app}{env}01
+var storageAccountName = 'sa${locationAbbr}${replace(namingPrefix, '-', '')}01'
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: take(toLower(storageAccountName), 24)

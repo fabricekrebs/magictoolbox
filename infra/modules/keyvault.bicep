@@ -5,9 +5,12 @@ param uniqueSuffix string
 param tags object
 param tenantId string
 
-// Key Vault name must be 3-24 alphanumeric characters and hyphens
-// Keep it short: kv + appname + env + 6 chars = max 20 chars
-var keyVaultName = 'kv${take(replace(namingPrefix, '-', ''), 12)}${take(uniqueSuffix, 6)}'
+// Location abbreviation for naming (shortened for KeyVault 24 char limit)
+var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
+
+// Key Vault name must be 3-24 alphanumeric characters (no hyphens for brevity)
+// Format: kv{locationAbbr}{app}{env}01
+var keyVaultName = 'kv${locationAbbr}${replace(namingPrefix, '-', '')}01'
 
 @description('Environment (dev, staging, prod)')
 param environment string = 'dev'

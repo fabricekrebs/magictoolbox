@@ -4,7 +4,10 @@ param namingPrefix string
 param uniqueSuffix string
 param tags object
 
-var redisName = '${namingPrefix}-redis-${uniqueSuffix}'
+// Location abbreviation for naming
+var locationAbbr = location == 'westeurope' ? 'westeurope' : location == 'northeurope' ? 'northeurope' : location == 'eastus' ? 'eastus' : location == 'eastus2' ? 'eastus2' : location
+
+var redisName = 'red-${locationAbbr}-${namingPrefix}-01'
 
 resource redis 'Microsoft.Cache/redis@2023-08-01' = {
   name: redisName

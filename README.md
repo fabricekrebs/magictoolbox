@@ -2,6 +2,8 @@
 
 Django backend for the MagicToolbox file conversion application.
 
+📚 **[Complete Documentation →](documentation/)**
+
 ## Setup
 
 ### Prerequisites
@@ -131,6 +133,7 @@ MagicToolbox is designed for deployment on Azure Container Apps with full infras
 - See [DEPLOYMENT.md](DEPLOYMENT.md) for complete deployment guide
 - Infrastructure templates in `infra/` using Azure Bicep
 - CI/CD via GitHub Actions (`.github/workflows/`)
+- **GitHub Secrets Setup**: [GITHUB_SECRETS_QUICK_REFERENCE.md](GITHUB_SECRETS_QUICK_REFERENCE.md) or run `./scripts/setup-github-secrets.sh`
 
 **Important Azure-Specific Configurations:**
 
@@ -140,7 +143,7 @@ This repository includes comprehensive Azure integration following DevOps best p
    - Secure secret management with managed identity
    - RBAC-based access control (no access policies)
    - Automatic secret retrieval with fallback to environment variables
-   - See [AZURE_KEYVAULT_APPINSIGHTS.md](AZURE_KEYVAULT_APPINSIGHTS.md)
+   - See [documentation/AZURE_KEYVAULT_APPINSIGHTS.md](documentation/AZURE_KEYVAULT_APPINSIGHTS.md)
 
 2. **Application Insights Telemetry**
    - Distributed tracing with OpenCensus
@@ -165,13 +168,14 @@ This repository includes comprehensive Azure integration following DevOps best p
    - Includes Brotli compression and cache-busting
 
 **Troubleshooting:**
-- See [AZURE_CONTAINER_APPS_TROUBLESHOOTING.md](AZURE_CONTAINER_APPS_TROUBLESHOOTING.md) for detailed solutions
+- See [documentation/AZURE_CONTAINER_APPS_TROUBLESHOOTING.md](documentation/AZURE_CONTAINER_APPS_TROUBLESHOOTING.md) for detailed solutions
 - Common issues: Unhealthy revisions, redirect loops, static file loading
 
 **Documentation:**
-- [AZURE_DEPLOYMENT_README.md](AZURE_DEPLOYMENT_README.md) - Quick start guide
-- [DEPLOYMENT.md](DEPLOYMENT.md) - Complete deployment guide with all steps
-- [AZURE_CONTAINER_APPS_TROUBLESHOOTING.md](AZURE_CONTAINER_APPS_TROUBLESHOOTING.md) - Issue resolution guide
+- [documentation/AZURE_NAMING_CONVENTION.md](documentation/AZURE_NAMING_CONVENTION.md) - Azure resource naming standards
+- [documentation/AZURE_DEPLOYMENT_README.md](documentation/AZURE_DEPLOYMENT_README.md) - Quick start guide
+- [documentation/DEPLOYMENT.md](documentation/DEPLOYMENT.md) - Complete deployment guide with all steps
+- [documentation/AZURE_CONTAINER_APPS_TROUBLESHOOTING.md](documentation/AZURE_CONTAINER_APPS_TROUBLESHOOTING.md) - Issue resolution guide
 
 ### Local Development
 

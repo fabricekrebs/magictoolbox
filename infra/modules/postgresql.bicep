@@ -9,7 +9,10 @@ param environment string
 @secure()
 param administratorLoginPassword string
 
-var postgresServerName = '${namingPrefix}-psql-${uniqueSuffix}'
+// Location abbreviation for naming
+var locationAbbr = location == 'westeurope' ? 'westeurope' : location == 'northeurope' ? 'northeurope' : location == 'eastus' ? 'eastus' : location == 'eastus2' ? 'eastus2' : location
+
+var postgresServerName = 'psql-${locationAbbr}-${namingPrefix}-01'
 var databaseName = 'magictoolbox'
 
 // SKU tiers based on environment

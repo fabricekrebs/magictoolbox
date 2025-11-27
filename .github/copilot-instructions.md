@@ -217,6 +217,10 @@ backend/
 - Architecture diagrams: In `docs/architecture/`
 - Tool documentation: Each tool has usage examples
 - Changelog: Keep updated with notable changes
+- **All project documentation**: Create/update in `documentation/` folder (deployment guides, Azure docs, troubleshooting, etc.)
+  - Use clear, descriptive filenames (e.g., `AZURE_DEPLOYMENT_README.md`, `TROUBLESHOOTING_GUIDE.md`)
+  - Include cross-references to related documentation
+  - Follow the existing documentation structure and style
 
 ## Commit Conventions
 - Use conventional commits format: `type(scope): message`

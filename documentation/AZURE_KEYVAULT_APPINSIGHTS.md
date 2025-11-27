@@ -190,13 +190,13 @@ az account set --subscription <subscription-id>
 # Deploy to development
 ./scripts/deploy-to-azure.sh \
     --environment dev \
-    --resource-group magictoolbox-dev-rg \
+    --resource-group rg-westeurope-magictoolbox-dev-01 \
     --location westeurope
 
 # Deploy to production
 ./scripts/deploy-to-azure.sh \
     --environment prod \
-    --resource-group magictoolbox-prod-rg \
+    --resource-group rg-westeurope-magictoolbox-prod-01 \
     --location eastus2
 ```
 

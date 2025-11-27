@@ -4,8 +4,12 @@ param namingPrefix string
 param uniqueSuffix string
 param tags object
 
+// Location abbreviation for naming (shortened for ACR constraints)
+var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
+
 // ACR name must be alphanumeric and globally unique (5-50 chars)
-var acrName = replace('${namingPrefix}acr${uniqueSuffix}', '-', '')
+// Format: acr{locationAbbr}{app}{env}01
+var acrName = 'acr${locationAbbr}${replace(namingPrefix, '-', '')}01'
 
 resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-01-01-preview' = {
   name: acrName

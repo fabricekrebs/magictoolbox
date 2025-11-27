@@ -4,9 +4,12 @@ param namingPrefix string
 param uniqueSuffix string
 param tags object
 
+// Location abbreviation for naming
+var locationAbbr = location == 'westeurope' ? 'westeurope' : location == 'northeurope' ? 'northeurope' : location == 'eastus' ? 'eastus' : location == 'eastus2' ? 'eastus2' : location
+
 // Log Analytics Workspace
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
-  name: '${namingPrefix}-logs-${uniqueSuffix}'
+  name: 'law-${locationAbbr}-${namingPrefix}-01'
   location: location
   tags: tags
   properties: {
@@ -27,7 +30,7 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10
 
 // Application Insights
 resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
-  name: '${namingPrefix}-ai-${uniqueSuffix}'
+  name: 'ai-${locationAbbr}-${namingPrefix}-01'
   location: location
   tags: tags
   kind: 'web'
