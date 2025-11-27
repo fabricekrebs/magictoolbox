@@ -132,6 +132,10 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            BUILD_VERSION=${{ github.ref_name }}-${{ github.sha }}
   
   # Deploy to development environment
   deploy-dev:
@@ -160,7 +164,6 @@ jobs:
           containerAppName: ${{ secrets.CONTAINER_APP_NAME_DEV }}
           resourceGroup: ${{ secrets.RESOURCE_GROUP_DEV }}
           imageToDeploy: ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.APP_NAME }}:develop
-          environmentVariables: BUILD_VERSION=${{ github.ref_name }}-${{ github.sha }} BUILD_SHA=${{ github.sha }} BUILD_BRANCH=${{ github.ref_name }}
       
       - name: Run database migrations
         uses: azure/CLI@v1
