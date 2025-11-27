@@ -11,7 +11,7 @@ factory-boy>=3.3,<3.4
 # Code quality
 black>=23.12,<24.0
 isort>=5.13,<5.14
-flake8>=7.0,<7.1
+ruff>=0.1,<0.2
 pylint>=3.0,<3.1
 mypy>=1.8,<1.9
 django-stubs>=4.2,<4.3
