@@ -19,6 +19,7 @@ celery>=5.3,<5.4
 
 # File storage
 django-storages[azure]>=1.14,<1.15
+whitenoise>=6.6,<7.0
 
 # Azure SDK
 azure-identity>=1.15,<1.16
