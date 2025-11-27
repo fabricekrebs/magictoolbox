@@ -33,9 +33,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v1
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: ${{ secrets[format('AZURE_CREDENTIALS_{0}', upper(github.event.inputs.environment))] }}
       
       - name: Validate Bicep templates
         run: |
@@ -45,36 +43,36 @@ jobs:
         if: github.event.inputs.destroy != 'true'
         run: |
           az deployment group what-if \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --resource-group ${{ secrets[format('RESOURCE_GROUP_{0}', upper(github.event.inputs.environment))] }} \
             --template-file ./infra/main.bicep \
             --parameters ./infra/parameters.${{ github.event.inputs.environment }}.json \
             --parameters \
-              postgresAdminPassword="${{ secrets.POSTGRES_ADMIN_PASSWORD }}" \
-              djangoSecretKey="${{ secrets.DJANGO_SECRET_KEY }}"
+              postgresAdminPassword="${{ secrets[format('POSTGRES_ADMIN_PASSWORD_{0}', upper(github.event.inputs.environment))] }}" \
+              djangoSecretKey="${{ secrets[format('DJANGO_SECRET_KEY_{0}', upper(github.event.inputs.environment))] }}"
       
       - name: Deploy infrastructure
         if: github.event.inputs.destroy != 'true'
         run: |
           az deployment group create \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --resource-group ${{ secrets[format('RESOURCE_GROUP_{0}', upper(github.event.inputs.environment))] }} \
             --template-file ./infra/main.bicep \
             --parameters ./infra/parameters.${{ github.event.inputs.environment }}.json \
             --parameters \
-              postgresAdminPassword="${{ secrets.POSTGRES_ADMIN_PASSWORD }}" \
-              djangoSecretKey="${{ secrets.DJANGO_SECRET_KEY }}"
+              postgresAdminPassword="${{ secrets[format('POSTGRES_ADMIN_PASSWORD_{0}', upper(github.event.inputs.environment))] }}" \
+              djangoSecretKey="${{ secrets[format('DJANGO_SECRET_KEY_{0}', upper(github.event.inputs.environment))] }}"
       
       - name: Destroy infrastructure (if requested)
         if: github.event.inputs.destroy == 'true'
         run: |
           echo "⚠️ DESTROYING INFRASTRUCTURE - This action cannot be undone!"
           az deployment group delete \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --resource-group ${{ secrets[format('RESOURCE_GROUP_{0}', upper(github.event.inputs.environment))] }} \
             --name main
       
       - name: Output deployment results
         if: github.event.inputs.destroy != 'true'
         run: |
           az deployment group show \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --resource-group ${{ secrets[format('RESOURCE_GROUP_{0}', upper(github.event.inputs.environment))] }} \
             --name main \
             --query properties.outputs
