@@ -2,7 +2,9 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches: [main]
+    branches: 
+      - main
+      - develop
   workflow_dispatch:
     inputs:
       tag:
@@ -70,6 +72,7 @@ jobs:
           build-args: |
             BUILD_DATE=${{ steps.meta.outputs.created }}
             VCS_REF=${{ github.sha }}
+            BUILD_VERSION=${{ github.ref_name }}-${{ github.sha }}
       
       - name: Scan image for vulnerabilities
         run: |

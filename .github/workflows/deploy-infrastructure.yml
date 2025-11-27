@@ -15,6 +15,12 @@ on:
         required: false
         type: boolean
         default: false
+  push:
+    branches:
+      - develop
+    paths:
+      - 'infra/**'
+      - '.github/workflows/deploy-infrastructure.yml'
 
 permissions:
   contents: read
@@ -23,7 +29,7 @@ jobs:
   deploy-infrastructure:
     name: Deploy Azure Infrastructure
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment == 'dev' && 'Development' || 'Production' }}
+    environment: ${{ github.event.inputs.environment == 'dev' && 'Development' || (github.ref == 'refs/heads/develop' && 'Development' || 'Production') }}
     
     steps:
       - name: Checkout code
@@ -34,14 +40,23 @@ jobs:
           ENV_UPPER=$(echo "${{ github.event.inputs.environment }}" | tr '[:lower:]' '[:upper:]')
           echo "ENV_UPPER=$ENV_UPPER" >> $GITHUB_ENV
       
+      - name: Set deployment environment
+        id: set_env
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "environment=dev" >> $GITHUB_OUTPUT
+          else
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          fi
+      
       - name: Azure Login (Dev)
-        if: github.event.inputs.environment == 'dev'
+        if: steps.set_env.outputs.environment == 'dev'
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_DEV }}
       
       - name: Azure Login (Prod)
-        if: github.event.inputs.environment == 'prod'
+        if: steps.set_env.outputs.environment == 'prod'
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_PROD }}
@@ -51,14 +66,14 @@ jobs:
           az bicep build --file ./infra/main.bicep
       
       - name: Set secrets for Dev
-        if: github.event.inputs.environment == 'dev' && github.event.inputs.destroy != 'true'
+        if: steps.set_env.outputs.environment == 'dev' && github.event.inputs.destroy != 'true'
         run: |
           echo "RESOURCE_GROUP=${{ secrets.RESOURCE_GROUP_DEV }}" >> $GITHUB_ENV
           echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_ADMIN_PASSWORD_DEV }}" >> $GITHUB_ENV
           echo "DJANGO_SECRET=${{ secrets.DJANGO_SECRET_KEY_DEV }}" >> $GITHUB_ENV
       
       - name: Set secrets for Prod
-        if: github.event.inputs.environment == 'prod' && github.event.inputs.destroy != 'true'
+        if: steps.set_env.outputs.environment == 'prod' && github.event.inputs.destroy != 'true'
         run: |
           echo "RESOURCE_GROUP=${{ secrets.RESOURCE_GROUP_PROD }}" >> $GITHUB_ENV
           echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_ADMIN_PASSWORD_PROD }}" >> $GITHUB_ENV
@@ -81,7 +96,7 @@ jobs:
           az deployment group create \
             --resource-group $RESOURCE_GROUP \
             --template-file ./infra/main.bicep \
-            --parameters ./infra/parameters.${{ github.event.inputs.environment }}.json \
+            --parameters ./infra/parameters.${{ steps.set_env.outputs.environment }}.json \
             --parameters \
               postgresAdminPassword="$POSTGRES_PASSWORD" \
               djangoSecretKey="$DJANGO_SECRET"

@@ -18,7 +18,9 @@ on:
     workflows: ["Build and Push Docker Image"]
     types:
       - completed
-    branches: [main]
+    branches: 
+      - main
+      - develop
 
 permissions:
   id-token: write
@@ -28,12 +30,25 @@ jobs:
   deploy:
     name: Deploy to Container Apps
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'dev' }}
+    environment: ${{ github.event.inputs.environment || (github.event.workflow_run.head_branch == 'develop' && 'Development' || 'Production') }}
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
+      - name: Set deployment environment
+        id: set_env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            if [[ "${{ github.event.workflow_run.head_branch }}" == "develop" ]]; then
+              echo "environment=dev" >> $GITHUB_OUTPUT
+            else
+              echo "environment=prod" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          fi
       
       - name: Azure Login
         uses: azure/login@v1
@@ -47,7 +62,7 @@ jobs:
         run: |
           APP_NAME=$(az containerapp list \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --query "[?tags.Application=='MagicToolbox' && tags.Environment=='${{ github.event.inputs.environment || 'dev' }}'].name" \
+            --query "[?tags.Application=='MagicToolbox' && tags.Environment=='${{ steps.set_env.outputs.environment }}'].name" \
             -o tsv | head -n 1)
           echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
           
@@ -56,7 +71,15 @@ jobs:
       
       - name: Update Container App with new image
         run: |
-          IMAGE_TAG="${{ github.event.inputs.image_tag || 'latest' }}"
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            # For automatic deploys, use branch-based tag
+            BRANCH="${{ github.event.workflow_run.head_branch }}"
+            IMAGE_TAG="${BRANCH}-${{ github.event.workflow_run.head_sha }}"
+          else
+            # For manual deploys, use specified tag
+            IMAGE_TAG="${{ github.event.inputs.image_tag || 'latest' }}"
+          fi
+          
           FULL_IMAGE="${{ steps.app_info.outputs.acr_login_server }}/magictoolbox:$IMAGE_TAG"
           
           echo "Deploying image: $FULL_IMAGE"
@@ -64,7 +87,8 @@ jobs:
           az containerapp update \
             --name ${{ steps.app_info.outputs.app_name }} \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --image "$FULL_IMAGE"
+            --image "$FULL_IMAGE" \
+            --set-env-vars "BUILD_VERSION=$IMAGE_TAG" "BUILD_SHA=${{ github.event.workflow_run.head_sha || github.sha }}" "BUILD_BRANCH=${{ github.event.workflow_run.head_branch || github.ref_name }}"
       
       - name: Run database migrations
         run: |
@@ -109,10 +133,16 @@ jobs:
       
       - name: Deployment summary
         run: |
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            IMAGE_TAG="${{ github.event.workflow_run.head_branch }}-${{ github.event.workflow_run.head_sha }}"
+          else
+            IMAGE_TAG="${{ github.event.inputs.image_tag || 'latest' }}"
+          fi
+          
           echo "### Deployment Summary 🚀" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment**: ${{ github.event.inputs.environment || 'dev' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ steps.set_env.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Container App**: ${{ steps.app_info.outputs.app_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image Tag**: ${{ github.event.inputs.image_tag || 'latest' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Tag**: $IMAGE_TAG" >> $GITHUB_STEP_SUMMARY
           echo "- **URL**: ${{ steps.app_url.outputs.app_url }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ✅ Deployed successfully" >> $GITHUB_STEP_SUMMARY

@@ -1,6 +1,11 @@
 # Multi-stage Dockerfile for MagicToolbox Django application
 # Optimized for Azure Container Apps deployment
 
+# Build arguments for version tracking
+ARG BUILD_DATE
+ARG VCS_REF
+ARG BUILD_VERSION="unknown"
+
 # =============================================================================
 # Stage 1: Builder - Install dependencies and build assets
 # =============================================================================
@@ -34,11 +39,26 @@ RUN pip install --upgrade pip setuptools wheel && \
 # =============================================================================
 FROM python:3.11-slim
 
-# Set environment variables
+# Copy build arguments to runtime
+ARG BUILD_DATE
+ARG VCS_REF
+ARG BUILD_VERSION
+
+# Set environment variables including build info
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DJANGO_SETTINGS_MODULE=magictoolbox.settings.production \
-    PATH="/opt/venv/bin:$PATH"
+    PATH="/opt/venv/bin:$PATH" \
+    BUILD_DATE=${BUILD_DATE} \
+    VCS_REF=${VCS_REF} \
+    BUILD_VERSION=${BUILD_VERSION}
+
+# Add labels for image metadata
+LABEL org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.version="${BUILD_VERSION}" \
+      org.opencontainers.image.title="MagicToolbox" \
+      org.opencontainers.image.description="MagicToolbox Django Application"
 
 # Install runtime system dependencies only
 RUN apt-get update && apt-get install -y --no-install-recommends \
