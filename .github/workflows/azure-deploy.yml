@@ -156,6 +156,10 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_DEV }}
       
+      - name: Get short SHA
+        id: short_sha
+        run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+      
       - name: Deploy to Azure Container Apps
         id: deploy
         uses: azure/container-apps-deploy-action@v1
@@ -163,7 +167,7 @@ jobs:
           acrName: ${{ secrets.ACR_NAME }}
           containerAppName: ${{ secrets.CONTAINER_APP_NAME_DEV }}
           resourceGroup: ${{ secrets.RESOURCE_GROUP_DEV }}
-          imageToDeploy: ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.APP_NAME }}:${{ github.ref_name }}-${{ github.sha }}
+          imageToDeploy: ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.APP_NAME }}:${{ github.ref_name }}-${{ steps.short_sha.outputs.short }}
       
       - name: Run database migrations
         uses: azure/CLI@v1
