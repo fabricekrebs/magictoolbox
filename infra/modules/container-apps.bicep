@@ -42,6 +42,8 @@ var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ?
 var containerAppsEnvironmentName = 'env-${locationAbbr}-${namingPrefix}-01'
 var containerAppName = 'app-${locationAbbr}-${namingPrefix}-01'
 // Use environment-specific image tags: develop for dev, main for prod
+// Note: In practice, the workflow deploys with SHA-specific tags (e.g., develop-abc123)
+// This is used as a fallback for infrastructure-only deployments
 var imageTag = environment == 'prod' ? 'main' : 'develop'
 var imageName = '${acrLoginServer}/magictoolbox:${imageTag}'
 
