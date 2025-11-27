@@ -217,7 +217,8 @@ CACHES = {
         "LOCATION": config("REDIS_URL", default="redis://localhost:6379/0"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "PARSER_CLASS": "redis.connection.HiredisParser",
+            # Using default PythonParser (compatible with redis-py 5.0+)
+            # HiredisParser was removed in redis-py 5.0
             "CONNECTION_POOL_CLASS_KWARGS": {
                 "max_connections": 50,
                 "retry_on_timeout": True,
