@@ -159,8 +159,8 @@ jobs:
           acrName: ${{ secrets.ACR_NAME }}
           containerAppName: ${{ secrets.CONTAINER_APP_NAME_DEV }}
           resourceGroup: ${{ secrets.RESOURCE_GROUP_DEV }}
-          imageToDeploy: ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.APP_NAME }}:develop-${{ github.sha }}
-          environmentVariables: BUILD_VERSION=develop-${{ github.sha }} BUILD_SHA=${{ github.sha }} BUILD_BRANCH=develop
+          imageToDeploy: ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.APP_NAME }}:develop
+          environmentVariables: BUILD_VERSION=${{ github.ref_name }}-${{ github.sha }} BUILD_SHA=${{ github.sha }} BUILD_BRANCH=${{ github.ref_name }}
       
       - name: Run database migrations
         uses: azure/CLI@v1
