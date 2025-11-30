@@ -51,48 +51,81 @@ If you prefer to set up secrets manually, follow these steps:
 
 You need a service principal for each environment to allow GitHub Actions to deploy to Azure.
 
+**Important**: Each service principal requires **TWO roles**:
+1. **Contributor**: For deploying and managing Azure resources
+2. **User Access Administrator**: For managing RBAC role assignments (required by the Bicep RBAC module)
+
 #### For Development Environment:
 
 ```bash
 # Set variables
 SUBSCRIPTION_ID="fec3a155-e384-43cd-abc7-9c20391a3fd4"
-RESOURCE_GROUP_DEV="rg-westeurope-magictoolbox-dev-01"
 SP_NAME_DEV="sp-magictoolbox-cicd-dev"
 
-# Create service principal with Contributor role on resource group
+# Create service principal with Contributor role at subscription level
 az ad sp create-for-rbac \
   --name "$SP_NAME_DEV" \
   --role Contributor \
-  --scopes "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_DEV" \
+  --scopes "/subscriptions/$SUBSCRIPTION_ID" \
   --sdk-auth
 
 # Save the JSON output - you'll need it for GitHub secrets
+
+# Get the service principal App ID
+SP_APP_ID=$(az ad sp list --display-name "$SP_NAME_DEV" --query "[0].appId" -o tsv)
+
+# Grant User Access Administrator role (required for RBAC module in Bicep)
+az role assignment create \
+  --assignee "$SP_APP_ID" \
+  --role "User Access Administrator" \
+  --scope "/subscriptions/$SUBSCRIPTION_ID"
+
+# Verify both roles are assigned
+az role assignment list --assignee "$SP_APP_ID" --query "[].{Role:roleDefinitionName, Scope:scope}" -o table
 ```
 
 #### For Staging Environment (optional):
 
 ```bash
-RESOURCE_GROUP_STAGING="rg-westeurope-magictoolbox-staging-01"
 SP_NAME_STAGING="sp-magictoolbox-cicd-staging"
 
+# Create service principal with Contributor role at subscription level
 az ad sp create-for-rbac \
   --name "$SP_NAME_STAGING" \
   --role Contributor \
-  --scopes "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_STAGING" \
+  --scopes "/subscriptions/$SUBSCRIPTION_ID" \
   --sdk-auth
+
+# Get the service principal App ID
+SP_APP_ID=$(az ad sp list --display-name "$SP_NAME_STAGING" --query "[0].appId" -o tsv)
+
+# Grant User Access Administrator role
+az role assignment create \
+  --assignee "$SP_APP_ID" \
+  --role "User Access Administrator" \
+  --scope "/subscriptions/$SUBSCRIPTION_ID"
 ```
 
 #### For Production Environment:
 
 ```bash
-RESOURCE_GROUP_PROD="rg-westeurope-magictoolbox-prod-01"
 SP_NAME_PROD="sp-magictoolbox-cicd-prod"
 
+# Create service principal with Contributor role at subscription level
 az ad sp create-for-rbac \
   --name "$SP_NAME_PROD" \
   --role Contributor \
-  --scopes "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_PROD" \
+  --scopes "/subscriptions/$SUBSCRIPTION_ID" \
   --sdk-auth
+
+# Get the service principal App ID
+SP_APP_ID=$(az ad sp list --display-name "$SP_NAME_PROD" --query "[0].appId" -o tsv)
+
+# Grant User Access Administrator role
+az role assignment create \
+  --assignee "$SP_APP_ID" \
+  --role "User Access Administrator" \
+  --scope "/subscriptions/$SUBSCRIPTION_ID"
 ```
 
 **Important**: Each command outputs JSON like this:

@@ -64,12 +64,21 @@ gh secret set ACR_PASSWORD --body "$ACR_PASSWORD"
 #### 2. Create Service Principal for Development
 
 ```bash
-# Create service principal
+# Create service principal with Contributor role at subscription level
 AZURE_CREDS_DEV=$(az ad sp create-for-rbac \
   --name "sp-magictoolbox-cicd-dev" \
   --role Contributor \
-  --scopes "/subscriptions/fec3a155-e384-43cd-abc7-9c20391a3fd4/resourceGroups/rg-westeurope-magictoolbox-dev-01" \
+  --scopes "/subscriptions/fec3a155-e384-43cd-abc7-9c20391a3fd4" \
   --sdk-auth)
+
+# Get the service principal App ID
+SP_APP_ID=$(az ad sp list --display-name "sp-magictoolbox-cicd-dev" --query "[0].appId" -o tsv)
+
+# Grant User Access Administrator role (required for RBAC module in Bicep)
+az role assignment create \
+  --assignee "$SP_APP_ID" \
+  --role "User Access Administrator" \
+  --scope "/subscriptions/fec3a155-e384-43cd-abc7-9c20391a3fd4"
 
 # Set development secrets
 gh secret set AZURE_CREDENTIALS_DEV --env development --body "$AZURE_CREDS_DEV"
@@ -77,15 +86,28 @@ gh secret set RESOURCE_GROUP_DEV --env development --body "rg-westeurope-magicto
 gh secret set CONTAINER_APP_NAME_DEV --env development --body "app-westeurope-magictoolbox-dev-01"
 ```
 
+**Important:** The service principal requires **two roles**:
+- **Contributor**: For deploying and managing Azure resources
+- **User Access Administrator**: For managing RBAC role assignments (required by Bicep RBAC module)
+
 #### 3. Create Service Principal for Staging (Optional)
 
 ```bash
-# Create service principal
+# Create service principal with Contributor role at subscription level
 AZURE_CREDS_STAGING=$(az ad sp create-for-rbac \
   --name "sp-magictoolbox-cicd-staging" \
   --role Contributor \
-  --scopes "/subscriptions/fec3a155-e384-43cd-abc7-9c20391a3fd4/resourceGroups/rg-westeurope-magictoolbox-staging-01" \
+  --scopes "/subscriptions/fec3a155-e384-43cd-abc7-9c20391a3fd4" \
   --sdk-auth)
+
+# Get the service principal App ID
+SP_APP_ID=$(az ad sp list --display-name "sp-magictoolbox-cicd-staging" --query "[0].appId" -o tsv)
+
+# Grant User Access Administrator role (required for RBAC module in Bicep)
+az role assignment create \
+  --assignee "$SP_APP_ID" \
+  --role "User Access Administrator" \
+  --scope "/subscriptions/fec3a155-e384-43cd-abc7-9c20391a3fd4"
 
 # Get container app name (if exists)
 CONTAINER_APP_STAGING=$(az containerapp list --resource-group rg-westeurope-magictoolbox-staging-01 --query "[0].name" -o tsv 2>/dev/null || echo "app-westeurope-magictoolbox-sta-01")
@@ -99,12 +121,21 @@ gh secret set CONTAINER_APP_NAME_STAGING --env staging --body "$CONTAINER_APP_ST
 #### 4. Create Service Principal for Production
 
 ```bash
-# Create service principal
+# Create service principal with Contributor role at subscription level
 AZURE_CREDS_PROD=$(az ad sp create-for-rbac \
   --name "sp-magictoolbox-cicd-prod" \
   --role Contributor \
-  --scopes "/subscriptions/fec3a155-e384-43cd-abc7-9c20391a3fd4/resourceGroups/rg-westeurope-magictoolbox-prod-01" \
+  --scopes "/subscriptions/fec3a155-e384-43cd-abc7-9c20391a3fd4" \
   --sdk-auth)
+
+# Get the service principal App ID
+SP_APP_ID=$(az ad sp list --display-name "sp-magictoolbox-cicd-prod" --query "[0].appId" -o tsv)
+
+# Grant User Access Administrator role (required for RBAC module in Bicep)
+az role assignment create \
+  --assignee "$SP_APP_ID" \
+  --role "User Access Administrator" \
+  --scope "/subscriptions/fec3a155-e384-43cd-abc7-9c20391a3fd4"
 
 # Get container app name (if exists)
 CONTAINER_APP_PROD=$(az containerapp list --resource-group rg-westeurope-magictoolbox-prod-01 --query "[0].name" -o tsv 2>/dev/null || echo "app-westeurope-magictoolbox-prod-01")
@@ -243,8 +274,18 @@ az login
 # Check service principal exists
 az ad sp list --display-name "sp-magictoolbox-cicd-dev"
 
-# Verify role assignment
-az role assignment list --assignee <service-principal-app-id>
+# Get the App ID
+SP_APP_ID=$(az ad sp list --display-name "sp-magictoolbox-cicd-dev" --query "[0].appId" -o tsv)
+
+# Verify BOTH required role assignments
+az role assignment list --assignee "$SP_APP_ID" --query "[].{Role:roleDefinitionName, Scope:scope}" -o table
+
+# If missing roles, add them:
+# Contributor role
+az role assignment create --assignee "$SP_APP_ID" --role "Contributor" --scope "/subscriptions/fec3a155-e384-43cd-abc7-9c20391a3fd4"
+
+# User Access Administrator role (required for RBAC module)
+az role assignment create --assignee "$SP_APP_ID" --role "User Access Administrator" --scope "/subscriptions/fec3a155-e384-43cd-abc7-9c20391a3fd4"
 ```
 
 **ACR authentication failed?**

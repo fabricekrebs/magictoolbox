@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "5373158125246906583"
+      "templateHash": "7476417251993891317"
     }
   },
   "parameters": {
@@ -51,6 +51,13 @@
       "type": "securestring",
       "metadata": {
         "description": "The Django secret key"
+      }
+    },
+    "containerImage": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional: Docker image to deploy. If not provided, uses default or placeholder"
       }
     },
     "tags": {
@@ -342,6 +349,9 @@
           },
           "applicationInsightsConnectionString": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring-deployment'), '2025-04-01').outputs.applicationInsightsConnectionString.value]"
+          },
+          "acrPassword": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acr-deployment'), '2025-04-01').outputs.acrPassword.value]"
           }
         },
         "template": {
@@ -351,7 +361,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "10006975210365483844"
+              "templateHash": "14666591579770686600"
             }
           },
           "parameters": {
@@ -390,6 +400,9 @@
               "type": "securestring"
             },
             "applicationInsightsConnectionString": {
+              "type": "securestring"
+            },
+            "acrPassword": {
               "type": "securestring"
             }
           },
@@ -484,6 +497,18 @@
               "dependsOn": [
                 "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
               ]
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2023-02-01",
+              "name": "[format('{0}/{1}', variables('keyVaultName'), 'acr-password')]",
+              "properties": {
+                "value": "[parameters('acrPassword')]",
+                "contentType": "text/plain"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+              ]
             }
           ],
           "outputs": {
@@ -503,6 +528,7 @@
         }
       },
       "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'acr-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'monitoring-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'redis-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'storage-deployment')]"
@@ -975,9 +1001,6 @@
           "namingPrefix": {
             "value": "[variables('namingPrefix')]"
           },
-          "uniqueSuffix": {
-            "value": ""
-          },
           "tags": {
             "value": "[parameters('tags')]"
           },
@@ -987,17 +1010,11 @@
           "logAnalyticsWorkspaceId": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring-deployment'), '2025-04-01').outputs.logAnalyticsWorkspaceId.value]"
           },
-          "applicationInsightsConnectionString": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring-deployment'), '2025-04-01').outputs.applicationInsightsConnectionString.value]"
-          },
           "acrLoginServer": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acr-deployment'), '2025-04-01').outputs.loginServer.value]"
           },
           "acrUsername": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acr-deployment'), '2025-04-01').outputs.acrUsername.value]"
-          },
-          "acrPassword": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acr-deployment'), '2025-04-01').outputs.acrPassword.value]"
           },
           "keyVaultName": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault-deployment'), '2025-04-01').outputs.keyVaultName.value]"
@@ -1005,14 +1022,8 @@
           "storageAccountName": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage-deployment'), '2025-04-01').outputs.storageAccountName.value]"
           },
-          "storageAccountKey": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage-deployment'), '2025-04-01').outputs.storageAccountKey.value]"
-          },
           "redisHostName": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'redis-deployment'), '2025-04-01').outputs.hostName.value]"
-          },
-          "redisAccessKey": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'redis-deployment'), '2025-04-01').outputs.accessKey.value]"
           },
           "postgresHost": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgresql-deployment'), '2025-04-01').outputs.fqdn.value]"
@@ -1023,11 +1034,8 @@
           "postgresAdminUsername": {
             "value": "[parameters('postgresAdminUsername')]"
           },
-          "postgresAdminPassword": {
-            "value": "[parameters('postgresAdminPassword')]"
-          },
-          "djangoSecretKey": {
-            "value": "[parameters('djangoSecretKey')]"
+          "containerImage": {
+            "value": "[parameters('containerImage')]"
           }
         },
         "template": {
@@ -1037,7 +1045,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "62749665369378783"
+              "templateHash": "11024991226956615625"
             }
           },
           "parameters": {
@@ -1045,9 +1053,6 @@
               "type": "string"
             },
             "namingPrefix": {
-              "type": "string"
-            },
-            "uniqueSuffix": {
               "type": "string"
             },
             "tags": {
@@ -1059,17 +1064,11 @@
             "logAnalyticsWorkspaceId": {
               "type": "string"
             },
-            "applicationInsightsConnectionString": {
-              "type": "securestring"
-            },
             "acrLoginServer": {
               "type": "string"
             },
             "acrUsername": {
               "type": "string"
-            },
-            "acrPassword": {
-              "type": "securestring"
             },
             "keyVaultName": {
               "type": "string"
@@ -1089,17 +1088,12 @@
             "postgresAdminUsername": {
               "type": "string"
             },
-            "storageAccountKey": {
-              "type": "securestring"
-            },
-            "redisAccessKey": {
-              "type": "securestring"
-            },
-            "postgresAdminPassword": {
-              "type": "securestring"
-            },
-            "djangoSecretKey": {
-              "type": "securestring"
+            "containerImage": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Optional: Docker image to deploy. If not provided, uses a placeholder image for initial infrastructure setup"
+              }
             }
           },
           "variables": {
@@ -1107,7 +1101,8 @@
             "containerAppsEnvironmentName": "[format('env-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))]",
             "containerAppName": "[format('app-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))]",
             "imageTag": "[if(equals(parameters('environment'), 'prod'), 'main', 'develop')]",
-            "imageName": "[format('{0}/magictoolbox:{1}', parameters('acrLoginServer'), variables('imageTag'))]",
+            "defaultImage": "[format('{0}/magictoolbox:{1}', parameters('acrLoginServer'), variables('imageTag'))]",
+            "imageName": "[if(not(empty(parameters('containerImage'))), parameters('containerImage'), variables('defaultImage'))]",
             "minReplicas": "[if(equals(parameters('environment'), 'prod'), 2, 1)]",
             "maxReplicas": "[if(equals(parameters('environment'), 'prod'), 10, 3)]",
             "cpuCores": "[if(equals(parameters('environment'), 'prod'), '1.0', '0.5')]",
@@ -1166,27 +1161,33 @@
                   "secrets": [
                     {
                       "name": "acr-password",
-                      "value": "[parameters('acrPassword')]"
+                      "keyVaultUrl": "[format('https://{0}{1}/secrets/acr-password', parameters('keyVaultName'), environment().suffixes.keyvaultDns)]",
+                      "identity": "system"
                     },
                     {
                       "name": "django-secret-key",
-                      "value": "[parameters('djangoSecretKey')]"
+                      "keyVaultUrl": "[format('https://{0}{1}/secrets/django-secret-key', parameters('keyVaultName'), environment().suffixes.keyvaultDns)]",
+                      "identity": "system"
                     },
                     {
                       "name": "postgres-password",
-                      "value": "[parameters('postgresAdminPassword')]"
+                      "keyVaultUrl": "[format('https://{0}{1}/secrets/postgres-password', parameters('keyVaultName'), environment().suffixes.keyvaultDns)]",
+                      "identity": "system"
                     },
                     {
                       "name": "redis-access-key",
-                      "value": "[parameters('redisAccessKey')]"
+                      "keyVaultUrl": "[format('https://{0}{1}/secrets/redis-access-key', parameters('keyVaultName'), environment().suffixes.keyvaultDns)]",
+                      "identity": "system"
                     },
                     {
                       "name": "storage-account-key",
-                      "value": "[parameters('storageAccountKey')]"
+                      "keyVaultUrl": "[format('https://{0}{1}/secrets/storage-account-key', parameters('keyVaultName'), environment().suffixes.keyvaultDns)]",
+                      "identity": "system"
                     },
                     {
                       "name": "appinsights-connection-string",
-                      "value": "[parameters('applicationInsightsConnectionString')]"
+                      "keyVaultUrl": "[format('https://{0}{1}/secrets/appinsights-connection-string', parameters('keyVaultName'), environment().suffixes.keyvaultDns)]",
+                      "identity": "system"
                     }
                   ]
                 },
@@ -1230,7 +1231,7 @@
                         },
                         {
                           "name": "DB_PASSWORD",
-                          "value": "[parameters('postgresAdminPassword')]"
+                          "secretRef": "postgres-password"
                         },
                         {
                           "name": "DB_HOST",
@@ -1241,16 +1242,24 @@
                           "value": "5432"
                         },
                         {
+                          "name": "REDIS_HOST",
+                          "value": "[parameters('redisHostName')]"
+                        },
+                        {
+                          "name": "REDIS_ACCESS_KEY",
+                          "secretRef": "redis-access-key"
+                        },
+                        {
                           "name": "REDIS_URL",
-                          "value": "[format('rediss://:{0}@{1}:6380/0?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))]"
+                          "value": "[format('rediss://default@{0}:6380/0?ssl_cert_reqs=required', parameters('redisHostName'))]"
                         },
                         {
                           "name": "CELERY_BROKER_URL",
-                          "value": "[format('rediss://:{0}@{1}:6380/1?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))]"
+                          "value": "[format('rediss://default@{0}:6380/1?ssl_cert_reqs=required', parameters('redisHostName'))]"
                         },
                         {
                           "name": "CELERY_RESULT_BACKEND",
-                          "value": "[format('rediss://:{0}@{1}:6380/1?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))]"
+                          "value": "[format('rediss://default@{0}:6380/1?ssl_cert_reqs=required', parameters('redisHostName'))]"
                         },
                         {
                           "name": "AZURE_STORAGE_ACCOUNT_NAME",
