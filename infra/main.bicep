@@ -129,6 +129,12 @@ module containerApps './modules/container-apps.bicep' = {
     logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
     acrLoginServer: acr.outputs.loginServer
     acrUsername: acr.outputs.acrUsername
+    acrPassword: acr.outputs.acrPassword
+    djangoSecretKey: djangoSecretKey
+    postgresPassword: postgresAdminPassword
+    redisAccessKey: redis.outputs.accessKey
+    storageAccountKey: storage.outputs.storageAccountKey
+    appInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
     keyVaultName: keyVault.outputs.keyVaultName
     storageAccountName: storage.outputs.storageAccountName
     redisHostName: redis.outputs.hostName
@@ -138,11 +144,10 @@ module containerApps './modules/container-apps.bicep' = {
   }
 }
 
-// RBAC role assignments for Managed Identity
+// RBAC role assignments for Managed Identity (ACR and Storage only, no Key Vault)
 module rbac './modules/rbac.bicep' = {
   name: 'rbac-deployment'
   params: {
-    keyVaultName: keyVault.outputs.keyVaultName
     storageAccountName: storage.outputs.storageAccountName
     acrName: acr.outputs.acrName
     containerAppIdentityPrincipalId: containerApps.outputs.containerAppIdentityPrincipalId

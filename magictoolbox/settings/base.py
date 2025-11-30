@@ -94,6 +94,8 @@ DATABASES = {
         "CONN_MAX_AGE": 600,
         "OPTIONS": {
             "connect_timeout": 10,
+            # Azure PostgreSQL Flexible Server requires SSL
+            "sslmode": config("DB_SSLMODE", default="require"),
         },
     }
 }

@@ -1,4 +1,6 @@
 // Azure Container Apps Environment and App
+// Note: Secrets are passed directly as secure parameters instead of using Key Vault references
+// This avoids timing/permission issues with Managed Identity during deployment
 param location string
 param namingPrefix string
 param tags object
@@ -7,6 +9,19 @@ param logAnalyticsWorkspaceId string
 
 param acrLoginServer string
 param acrUsername string
+@secure()
+param acrPassword string
+
+@secure()
+param djangoSecretKey string
+@secure()
+param postgresPassword string
+@secure()
+param redisAccessKey string
+@secure()
+param storageAccountKey string
+@secure()
+param appInsightsConnectionString string
 
 param keyVaultName string
 param storageAccountName string
@@ -59,7 +74,7 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
   location: location
   tags: tags
   identity: {
-    type: 'SystemAssigned' // Managed Identity for Key Vault access
+    type: 'SystemAssigned' // Managed Identity for ACR and Storage access
   }
   properties: {
     managedEnvironmentId: containerAppsEnvironment.id
@@ -87,33 +102,27 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
       secrets: [
         {
           name: 'acr-password'
-          keyVaultUrl: 'https://${keyVaultName}${az.environment().suffixes.keyvaultDns}/secrets/acr-password'
-          identity: 'system'
+          value: acrPassword
         }
         {
           name: 'django-secret-key'
-          keyVaultUrl: 'https://${keyVaultName}${az.environment().suffixes.keyvaultDns}/secrets/django-secret-key'
-          identity: 'system'
+          value: djangoSecretKey
         }
         {
           name: 'postgres-password'
-          keyVaultUrl: 'https://${keyVaultName}${az.environment().suffixes.keyvaultDns}/secrets/postgres-password'
-          identity: 'system'
+          value: postgresPassword
         }
         {
           name: 'redis-access-key'
-          keyVaultUrl: 'https://${keyVaultName}${az.environment().suffixes.keyvaultDns}/secrets/redis-access-key'
-          identity: 'system'
+          value: redisAccessKey
         }
         {
           name: 'storage-account-key'
-          keyVaultUrl: 'https://${keyVaultName}${az.environment().suffixes.keyvaultDns}/secrets/storage-account-key'
-          identity: 'system'
+          value: storageAccountKey
         }
         {
           name: 'appinsights-connection-string'
-          keyVaultUrl: 'https://${keyVaultName}${az.environment().suffixes.keyvaultDns}/secrets/appinsights-connection-string'
-          identity: 'system'
+          value: appInsightsConnectionString
         }
       ]
     }
@@ -210,14 +219,6 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             {
               name: 'KEY_VAULT_NAME'
               value: keyVaultName
-            }
-            {
-              name: 'REDIS_HOST'
-              value: redisHostName
-            }
-            {
-              name: 'REDIS_ACCESS_KEY'
-              secretRef: 'redis-access-key'
             }
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
