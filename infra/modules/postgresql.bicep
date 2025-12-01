@@ -1,7 +1,6 @@
 // Azure Database for PostgreSQL Flexible Server
 param location string
 param namingPrefix string
-param uniqueSuffix string
 param tags object
 param administratorLogin string
 param environment string
@@ -41,9 +40,6 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-03-01-pr
     }
     highAvailability: {
       mode: environment == 'prod' ? 'ZoneRedundant' : 'Disabled'
-    }
-    network: {
-      publicNetworkAccess: 'Enabled' // Change to 'Disabled' with VNet integration for production
     }
   }
 }

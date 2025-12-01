@@ -1,7 +1,6 @@
 // Azure Container Registry
 param location string
 param namingPrefix string
-param uniqueSuffix string
 param tags object
 
 // Location abbreviation for naming (shortened for ACR constraints)

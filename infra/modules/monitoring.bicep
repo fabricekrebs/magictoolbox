@@ -1,7 +1,6 @@
 // Azure Monitor, Log Analytics Workspace, and Application Insights
 param location string
 param namingPrefix string
-param uniqueSuffix string
 param tags object
 
 // Location abbreviation for naming

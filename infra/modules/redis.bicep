@@ -1,7 +1,6 @@
 // Azure Cache for Redis
 param location string
 param namingPrefix string
-param uniqueSuffix string
 param tags object
 
 // Location abbreviation for naming

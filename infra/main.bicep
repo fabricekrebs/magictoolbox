@@ -50,7 +50,6 @@ module monitoring './modules/monitoring.bicep' = {
   params: {
     location: location
     namingPrefix: namingPrefix
-    uniqueSuffix: '' // Not used with new naming convention
     tags: tags
   }
 }
@@ -61,7 +60,6 @@ module acr './modules/acr.bicep' = {
   params: {
     location: location
     namingPrefix: namingPrefix
-    uniqueSuffix: '' // Not used with new naming convention
     tags: tags
   }
 }
@@ -72,7 +70,6 @@ module keyVault './modules/keyvault.bicep' = {
   params: {
     location: location
     namingPrefix: namingPrefix
-    uniqueSuffix: '' // Not used with new naming convention
     tags: tags
     tenantId: subscription().tenantId
     environment: environment
@@ -91,7 +88,6 @@ module storage './modules/storage.bicep' = {
   params: {
     location: location
     namingPrefix: namingPrefix
-    uniqueSuffix: '' // Not used with new naming convention
     tags: tags
   }
 }
@@ -102,7 +98,6 @@ module redis './modules/redis.bicep' = {
   params: {
     location: location
     namingPrefix: namingPrefix
-    uniqueSuffix: '' // Not used with new naming convention
     tags: tags
   }
 }
@@ -113,7 +108,6 @@ module postgresql './modules/postgresql.bicep' = {
   params: {
     location: location
     namingPrefix: namingPrefix
-    uniqueSuffix: '' // Not used with new naming convention
     tags: tags
     administratorLogin: postgresAdminUsername
     administratorLoginPassword: postgresAdminPassword

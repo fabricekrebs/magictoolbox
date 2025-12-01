@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "3788869463774352821"
+      "templateHash": "1147434835661485318"
     }
   },
   "parameters": {
@@ -92,9 +92,6 @@
           "namingPrefix": {
             "value": "[variables('namingPrefix')]"
           },
-          "uniqueSuffix": {
-            "value": ""
-          },
           "tags": {
             "value": "[parameters('tags')]"
           }
@@ -106,7 +103,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "7025837781612352107"
+              "templateHash": "2755792109478559420"
             }
           },
           "parameters": {
@@ -114,9 +111,6 @@
               "type": "string"
             },
             "namingPrefix": {
-              "type": "string"
-            },
-            "uniqueSuffix": {
               "type": "string"
             },
             "tags": {
@@ -212,9 +206,6 @@
           "namingPrefix": {
             "value": "[variables('namingPrefix')]"
           },
-          "uniqueSuffix": {
-            "value": ""
-          },
           "tags": {
             "value": "[parameters('tags')]"
           }
@@ -226,7 +217,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "146927862985086242"
+              "templateHash": "15186360104646469413"
             }
           },
           "parameters": {
@@ -234,9 +225,6 @@
               "type": "string"
             },
             "namingPrefix": {
-              "type": "string"
-            },
-            "uniqueSuffix": {
               "type": "string"
             },
             "tags": {
@@ -323,9 +311,6 @@
           "namingPrefix": {
             "value": "[variables('namingPrefix')]"
           },
-          "uniqueSuffix": {
-            "value": ""
-          },
           "tags": {
             "value": "[parameters('tags')]"
           },
@@ -361,7 +346,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "14666591579770686600"
+              "templateHash": "2319673363770513187"
             }
           },
           "parameters": {
@@ -369,9 +354,6 @@
               "type": "string"
             },
             "namingPrefix": {
-              "type": "string"
-            },
-            "uniqueSuffix": {
               "type": "string"
             },
             "tags": {
@@ -550,9 +532,6 @@
           "namingPrefix": {
             "value": "[variables('namingPrefix')]"
           },
-          "uniqueSuffix": {
-            "value": ""
-          },
           "tags": {
             "value": "[parameters('tags')]"
           }
@@ -564,7 +543,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "14087762756741986013"
+              "templateHash": "17574497690664378509"
             }
           },
           "parameters": {
@@ -572,9 +551,6 @@
               "type": "string"
             },
             "namingPrefix": {
-              "type": "string"
-            },
-            "uniqueSuffix": {
               "type": "string"
             },
             "tags": {
@@ -731,9 +707,6 @@
           "namingPrefix": {
             "value": "[variables('namingPrefix')]"
           },
-          "uniqueSuffix": {
-            "value": ""
-          },
           "tags": {
             "value": "[parameters('tags')]"
           }
@@ -745,7 +718,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "10921078266645462142"
+              "templateHash": "14001385953859723587"
             }
           },
           "parameters": {
@@ -753,9 +726,6 @@
               "type": "string"
             },
             "namingPrefix": {
-              "type": "string"
-            },
-            "uniqueSuffix": {
               "type": "string"
             },
             "tags": {
@@ -834,9 +804,6 @@
           "namingPrefix": {
             "value": "[variables('namingPrefix')]"
           },
-          "uniqueSuffix": {
-            "value": ""
-          },
           "tags": {
             "value": "[parameters('tags')]"
           },
@@ -857,7 +824,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "2523857326701066409"
+              "templateHash": "10525055662575428372"
             }
           },
           "parameters": {
@@ -865,9 +832,6 @@
               "type": "string"
             },
             "namingPrefix": {
-              "type": "string"
-            },
-            "uniqueSuffix": {
               "type": "string"
             },
             "tags": {
@@ -915,9 +879,6 @@
                 },
                 "highAvailability": {
                   "mode": "[if(equals(parameters('environment'), 'prod'), 'ZoneRedundant', 'Disabled')]"
-                },
-                "network": {
-                  "publicNetworkAccess": "Enabled"
                 }
               }
             },

@@ -1,7 +1,6 @@
 // Azure Storage Account for blob storage
 param location string
 param namingPrefix string
-param uniqueSuffix string
 param tags object
 
 // Location abbreviation for naming (shortened for storage 24 char limit)

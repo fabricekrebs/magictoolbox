@@ -1,7 +1,6 @@
 // Azure Key Vault for secrets management
 param location string
 param namingPrefix string
-param uniqueSuffix string
 param tags object
 param tenantId string
 
