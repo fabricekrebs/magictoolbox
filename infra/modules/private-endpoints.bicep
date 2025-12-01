@@ -25,7 +25,7 @@ resource postgresPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' =
 
 resource postgresPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
   parent: postgresPrivateDnsZone
-  name: '${vnetId}-link'
+  name: 'vnet-link-postgres'
   location: 'global'
   properties: {
     registrationEnabled: false
@@ -44,7 +44,7 @@ resource redisPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
 
 resource redisPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
   parent: redisPrivateDnsZone
-  name: '${vnetId}-link'
+  name: 'vnet-link-redis'
   location: 'global'
   properties: {
     registrationEnabled: false
@@ -63,7 +63,7 @@ resource storageBlobPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01
 
 resource storageBlobPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
   parent: storageBlobPrivateDnsZone
-  name: '${vnetId}-link'
+  name: 'vnet-link-storage'
   location: 'global'
   properties: {
     registrationEnabled: false
@@ -82,7 +82,7 @@ resource keyVaultPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' =
 
 resource keyVaultPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
   parent: keyVaultPrivateDnsZone
-  name: '${vnetId}-link'
+  name: 'vnet-link-keyvault'
   location: 'global'
   properties: {
     registrationEnabled: false

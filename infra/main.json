@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "11809116429382465634"
+      "templateHash": "8349412800682135743"
     }
   },
   "parameters": {
@@ -1501,7 +1501,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "838518932596564272"
+              "templateHash": "14640320863656963482"
             }
           },
           "parameters": {
@@ -1547,7 +1547,7 @@
             {
               "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
               "apiVersion": "2020-06-01",
-              "name": "[format('{0}/{1}', 'privatelink.postgres.database.azure.com', format('{0}-link', parameters('vnetId')))]",
+              "name": "[format('{0}/{1}', 'privatelink.postgres.database.azure.com', 'vnet-link-postgres')]",
               "location": "global",
               "properties": {
                 "registrationEnabled": false,
@@ -1569,7 +1569,7 @@
             {
               "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
               "apiVersion": "2020-06-01",
-              "name": "[format('{0}/{1}', 'privatelink.redis.cache.windows.net', format('{0}-link', parameters('vnetId')))]",
+              "name": "[format('{0}/{1}', 'privatelink.redis.cache.windows.net', 'vnet-link-redis')]",
               "location": "global",
               "properties": {
                 "registrationEnabled": false,
@@ -1591,7 +1591,7 @@
             {
               "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
               "apiVersion": "2020-06-01",
-              "name": "[format('{0}/{1}', format('privatelink.blob.{0}', environment().suffixes.storage), format('{0}-link', parameters('vnetId')))]",
+              "name": "[format('{0}/{1}', format('privatelink.blob.{0}', environment().suffixes.storage), 'vnet-link-storage')]",
               "location": "global",
               "properties": {
                 "registrationEnabled": false,
@@ -1613,7 +1613,7 @@
             {
               "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
               "apiVersion": "2020-06-01",
-              "name": "[format('{0}/{1}', 'privatelink.vaultcore.azure.net', format('{0}-link', parameters('vnetId')))]",
+              "name": "[format('{0}/{1}', 'privatelink.vaultcore.azure.net', 'vnet-link-keyvault')]",
               "location": "global",
               "properties": {
                 "registrationEnabled": false,
