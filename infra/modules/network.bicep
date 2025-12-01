@@ -1,0 +1,52 @@
+// Virtual Network for private endpoints and Container Apps
+param location string
+param namingPrefix string
+param tags object
+
+// Location abbreviation for naming
+var locationAbbr = location == 'westeurope' ? 'westeurope' : location == 'northeurope' ? 'northeurope' : location == 'eastus' ? 'eastus' : location == 'eastus2' ? 'eastus2' : location
+
+var vnetName = 'vnet-${locationAbbr}-${namingPrefix}-01'
+
+// Virtual Network with multiple subnets
+resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-05-01' = {
+  name: vnetName
+  location: location
+  tags: tags
+  properties: {
+    addressSpace: {
+      addressPrefixes: [
+        '10.0.0.0/16' // Large address space for all subnets
+      ]
+    }
+    subnets: [
+      {
+        name: 'snet-container-apps'
+        properties: {
+          addressPrefix: '10.0.0.0/23' // /23 for Container Apps (512 IPs)
+          delegations: [
+            {
+              name: 'Microsoft.App.environments'
+              properties: {
+                serviceName: 'Microsoft.App/environments'
+              }
+            }
+          ]
+        }
+      }
+      {
+        name: 'snet-private-endpoints'
+        properties: {
+          addressPrefix: '10.0.2.0/24' // /24 for private endpoints (256 IPs)
+          privateEndpointNetworkPolicies: 'Disabled' // Required for private endpoints
+        }
+      }
+    ]
+  }
+}
+
+// Outputs
+output vnetId string = virtualNetwork.id
+output vnetName string = virtualNetwork.name
+output containerAppsSubnetId string = virtualNetwork.properties.subnets[0].id
+output privateEndpointsSubnetId string = virtualNetwork.properties.subnets[1].id

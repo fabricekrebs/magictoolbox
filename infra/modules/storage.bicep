@@ -39,7 +39,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
     }
     networkAcls: {
       bypass: 'AzureServices'
-      defaultAction: 'Allow' // Change to 'Deny' for production with VNet
+      defaultAction: 'Deny' // Use private endpoints only
       ipRules: []
       virtualNetworkRules: []
     }

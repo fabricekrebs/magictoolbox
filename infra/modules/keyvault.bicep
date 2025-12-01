@@ -26,14 +26,14 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' = {
     enableSoftDelete: true
     softDeleteRetentionInDays: environment == 'prod' ? 90 : 7
     enableRbacAuthorization: true // Use RBAC for access control (best practice)
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: 'Disabled' // Use private endpoints only
     sku: {
       family: 'A'
       name: 'standard'
     }
     networkAcls: {
       bypass: 'AzureServices'
-      defaultAction: 'Allow' // Use 'Deny' with private endpoints for production
+      defaultAction: 'Deny' // Use private endpoints only
       ipRules: []
       virtualNetworkRules: []
     }

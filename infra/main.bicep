@@ -44,6 +44,16 @@ param tags object = {
 // Variables
 var namingPrefix = '${appName}-${environment}'
 
+// Virtual Network (deploy first for private endpoints and Container Apps)
+module network './modules/network.bicep' = {
+  name: 'network-deployment'
+  params: {
+    location: location
+    namingPrefix: namingPrefix
+    tags: tags
+  }
+}
+
 // Log Analytics Workspace and Application Insights (deploy first for monitoring)
 module monitoring './modules/monitoring.bicep' = {
   name: 'monitoring-deployment'
@@ -115,7 +125,7 @@ module postgresql './modules/postgresql.bicep' = {
   }
 }
 
-// Azure Container Apps Environment and App (initial deployment without Key Vault secrets)
+// Azure Container Apps Environment and App (with VNet integration)
 module containerApps './modules/container-apps.bicep' = {
   name: 'container-apps-deployment'
   params: {
@@ -139,7 +149,28 @@ module containerApps './modules/container-apps.bicep' = {
     postgresHost: postgresql.outputs.fqdn
     postgresDatabase: postgresql.outputs.databaseName
     postgresAdminUsername: postgresAdminUsername
+    containerAppsSubnetId: network.outputs.containerAppsSubnetId
   }
+}
+
+// Private Endpoints for ACR, PostgreSQL, Redis, Storage, and Key Vault
+module privateEndpoints './modules/private-endpoints.bicep' = {
+  name: 'private-endpoints-deployment'
+  params: {
+    location: location
+    namingPrefix: namingPrefix
+    tags: tags
+    vnetId: network.outputs.vnetId
+    privateEndpointsSubnetId: network.outputs.privateEndpointsSubnetId
+    acrId: acr.outputs.acrId
+    postgresServerId: postgresql.outputs.postgresServerId
+    redisId: redis.outputs.redisId
+    storageAccountId: storage.outputs.storageAccountId
+    keyVaultId: keyVault.outputs.keyVaultId
+  }
+  dependsOn: [
+    containerApps // Deploy private endpoints after container apps to ensure connectivity
+  ]
 }
 
 // RBAC role assignments for Managed Identity (ACR, Storage, and Key Vault)

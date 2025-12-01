@@ -19,7 +19,7 @@ resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-01-01-pr
   }
   properties: {
     adminUserEnabled: true // Enable for Container Apps managed identity pull
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: 'Disabled' // Use private endpoints only
     zoneRedundancy: 'Disabled' // Enable for production with Premium SKU
     policies: {
       quarantinePolicy: {

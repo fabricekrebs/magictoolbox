@@ -34,6 +34,9 @@ param postgresHost string
 param postgresDatabase string
 param postgresAdminUsername string
 
+@description('Subnet ID for Container Apps VNet integration')
+param containerAppsSubnetId string = ''
+
 // Location abbreviation for naming (Container Apps have 32 char limit)
 var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
 
@@ -68,6 +71,10 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01'
         sharedKey: listKeys(logAnalyticsWorkspaceId, '2022-10-01').primarySharedKey
       }
     }
+    vnetConfiguration: !empty(containerAppsSubnetId) ? {
+      infrastructureSubnetId: containerAppsSubnetId
+      internal: false // Set to true for fully private (internal) environment
+    } : null
     zoneRedundant: environment == 'prod' ? true : false
   }
 }

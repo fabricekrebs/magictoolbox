@@ -20,7 +20,7 @@ resource redis 'Microsoft.Cache/redis@2023-08-01' = {
     }
     enableNonSslPort: false // Always use SSL
     minimumTlsVersion: '1.2'
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: 'Disabled' // Use private endpoints only
     redisConfiguration: {
       'maxmemory-policy': 'allkeys-lru' // Eviction policy for cache
     }
