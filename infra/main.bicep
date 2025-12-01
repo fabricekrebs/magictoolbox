@@ -162,7 +162,6 @@ module privateEndpoints './modules/private-endpoints.bicep' = {
     tags: tags
     vnetId: network.outputs.vnetId
     privateEndpointsSubnetId: network.outputs.privateEndpointsSubnetId
-    acrId: acr.outputs.acrId
     postgresServerId: postgresql.outputs.postgresServerId
     redisId: redis.outputs.redisId
     storageAccountId: storage.outputs.storageAccountId

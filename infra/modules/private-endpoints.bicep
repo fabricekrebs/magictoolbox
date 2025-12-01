@@ -6,7 +6,6 @@ param privateEndpointsSubnetId string
 param vnetId string
 
 // Resource IDs for private endpoints
-param acrId string
 param postgresServerId string
 param redisId string
 param storageAccountId string
@@ -16,25 +15,6 @@ param keyVaultId string
 var locationAbbr = location == 'westeurope' ? 'westeurope' : location == 'northeurope' ? 'northeurope' : location == 'eastus' ? 'eastus' : location == 'eastus2' ? 'eastus2' : location
 
 // ========== Private DNS Zones ==========
-
-// ACR Private DNS Zone
-resource acrPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
-  name: 'privatelink.azurecr.io'
-  location: 'global'
-  tags: tags
-}
-
-resource acrPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
-  parent: acrPrivateDnsZone
-  name: '${vnetId}-link'
-  location: 'global'
-  properties: {
-    registrationEnabled: false
-    virtualNetwork: {
-      id: vnetId
-    }
-  }
-}
 
 // PostgreSQL Private DNS Zone
 resource postgresPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
@@ -113,44 +93,6 @@ resource keyVaultPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtu
 }
 
 // ========== Private Endpoints ==========
-
-// ACR Private Endpoint
-resource acrPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
-  name: 'pe-${locationAbbr}-${namingPrefix}-acr-01'
-  location: location
-  tags: tags
-  properties: {
-    subnet: {
-      id: privateEndpointsSubnetId
-    }
-    privateLinkServiceConnections: [
-      {
-        name: 'acr-connection'
-        properties: {
-          privateLinkServiceId: acrId
-          groupIds: [
-            'registry'
-          ]
-        }
-      }
-    ]
-  }
-}
-
-resource acrPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-05-01' = {
-  parent: acrPrivateEndpoint
-  name: 'default'
-  properties: {
-    privateDnsZoneConfigs: [
-      {
-        name: 'privatelink-azurecr-io'
-        properties: {
-          privateDnsZoneId: acrPrivateDnsZone.id
-        }
-      }
-    ]
-  }
-}
 
 // PostgreSQL Private Endpoint
 resource postgresPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
@@ -305,7 +247,6 @@ resource keyVaultPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/private
 }
 
 // Outputs
-output acrPrivateEndpointId string = acrPrivateEndpoint.id
 output postgresPrivateEndpointId string = postgresPrivateEndpoint.id
 output redisPrivateEndpointId string = redisPrivateEndpoint.id
 output storageBlobPrivateEndpointId string = storageBlobPrivateEndpoint.id

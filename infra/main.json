@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "17600794587993788500"
+      "templateHash": "10596082183378474137"
     }
   },
   "parameters": {
@@ -322,7 +322,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "4286376800799396813"
+              "templateHash": "15186360104646469413"
             }
           },
           "parameters": {
@@ -352,7 +352,7 @@
               },
               "properties": {
                 "adminUserEnabled": true,
-                "publicNetworkAccess": "Disabled",
+                "publicNetworkAccess": "Enabled",
                 "zoneRedundancy": "Disabled",
                 "policies": {
                   "quarantinePolicy": {
@@ -1487,9 +1487,6 @@
           "privateEndpointsSubnetId": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'network-deployment'), '2025-04-01').outputs.privateEndpointsSubnetId.value]"
           },
-          "acrId": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acr-deployment'), '2025-04-01').outputs.acrId.value]"
-          },
           "postgresServerId": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgresql-deployment'), '2025-04-01').outputs.postgresServerId.value]"
           },
@@ -1510,7 +1507,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "18053183619454783983"
+              "templateHash": "838518932596564272"
             }
           },
           "parameters": {
@@ -1527,9 +1524,6 @@
               "type": "string"
             },
             "vnetId": {
-              "type": "string"
-            },
-            "acrId": {
               "type": "string"
             },
             "postgresServerId": {
@@ -1549,28 +1543,6 @@
             "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'westeurope', if(equals(parameters('location'), 'northeurope'), 'northeurope', if(equals(parameters('location'), 'eastus'), 'eastus', if(equals(parameters('location'), 'eastus2'), 'eastus2', parameters('location')))))]"
           },
           "resources": [
-            {
-              "type": "Microsoft.Network/privateDnsZones",
-              "apiVersion": "2020-06-01",
-              "name": "privatelink.azurecr.io",
-              "location": "global",
-              "tags": "[parameters('tags')]"
-            },
-            {
-              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
-              "apiVersion": "2020-06-01",
-              "name": "[format('{0}/{1}', 'privatelink.azurecr.io', format('{0}-link', parameters('vnetId')))]",
-              "location": "global",
-              "properties": {
-                "registrationEnabled": false,
-                "virtualNetwork": {
-                  "id": "[parameters('vnetId')]"
-                }
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.azurecr.io')]"
-              ]
-            },
             {
               "type": "Microsoft.Network/privateDnsZones",
               "apiVersion": "2020-06-01",
@@ -1657,48 +1629,6 @@
               },
               "dependsOn": [
                 "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.vaultcore.azure.net')]"
-              ]
-            },
-            {
-              "type": "Microsoft.Network/privateEndpoints",
-              "apiVersion": "2023-05-01",
-              "name": "[format('pe-{0}-{1}-acr-01', variables('locationAbbr'), parameters('namingPrefix'))]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]",
-              "properties": {
-                "subnet": {
-                  "id": "[parameters('privateEndpointsSubnetId')]"
-                },
-                "privateLinkServiceConnections": [
-                  {
-                    "name": "acr-connection",
-                    "properties": {
-                      "privateLinkServiceId": "[parameters('acrId')]",
-                      "groupIds": [
-                        "registry"
-                      ]
-                    }
-                  }
-                ]
-              }
-            },
-            {
-              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
-              "apiVersion": "2023-05-01",
-              "name": "[format('{0}/{1}', format('pe-{0}-{1}-acr-01', variables('locationAbbr'), parameters('namingPrefix')), 'default')]",
-              "properties": {
-                "privateDnsZoneConfigs": [
-                  {
-                    "name": "privatelink-azurecr-io",
-                    "properties": {
-                      "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.azurecr.io')]"
-                    }
-                  }
-                ]
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.azurecr.io')]",
-                "[resourceId('Microsoft.Network/privateEndpoints', format('pe-{0}-{1}-acr-01', variables('locationAbbr'), parameters('namingPrefix')))]"
               ]
             },
             {
@@ -1871,10 +1801,6 @@
             }
           ],
           "outputs": {
-            "acrPrivateEndpointId": {
-              "type": "string",
-              "value": "[resourceId('Microsoft.Network/privateEndpoints', format('pe-{0}-{1}-acr-01', variables('locationAbbr'), parameters('namingPrefix')))]"
-            },
             "postgresPrivateEndpointId": {
               "type": "string",
               "value": "[resourceId('Microsoft.Network/privateEndpoints', format('pe-{0}-{1}-psql-01', variables('locationAbbr'), parameters('namingPrefix')))]"
@@ -1895,7 +1821,6 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'acr-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'container-apps-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'keyvault-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'network-deployment')]",
