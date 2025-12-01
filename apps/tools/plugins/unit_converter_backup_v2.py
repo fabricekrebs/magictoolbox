@@ -20,14 +20,14 @@ from apps.tools.base import BaseTool
 class UnitConverter(BaseTool):
     """
     Tool for converting between different units of measurement.
-    
+
     Supports:
     - Length conversions (11 units)
     - Temperature conversions (3 units)
     - Volume conversions (52 units)
     - Area conversions (22 units)
     - Energy conversions (35 units)
-    
+
     This tool does NOT require file upload - it works with direct input values.
     """
 
@@ -37,7 +37,7 @@ class UnitConverter(BaseTool):
     category = "conversion"
     version = "1.0.0"
     icon = "calculator"
-    
+
     # This tool doesn't require file upload
     allowed_input_types = []
     max_file_size = 0
@@ -197,15 +197,17 @@ class UnitConverter(BaseTool):
     def get_metadata(self) -> Dict[str, Any]:
         """Return tool metadata including supported units."""
         base_metadata = super().get_metadata()
-        base_metadata.update({
-            "supported_conversion_types": self.SUPPORTED_TYPES,
-            "length_units": list(self.LENGTH_UNITS.keys()),
-            "temperature_units": self.TEMPERATURE_UNITS,
-            "volume_units": list(self.VOLUME_UNITS.keys()),
-            "area_units": list(self.AREA_UNITS.keys()),
-            "energy_units": list(self.ENERGY_UNITS.keys()),
-            "requires_file_upload": False,
-        })
+        base_metadata.update(
+            {
+                "supported_conversion_types": self.SUPPORTED_TYPES,
+                "length_units": list(self.LENGTH_UNITS.keys()),
+                "temperature_units": self.TEMPERATURE_UNITS,
+                "volume_units": list(self.VOLUME_UNITS.keys()),
+                "area_units": list(self.AREA_UNITS.keys()),
+                "energy_units": list(self.ENERGY_UNITS.keys()),
+                "requires_file_upload": False,
+            }
+        )
         return base_metadata
 
     def validate(
@@ -223,7 +225,7 @@ class UnitConverter(BaseTool):
         """
         if parameters is None:
             return False, "No parameters provided"
-        
+
         # Check required parameters
         required_params = ["conversion_type", "value", "from_unit", "to_unit"]
         missing_params = [p for p in required_params if p not in parameters]
@@ -237,7 +239,10 @@ class UnitConverter(BaseTool):
 
         # Validate conversion type
         if conversion_type not in self.SUPPORTED_TYPES:
-            return False, f"Unsupported conversion type: {conversion_type}. Supported types: {', '.join(self.SUPPORTED_TYPES)}"
+            return (
+                False,
+                f"Unsupported conversion type: {conversion_type}. Supported types: {', '.join(self.SUPPORTED_TYPES)}",
+            )
 
         # Validate value
         try:
@@ -248,29 +253,59 @@ class UnitConverter(BaseTool):
         # Validate units based on conversion type
         if conversion_type == "length":
             if from_unit not in self.LENGTH_UNITS:
-                return False, f"Invalid source unit: {from_unit}. Supported units: {', '.join(self.LENGTH_UNITS.keys())}"
+                return (
+                    False,
+                    f"Invalid source unit: {from_unit}. Supported units: {', '.join(self.LENGTH_UNITS.keys())}",
+                )
             if to_unit not in self.LENGTH_UNITS:
-                return False, f"Invalid target unit: {to_unit}. Supported units: {', '.join(self.LENGTH_UNITS.keys())}"
+                return (
+                    False,
+                    f"Invalid target unit: {to_unit}. Supported units: {', '.join(self.LENGTH_UNITS.keys())}",
+                )
         elif conversion_type == "temperature":
             if from_unit not in self.TEMPERATURE_UNITS:
-                return False, f"Invalid source unit: {from_unit}. Supported units: {', '.join(self.TEMPERATURE_UNITS)}"
+                return (
+                    False,
+                    f"Invalid source unit: {from_unit}. Supported units: {', '.join(self.TEMPERATURE_UNITS)}",
+                )
             if to_unit not in self.TEMPERATURE_UNITS:
-                return False, f"Invalid target unit: {to_unit}. Supported units: {', '.join(self.TEMPERATURE_UNITS)}"
+                return (
+                    False,
+                    f"Invalid target unit: {to_unit}. Supported units: {', '.join(self.TEMPERATURE_UNITS)}",
+                )
         elif conversion_type == "volume":
             if from_unit not in self.VOLUME_UNITS:
-                return False, f"Invalid source unit: {from_unit}. Supported units: {', '.join(self.VOLUME_UNITS.keys())}"
+                return (
+                    False,
+                    f"Invalid source unit: {from_unit}. Supported units: {', '.join(self.VOLUME_UNITS.keys())}",
+                )
             if to_unit not in self.VOLUME_UNITS:
-                return False, f"Invalid target unit: {to_unit}. Supported units: {', '.join(self.VOLUME_UNITS.keys())}"
+                return (
+                    False,
+                    f"Invalid target unit: {to_unit}. Supported units: {', '.join(self.VOLUME_UNITS.keys())}",
+                )
         elif conversion_type == "area":
             if from_unit not in self.AREA_UNITS:
-                return False, f"Invalid source unit: {from_unit}. Supported units: {', '.join(self.AREA_UNITS.keys())}"
+                return (
+                    False,
+                    f"Invalid source unit: {from_unit}. Supported units: {', '.join(self.AREA_UNITS.keys())}",
+                )
             if to_unit not in self.AREA_UNITS:
-                return False, f"Invalid target unit: {to_unit}. Supported units: {', '.join(self.AREA_UNITS.keys())}"
+                return (
+                    False,
+                    f"Invalid target unit: {to_unit}. Supported units: {', '.join(self.AREA_UNITS.keys())}",
+                )
         elif conversion_type == "energy":
             if from_unit not in self.ENERGY_UNITS:
-                return False, f"Invalid source unit: {from_unit}. Supported units: {', '.join(self.ENERGY_UNITS.keys())}"
+                return (
+                    False,
+                    f"Invalid source unit: {from_unit}. Supported units: {', '.join(self.ENERGY_UNITS.keys())}",
+                )
             if to_unit not in self.ENERGY_UNITS:
-                return False, f"Invalid target unit: {to_unit}. Supported units: {', '.join(self.ENERGY_UNITS.keys())}"
+                return (
+                    False,
+                    f"Invalid target unit: {to_unit}. Supported units: {', '.join(self.ENERGY_UNITS.keys())}",
+                )
 
         return True, None
 
@@ -288,10 +323,10 @@ class UnitConverter(BaseTool):
         """
         # Convert to meters first (base unit)
         value_in_meters = value * self.LENGTH_UNITS[from_unit]
-        
+
         # Convert from meters to target unit
         result = value_in_meters / self.LENGTH_UNITS[to_unit]
-        
+
         return result
 
     def convert_temperature(self, value: Decimal, from_unit: str, to_unit: str) -> Decimal:
@@ -315,7 +350,7 @@ class UnitConverter(BaseTool):
             value_in_celsius = (value - Decimal("32")) * Decimal("5") / Decimal("9")
         else:
             raise ValueError(f"Unsupported temperature unit: {from_unit}")
-        
+
         # Convert from celsius to target unit
         if to_unit == "celsius":
             result = value_in_celsius
@@ -325,7 +360,7 @@ class UnitConverter(BaseTool):
             result = value_in_celsius * Decimal("9") / Decimal("5") + Decimal("32")
         else:
             raise ValueError(f"Unsupported temperature unit: {to_unit}")
-        
+
         return result
 
     def convert_volume(self, value: Decimal, from_unit: str, to_unit: str) -> Decimal:
@@ -342,10 +377,10 @@ class UnitConverter(BaseTool):
         """
         # Convert to cubic meters first (base unit)
         value_in_cubic_meters = value * self.VOLUME_UNITS[from_unit]
-        
+
         # Convert from cubic meters to target unit
         result = value_in_cubic_meters / self.VOLUME_UNITS[to_unit]
-        
+
         return result
 
     def convert_area(self, value: Decimal, from_unit: str, to_unit: str) -> Decimal:
@@ -362,10 +397,10 @@ class UnitConverter(BaseTool):
         """
         # Convert to square meters first (base unit)
         value_in_square_meters = value * self.AREA_UNITS[from_unit]
-        
+
         # Convert from square meters to target unit
         result = value_in_square_meters / self.AREA_UNITS[to_unit]
-        
+
         return result
 
     def convert_energy(self, value: Decimal, from_unit: str, to_unit: str) -> Decimal:
@@ -382,10 +417,10 @@ class UnitConverter(BaseTool):
         """
         # Convert to joules first (base unit)
         value_in_joules = value * self.ENERGY_UNITS[from_unit]
-        
+
         # Convert from joules to target unit
         result = value_in_joules / self.ENERGY_UNITS[to_unit]
-        
+
         return result
 
     def process(

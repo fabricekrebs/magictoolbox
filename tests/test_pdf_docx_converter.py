@@ -3,8 +3,10 @@ Tests specifically for PDF to DOCX converter.
 """
 
 import os
-import pytest
+
 from django.core.files.uploadedfile import SimpleUploadedFile
+
+import pytest
 
 from apps.tools.plugins.pdf_docx_converter import PdfDocxConverter
 

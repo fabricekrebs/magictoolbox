@@ -26,7 +26,7 @@ class UnitConverter(BaseTool):
     category = "conversion"
     version = "2.0.0"
     icon = "calculator"
-    
+
     allowed_input_types = []
     max_file_size = 0
     requires_file_upload = False
@@ -44,22 +44,56 @@ class UnitConverter(BaseTool):
     }
 
     # Supported conversion types (for easy reference)
-    SUPPORTED_TYPES = ["length", "volume", "area", "energy", "force", "speed", "fuel", "data", "currency", "weight", "temperature", "pressure", "power", "time", "angle", "numbers", "dry volume", "case"]
+    SUPPORTED_TYPES = [
+        "length",
+        "volume",
+        "area",
+        "energy",
+        "force",
+        "speed",
+        "fuel",
+        "data",
+        "currency",
+        "weight",
+        "temperature",
+        "pressure",
+        "power",
+        "time",
+        "angle",
+        "numbers",
+        "dry volume",
+        "case",
+    ]
 
     def get_metadata(self) -> Dict[str, Any]:
         """Return tool metadata including supported units."""
         base_metadata = super().get_metadata()
-        
+
         # Extract all unit keys from the JSON data
-        base_metadata.update({
-            "supported_conversion_types": list(self._UNIT_DATA.keys()) + ["Temperature", "Fuel Consumption", "Currency", "Numbers", "Case"],
-            "length_units": {k: v["name"] for k, v in self._UNIT_DATA.get("Length", {}).get("units", {}).items()},
-            "temperature_units": {k: v["name"] for k, v in self.TEMPERATURE_UNITS.items()},
-            "volume_units": {k: v["name"] for k, v in self._UNIT_DATA.get("Volume", {}).get("units", {}).items()},
-            "area_units": {k: v["name"] for k, v in self._UNIT_DATA.get("Area", {}).get("units", {}).items()},
-            "energy_units": {k: v["name"] for k, v in self._UNIT_DATA.get("Energy", {}).get("units", {}).items()},
-            "requires_file_upload": False,
-        })
+        base_metadata.update(
+            {
+                "supported_conversion_types": list(self._UNIT_DATA.keys())
+                + ["Temperature", "Fuel Consumption", "Currency", "Numbers", "Case"],
+                "length_units": {
+                    k: v["name"]
+                    for k, v in self._UNIT_DATA.get("Length", {}).get("units", {}).items()
+                },
+                "temperature_units": {k: v["name"] for k, v in self.TEMPERATURE_UNITS.items()},
+                "volume_units": {
+                    k: v["name"]
+                    for k, v in self._UNIT_DATA.get("Volume", {}).get("units", {}).items()
+                },
+                "area_units": {
+                    k: v["name"]
+                    for k, v in self._UNIT_DATA.get("Area", {}).get("units", {}).items()
+                },
+                "energy_units": {
+                    k: v["name"]
+                    for k, v in self._UNIT_DATA.get("Energy", {}).get("units", {}).items()
+                },
+                "requires_file_upload": False,
+            }
+        )
         return base_metadata
 
     def validate(
@@ -70,7 +104,7 @@ class UnitConverter(BaseTool):
         """Validate conversion parameters."""
         if parameters is None:
             return False, "No parameters provided"
-        
+
         conversion_type = parameters.get("conversion_type")
         from_unit = parameters.get("from_unit")
         to_unit = parameters.get("to_unit")
@@ -81,21 +115,37 @@ class UnitConverter(BaseTool):
 
         # Normalize conversion_type - allow case-insensitive exact matches
         # Build valid types list
-        valid_types_exact = list(self._UNIT_DATA.keys()) + ["Temperature", "Fuel Consumption", "Currency", "Numbers", "Case"]
+        valid_types_exact = list(self._UNIT_DATA.keys()) + [
+            "Temperature",
+            "Fuel Consumption",
+            "Currency",
+            "Numbers",
+            "Case",
+        ]
         valid_types_lower = {t.lower(): t for t in valid_types_exact}
-        
-        conversion_type_lower = conversion_type.lower() if isinstance(conversion_type, str) else str(conversion_type).lower()
-        
+
+        conversion_type_lower = (
+            conversion_type.lower()
+            if isinstance(conversion_type, str)
+            else str(conversion_type).lower()
+        )
+
         # Check if it's a valid type (case-insensitive)
         if conversion_type_lower not in valid_types_lower:
-            return False, f"Unsupported conversion type: {conversion_type}. Supported types: {', '.join(self.SUPPORTED_TYPES)}"
-        
+            return (
+                False,
+                f"Unsupported conversion type: {conversion_type}. Supported types: {', '.join(self.SUPPORTED_TYPES)}",
+            )
+
         # Get the canonical name
         conversion_type_key = valid_types_lower[conversion_type_lower]
-        
+
         # Validate conversion_type exists
         if conversion_type_key not in valid_types_exact:
-            return False, f"Unsupported conversion type: {conversion_type}. Supported types: {', '.join(self.SUPPORTED_TYPES)}"
+            return (
+                False,
+                f"Unsupported conversion type: {conversion_type}. Supported types: {', '.join(self.SUPPORTED_TYPES)}",
+            )
 
         # Validate from_unit and to_unit exist for the type
         if conversion_type_key == "Temperature":
@@ -107,17 +157,32 @@ class UnitConverter(BaseTool):
         elif conversion_type_key == "Numbers":
             valid_units = ["binary", "octal", "decimal", "hexadecimal"]
         elif conversion_type_key == "Case":
-            valid_units = ["lowercase", "uppercase", "titlecase", "sentencecase", "snakecase", "camelcase", "pascalcase", "kebabcase"]
+            valid_units = [
+                "lowercase",
+                "uppercase",
+                "titlecase",
+                "sentencecase",
+                "snakecase",
+                "camelcase",
+                "pascalcase",
+                "kebabcase",
+            ]
         elif conversion_type_key in self._UNIT_DATA:
             valid_units = self._UNIT_DATA[conversion_type_key]["units"].keys()
         else:
             return False, f"Unknown conversion type: {conversion_type_key}"
-        
+
         if from_unit not in valid_units:
-            return False, f"Invalid source unit: {from_unit}. Valid units for {conversion_type_key}: {', '.join(valid_units)}"
-        
+            return (
+                False,
+                f"Invalid source unit: {from_unit}. Valid units for {conversion_type_key}: {', '.join(valid_units)}",
+            )
+
         if to_unit not in valid_units:
-            return False, f"Invalid target unit: {to_unit}. Valid units for {conversion_type_key}: {', '.join(valid_units)}"
+            return (
+                False,
+                f"Invalid target unit: {to_unit}. Valid units for {conversion_type_key}: {', '.join(valid_units)}",
+            )
 
         # Validate value for numeric conversions (not Case)
         if conversion_type_key != "Case":
@@ -141,14 +206,16 @@ class UnitConverter(BaseTool):
         """Process the unit conversion."""
         if parameters is None:
             raise ValueError("No parameters provided")
-            
+
         conversion_type = parameters["conversion_type"]
         from_unit = parameters["from_unit"]
         to_unit = parameters["to_unit"]
         value = parameters["value"]
 
         # Normalize conversion_type
-        conversion_type_normalized = conversion_type.title() if isinstance(conversion_type, str) else conversion_type
+        conversion_type_normalized = (
+            conversion_type.title() if isinstance(conversion_type, str) else conversion_type
+        )
         type_mapping = {
             "fuel": "Fuel Consumption",
             "fuel consumption": "Fuel Consumption",
@@ -184,13 +251,21 @@ class UnitConverter(BaseTool):
             # Return result in expected format
             result_dict = {
                 "conversion_type": conversion_type_key,
-                "input_value": float(value) if conversion_type_key != "Case" and conversion_type_key != "Numbers" else value,
+                "input_value": (
+                    float(value)
+                    if conversion_type_key != "Case" and conversion_type_key != "Numbers"
+                    else value
+                ),
                 "input_unit": from_unit,
-                "output_value": float(result) if conversion_type_key != "Case" and conversion_type_key != "Numbers" else result,
+                "output_value": (
+                    float(result)
+                    if conversion_type_key != "Case" and conversion_type_key != "Numbers"
+                    else result
+                ),
                 "output_unit": to_unit,
                 "formatted_result": f"{value} {from_unit} = {result} {to_unit}",
             }
-            
+
             result_string = f"{value} {from_unit} = {result} {to_unit}"
             return result_dict, result_string
 
@@ -204,26 +279,26 @@ class UnitConverter(BaseTool):
     def _convert_standard(self, category: str, value: str, from_unit: str, to_unit: str) -> Decimal:
         """Convert using standard factor-based conversion."""
         units = self._UNIT_DATA[category]["units"]
-        
+
         if from_unit not in units:
             raise ValueError(f"Unknown source unit: {from_unit}")
         if to_unit not in units:
             raise ValueError(f"Unknown target unit: {to_unit}")
-        
+
         # Convert to base unit, then to target unit
         value_decimal = Decimal(str(value))
         from_factor = Decimal(units[from_unit]["factor"])
         to_factor = Decimal(units[to_unit]["factor"])
-        
+
         base_value = value_decimal * from_factor
         result = base_value / to_factor
-        
+
         return result
 
     def _convert_temperature(self, value: str, from_unit: str, to_unit: str) -> Decimal:
         """Convert temperature with special formulas."""
         value_decimal = Decimal(str(value))
-        
+
         # Convert to Celsius first
         if from_unit == "celsius":
             celsius = value_decimal
@@ -233,7 +308,7 @@ class UnitConverter(BaseTool):
             celsius = value_decimal - Decimal("273.15")
         else:
             raise ValueError(f"Unknown temperature unit: {from_unit}")
-        
+
         # Convert from Celsius to target
         if to_unit == "celsius":
             result = celsius
@@ -243,7 +318,7 @@ class UnitConverter(BaseTool):
             result = celsius + Decimal("273.15")
         else:
             raise ValueError(f"Unknown temperature unit: {to_unit}")
-        
+
         return result
 
     def _convert_fuel(self, value: str, from_unit: str, to_unit: str) -> Decimal:
@@ -252,7 +327,7 @@ class UnitConverter(BaseTool):
         L/100km <-> km/L, mpg_us, mpg_imperial
         """
         value_decimal = Decimal(str(value))
-        
+
         # Convert to L/100km as base
         if from_unit == "liters_per_100km":
             base_l_100km = value_decimal
@@ -266,7 +341,7 @@ class UnitConverter(BaseTool):
             base_l_100km = Decimal("282.48093627967") / value_decimal
         else:
             raise ValueError(f"Unknown fuel unit: {from_unit}")
-        
+
         # Convert from L/100km to target
         if to_unit == "liters_per_100km":
             result = base_l_100km
@@ -278,7 +353,7 @@ class UnitConverter(BaseTool):
             result = Decimal("282.48093627967") / base_l_100km
         else:
             raise ValueError(f"Unknown fuel unit: {to_unit}")
-        
+
         return result
 
     def _convert_number_base(self, value: str, from_base: str, to_base: str) -> str:
@@ -289,18 +364,18 @@ class UnitConverter(BaseTool):
             "decimal": 10,
             "hexadecimal": 16,
         }
-        
+
         if from_base not in bases:
             raise ValueError(f"Unknown source base: {from_base}")
         if to_base not in bases:
             raise ValueError(f"Unknown target base: {to_base}")
-        
+
         # Convert to decimal integer first
         try:
             decimal_value = int(str(value), bases[from_base])
         except ValueError:
             raise ValueError(f"Invalid {from_base} value: {value}")
-        
+
         # Convert to target base
         if to_base == "binary":
             result = bin(decimal_value)[2:]  # Remove '0b' prefix
@@ -312,16 +387,16 @@ class UnitConverter(BaseTool):
             result = hex(decimal_value)[2:].upper()  # Remove '0x' prefix, uppercase
         else:
             result = str(decimal_value)
-        
+
         return result
 
     def _convert_case(self, value: str, from_case: str, to_case: str) -> str:
         """Convert text between different case formats."""
         text = str(value)
-        
+
         # First, handle from_case if needed (currently just use raw text)
         # In practice, from_case is informational - we convert the input text to to_case
-        
+
         if to_case == "lowercase":
             result = text.lower()
         elif to_case == "uppercase":
@@ -332,25 +407,25 @@ class UnitConverter(BaseTool):
             result = text.capitalize()
         elif to_case == "snakecase":
             # Convert to snake_case
-            result = re.sub(r'[\s\-]+', '_', text)
-            result = re.sub(r'([a-z])([A-Z])', r'\1_\2', result)
+            result = re.sub(r"[\s\-]+", "_", text)
+            result = re.sub(r"([a-z])([A-Z])", r"\1_\2", result)
             result = result.lower()
         elif to_case == "camelcase":
             # Convert to camelCase
-            words = re.split(r'[\s_\-]+', text)
-            result = words[0].lower() + ''.join(word.capitalize() for word in words[1:])
+            words = re.split(r"[\s_\-]+", text)
+            result = words[0].lower() + "".join(word.capitalize() for word in words[1:])
         elif to_case == "pascalcase":
             # Convert to PascalCase
-            words = re.split(r'[\s_\-]+', text)
-            result = ''.join(word.capitalize() for word in words)
+            words = re.split(r"[\s_\-]+", text)
+            result = "".join(word.capitalize() for word in words)
         elif to_case == "kebabcase":
             # Convert to kebab-case
-            result = re.sub(r'[\s_]+', '-', text)
-            result = re.sub(r'([a-z])([A-Z])', r'\1-\2', result)
+            result = re.sub(r"[\s_]+", "-", text)
+            result = re.sub(r"([a-z])([A-Z])", r"\1-\2", result)
             result = result.lower()
         else:
             raise ValueError(f"Unknown case type: {to_case}")
-        
+
         return result
 
     def _convert_currency(self, value: str, from_curr: str, to_curr: str) -> Decimal:
@@ -370,18 +445,18 @@ class UnitConverter(BaseTool):
             "cny": Decimal("7.24"),
             "inr": Decimal("83.12"),
         }
-        
+
         if from_curr not in rates:
             raise ValueError(f"Unknown currency: {from_curr}")
         if to_curr not in rates:
             raise ValueError(f"Unknown currency: {to_curr}")
-        
+
         value_decimal = Decimal(str(value))
-        
+
         # Convert to USD, then to target currency
         usd_value = value_decimal / rates[from_curr]
         result = usd_value * rates[to_curr]
-        
+
         return result
 
     def cleanup(self, *file_paths: str) -> None:

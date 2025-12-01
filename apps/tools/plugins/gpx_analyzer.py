@@ -235,7 +235,7 @@ class GPXAnalyzer(BaseTool):
                 stats["average_speed_kmh"] = round(
                     (stats["total_distance_km"] / duration) * 3600, 2
                 )
-                
+
                 # Average pace (min/km)
                 if stats["total_distance_km"] > 0:
                     pace_seconds = duration / stats["total_distance_km"]

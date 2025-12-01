@@ -78,7 +78,7 @@ class GPXSpeedModifier(BaseTool):
             Tuple of (output_file_path, output_filename)
         """
         speed_multiplier = float(parameters["speed_multiplier"])
-        
+
         temp_input = None
         temp_output = None
 

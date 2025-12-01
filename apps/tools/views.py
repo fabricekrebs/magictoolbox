@@ -138,32 +138,40 @@ class ToolViewSet(viewsets.ViewSet):
             return Response({"error": "Tool not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # Check if tool requires file upload
-        requires_file = getattr(tool_instance, 'requires_file_upload', True)
-        
+        requires_file = getattr(tool_instance, "requires_file_upload", True)
+
         # Handle tools that don't require file upload (e.g., unit converter)
         if not requires_file:
             # Get all parameters from request body (JSON)
             import json
+
             try:
-                if request.content_type == 'application/json':
+                if request.content_type == "application/json":
                     parameters = json.loads(request.body)
                 else:
                     parameters = dict(request.data)
             except Exception as e:
-                return Response({"error": f"Invalid request data: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-            
+                return Response(
+                    {"error": f"Invalid request data: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST
+                )
+
             # Validate parameters
             is_valid, error_msg = tool_instance.validate(input_file=None, parameters=parameters)
             if not is_valid:
                 return Response({"error": error_msg}, status=status.HTTP_400_BAD_REQUEST)
-            
+
             # Process without file
             try:
-                result_dict, result_string = tool_instance.process(input_file=None, parameters=parameters)
+                result_dict, result_string = tool_instance.process(
+                    input_file=None, parameters=parameters
+                )
                 return Response(result_dict)
             except Exception as e:
                 logger.error(f"Tool processing failed: {e}", exc_info=True)
-                return Response({"error": f"Processing failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response(
+                    {"error": f"Processing failed: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
 
         # Handle both single file and multiple files
         files = request.FILES.getlist("files[]") or request.FILES.getlist("files")

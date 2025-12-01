@@ -3,12 +3,13 @@ Tests for tool system.
 """
 
 from decimal import Decimal
+
 from rest_framework import status
 
 import pytest
 
-from apps.tools.registry import tool_registry
 from apps.tools.plugins.unit_converter import UnitConverter
+from apps.tools.registry import tool_registry
 
 
 @pytest.mark.django_db
