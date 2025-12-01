@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "10596082183378474137"
+      "templateHash": "10379250166280190377"
     }
   },
   "parameters": {
@@ -1119,7 +1119,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "2868705124221592475"
+              "templateHash": "3333573932679781705"
             }
           },
           "parameters": {
@@ -1194,7 +1194,6 @@
             },
             "containerAppsSubnetId": {
               "type": "string",
-              "defaultValue": "",
               "metadata": {
                 "description": "Subnet ID for Container Apps VNet integration"
               }
@@ -1226,7 +1225,10 @@
                     "sharedKey": "[listKeys(parameters('logAnalyticsWorkspaceId'), '2022-10-01').primarySharedKey]"
                   }
                 },
-                "vnetConfiguration": "[if(not(empty(parameters('containerAppsSubnetId'))), createObject('infrastructureSubnetId', parameters('containerAppsSubnetId'), 'internal', false()), null())]",
+                "vnetConfiguration": {
+                  "infrastructureSubnetId": "[parameters('containerAppsSubnetId')]",
+                  "internal": false
+                },
                 "zoneRedundant": "[if(equals(parameters('environment'), 'prod'), true(), false())]"
               }
             },
