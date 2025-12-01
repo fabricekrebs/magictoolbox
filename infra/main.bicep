@@ -183,6 +183,28 @@ module rbac './modules/rbac.bicep' = {
   }
 }
 
+// Azure Function App for PDF to DOCX conversion (optional - deploy when USE_AZURE_FUNCTIONS_PDF_CONVERSION=true)
+module functionApp './modules/function-app.bicep' = {
+  name: 'function-app-deployment'
+  params: {
+    location: location
+    namingPrefix: namingPrefix
+    tags: tags
+    storageAccountId: storage.outputs.storageAccountId
+    storageAccountName: storage.outputs.storageAccountName
+    logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
+    keyVaultName: keyVault.outputs.keyVaultName
+    postgresqlServerName: postgresql.outputs.postgresServerName
+    postgresqlDatabaseName: postgresql.outputs.databaseName
+    postgresqlAdminUser: postgresAdminUsername
+    postgresqlAdminPassword: postgresAdminPassword
+    applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
+  }
+  dependsOn: [
+    rbac  // Ensure RBAC is set up before Function App
+  ]
+}
+
 // Outputs
 output containerAppUrl string = containerApps.outputs.containerAppUrl
 output containerAppName string = containerApps.outputs.containerAppName
@@ -194,3 +216,5 @@ output postgresHost string = postgresql.outputs.fqdn
 output postgresDatabase string = postgresql.outputs.databaseName
 output logAnalyticsWorkspaceId string = monitoring.outputs.logAnalyticsWorkspaceId
 output applicationInsightsConnectionString string = monitoring.outputs.applicationInsightsConnectionString
+output functionAppName string = functionApp.outputs.functionAppName
+output functionAppHostName string = functionApp.outputs.functionAppHostName

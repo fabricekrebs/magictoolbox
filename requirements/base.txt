@@ -24,6 +24,7 @@ whitenoise>=6.6,<7.0
 # Azure SDK
 azure-identity>=1.15,<1.16
 azure-keyvault-secrets>=4.7,<4.8
+azure-storage-blob>=12.19,<13.0  # For blob storage operations (async PDF conversion)
 
 # API Documentation
 drf-spectacular>=0.27,<0.28

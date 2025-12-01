@@ -1,0 +1,245 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.38.33.27573",
+      "templateHash": "7850701544633001959"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string"
+    },
+    "namingPrefix": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "object"
+    },
+    "storageAccountId": {
+      "type": "string"
+    },
+    "storageAccountName": {
+      "type": "string"
+    },
+    "logAnalyticsWorkspaceId": {
+      "type": "string"
+    },
+    "keyVaultName": {
+      "type": "string"
+    },
+    "postgresqlServerName": {
+      "type": "string"
+    },
+    "postgresqlDatabaseName": {
+      "type": "string"
+    },
+    "postgresqlAdminUser": {
+      "type": "string"
+    },
+    "postgresqlAdminPassword": {
+      "type": "securestring"
+    },
+    "applicationInsightsConnectionString": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "functionAppName": "[format('func-{0}-{1}', parameters('namingPrefix'), uniqueString(resourceGroup().id))]",
+    "appServicePlanName": "[format('plan-{0}-func-{1}', parameters('namingPrefix'), uniqueString(resourceGroup().id))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2023-01-01",
+      "name": "[variables('appServicePlanName')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "sku": {
+        "name": "Y1",
+        "tier": "Dynamic"
+      },
+      "properties": {
+        "reserved": true
+      },
+      "kind": "functionapp,linux"
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2023-01-01",
+      "name": "[variables('functionAppName')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "kind": "functionapp,linux",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+        "reserved": true,
+        "siteConfig": {
+          "linuxFxVersion": "PYTHON|3.11",
+          "alwaysOn": false,
+          "functionAppScaleLimit": 10,
+          "appSettings": [
+            {
+              "name": "AzureWebJobsStorage",
+              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey=listKeys({1}, ''2023-01-01'').keys[0].value;EndpointSuffix=core.windows.net', parameters('storageAccountName'), parameters('storageAccountId'))]"
+            },
+            {
+              "name": "FUNCTIONS_EXTENSION_VERSION",
+              "value": "~4"
+            },
+            {
+              "name": "FUNCTIONS_WORKER_RUNTIME",
+              "value": "python"
+            },
+            {
+              "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey=listKeys({1}, ''2023-01-01'').keys[0].value;EndpointSuffix=core.windows.net', parameters('storageAccountName'), parameters('storageAccountId'))]"
+            },
+            {
+              "name": "WEBSITE_CONTENTSHARE",
+              "value": "[toLower(variables('functionAppName'))]"
+            },
+            {
+              "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+              "value": "[parameters('applicationInsightsConnectionString')]"
+            },
+            {
+              "name": "AZURE_STORAGE_ACCOUNT_NAME",
+              "value": "[parameters('storageAccountName')]"
+            },
+            {
+              "name": "DB_HOST",
+              "value": "[format('{0}.postgres.database.azure.com', parameters('postgresqlServerName'))]"
+            },
+            {
+              "name": "DB_NAME",
+              "value": "[parameters('postgresqlDatabaseName')]"
+            },
+            {
+              "name": "DB_USER",
+              "value": "[parameters('postgresqlAdminUser')]"
+            },
+            {
+              "name": "DB_PASSWORD",
+              "value": "[parameters('postgresqlAdminPassword')]"
+            },
+            {
+              "name": "DB_PORT",
+              "value": "5432"
+            },
+            {
+              "name": "WEBSITE_RUN_FROM_PACKAGE",
+              "value": "1"
+            },
+            {
+              "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
+              "value": "true"
+            },
+            {
+              "name": "ENABLE_ORYX_BUILD",
+              "value": "true"
+            }
+          ],
+          "ftpsState": "Disabled",
+          "minTlsVersion": "1.2",
+          "cors": {
+            "allowedOrigins": [
+              "*"
+            ]
+          }
+        },
+        "httpsOnly": true
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[format('Microsoft.Storage/storageAccounts/{0}', parameters('storageAccountName'))]",
+      "name": "[guid(resourceId('Microsoft.Web/sites', variables('functionAppName')), parameters('storageAccountId'), 'Storage Blob Data Contributor')]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-01-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[format('Microsoft.KeyVault/vaults/{0}', parameters('keyVaultName'))]",
+      "name": "[guid(resourceId('Microsoft.Web/sites', variables('functionAppName')), parameters('keyVaultName'), 'Key Vault Secrets User')]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-01-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Insights/diagnosticSettings",
+      "apiVersion": "2021-05-01-preview",
+      "scope": "[format('Microsoft.Web/sites/{0}', variables('functionAppName'))]",
+      "name": "function-app-diagnostics",
+      "properties": {
+        "workspaceId": "[parameters('logAnalyticsWorkspaceId')]",
+        "logs": [
+          {
+            "category": "FunctionAppLogs",
+            "enabled": true,
+            "retentionPolicy": {
+              "enabled": true,
+              "days": 30
+            }
+          }
+        ],
+        "metrics": [
+          {
+            "category": "AllMetrics",
+            "enabled": true,
+            "retentionPolicy": {
+              "enabled": true,
+              "days": 30
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "functionAppId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
+    },
+    "functionAppName": {
+      "type": "string",
+      "value": "[variables('functionAppName')]"
+    },
+    "functionAppPrincipalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-01-01', 'full').identity.principalId]"
+    },
+    "functionAppHostName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-01-01').defaultHostName]"
+    },
+    "appServicePlanId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]"
+    }
+  }
+}
