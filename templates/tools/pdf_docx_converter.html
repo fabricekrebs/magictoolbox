@@ -1,0 +1,334 @@
+{% extends 'base.html' %}
+{% load static crispy_forms_tags %}
+
+{% block title %}{{ tool.display_name }} - MagicToolbox{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <!-- Tool Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'tools:tool_list' %}">Tools</a></li>
+          <li class="breadcrumb-item active" aria-current="page">{{ tool.display_name }}</li>
+        </ol>
+      </nav>
+      <h1 class="display-5 fw-bold">
+        <i class="bi bi-file-earmark-word text-primary me-2"></i>
+        {{ tool.display_name }}
+      </h1>
+      <p class="lead text-muted">{{ tool.description }}</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Tool Form -->
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-upload me-2"></i>Upload & Convert PDF
+          </h5>
+        </div>
+        <div class="card-body">
+          <form id="pdfConverterForm" enctype="multipart/form-data">
+            <div class="mb-3">
+              <label for="pdfFile" class="form-label">
+                Select PDF Document
+              </label>
+              <input type="file" class="form-control" id="pdfFile" name="file" accept=".pdf,application/pdf" required>
+              <div class="form-text">
+                <i class="bi bi-info-circle me-1"></i>
+                Select a PDF document (max 100MB)
+              </div>
+              <div id="fileInfo" class="mt-2"></div>
+            </div>
+
+            <div class="card bg-light mb-3">
+              <div class="card-body">
+                <h6 class="card-title">
+                  <i class="bi bi-file-earmark-text me-2"></i>Page Selection <span class="text-muted small">(Optional)</span>
+                </h6>
+                <div class="row">
+                  <div class="col-md-6 mb-2">
+                    <label for="startPage" class="form-label">Start Page</label>
+                    <input type="number" class="form-control" id="startPage" name="start_page" min="0" placeholder="0 (first page)">
+                    <small class="form-text text-muted">Page numbering starts at 0</small>
+                  </div>
+                  <div class="col-md-6 mb-2">
+                    <label for="endPage" class="form-label">End Page</label>
+                    <input type="number" class="form-control" id="endPage" name="end_page" min="0" placeholder="All pages">
+                    <small class="form-text text-muted">Leave empty for all pages</small>
+                  </div>
+                </div>
+                <small class="text-muted">
+                  <i class="bi bi-info-circle me-1"></i>
+                  Leave both fields empty to convert the entire document
+                </small>
+              </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary btn-lg" id="convertBtn">
+                <i class="bi bi-arrow-repeat me-2"></i>Convert to DOCX
+              </button>
+            </div>
+          </form>
+
+          <!-- Progress Section -->
+          <div id="progressSection" class="mt-4" style="display: none;">
+            <div class="progress" style="height: 30px;">
+              <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                   role="progressbar" 
+                   id="progressBar"
+                   style="width: 0%">
+                <span id="progressText">0%</span>
+              </div>
+            </div>
+            <p class="text-center text-muted mt-2" id="progressMessage">Converting your PDF...</p>
+          </div>
+
+          <!-- Result Section -->
+          <div id="resultSection" class="mt-4" style="display: none;">
+            <div class="alert alert-success" role="alert">
+              <h5 class="alert-heading">
+                <i class="bi bi-check-circle me-2"></i>Conversion Successful!
+              </h5>
+              <p class="mb-0">Your PDF has been converted to DOCX successfully.</p>
+            </div>
+
+            <!-- Document Info -->
+            <div class="card mb-3">
+              <div class="card-header">
+                <h6 class="mb-0">Document Information</h6>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <h6 class="text-muted small mb-2">Original PDF</h6>
+                    <div class="d-flex align-items-center">
+                      <i class="bi bi-file-earmark-pdf text-danger fs-1 me-3"></i>
+                      <div>
+                        <div class="fw-bold" id="originalFileName"></div>
+                        <small class="text-muted" id="originalFileSize"></small>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <h6 class="text-muted small mb-2">Converted DOCX</h6>
+                    <div class="d-flex align-items-center">
+                      <i class="bi bi-file-earmark-word text-primary fs-1 me-3"></i>
+                      <div>
+                        <div class="fw-bold" id="convertedFileName"></div>
+                        <small class="text-muted" id="convertedFileSize"></small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Download Button -->
+            <div class="d-grid gap-2">
+              <a href="#" id="downloadBtn" class="btn btn-success btn-lg" download>
+                <i class="bi bi-download me-2"></i>Download DOCX Document
+              </a>
+              <button type="button" class="btn btn-outline-primary" onclick="location.reload()">
+                <i class="bi bi-arrow-clockwise me-2"></i>Convert Another PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tool Information -->
+    <div class="col-lg-4">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header bg-light">
+          <h6 class="mb-0">
+            <i class="bi bi-info-circle me-2"></i>What's Preserved
+          </h6>
+        </div>
+        <div class="card-body">
+          <ul class="small mb-0">
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-1"></i> Text content and formatting</li>
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-1"></i> Images and graphics</li>
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-1"></i> Tables and layouts</li>
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-1"></i> Basic font styles</li>
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-1"></i> Paragraphs and spacing</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mb-3">
+        <div class="card-header bg-light">
+          <h6 class="mb-0">
+            <i class="bi bi-exclamation-triangle me-2"></i>Limitations
+          </h6>
+        </div>
+        <div class="card-body">
+          <ul class="small mb-0">
+            <li class="mb-2">Complex layouts may not convert perfectly</li>
+            <li class="mb-2">Some fonts may be substituted</li>
+            <li class="mb-2">Scanned PDFs require OCR (not supported)</li>
+            <li class="mb-2">Password-protected PDFs not supported</li>
+            <li class="mb-2">Form fields may not be preserved</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-header bg-light">
+          <h6 class="mb-0">
+            <i class="bi bi-lightbulb me-2"></i>Usage Tips
+          </h6>
+        </div>
+        <div class="card-body">
+          <ul class="small mb-0">
+            <li class="mb-2">Best results with text-based PDFs</li>
+            <li class="mb-2">Use page selection to convert specific pages</li>
+            <li class="mb-2">Converted DOCX can be edited in Microsoft Word</li>
+            <li class="mb-2">Review formatting after conversion</li>
+            <li class="mb-2">File size may increase after conversion</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Show selected file info
+const fileInput = document.getElementById('pdfFile');
+const fileInfoDiv = document.getElementById('fileInfo');
+
+fileInput.addEventListener('change', function() {
+  const file = fileInput.files[0];
+  if (!file) {
+    fileInfoDiv.innerHTML = '';
+    return;
+  }
+
+  fileInfoDiv.innerHTML = `
+    <div class="alert alert-info">
+      <i class="bi bi-file-earmark-pdf me-2"></i>
+      <strong>${file.name}</strong>
+      <span class="text-muted">(${MagicToolbox.formatFileSize(file.size)})</span>
+    </div>
+  `;
+});
+
+// Handle form submission
+document.getElementById('pdfConverterForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const fileInput = document.getElementById('pdfFile');
+  const file = fileInput.files[0];
+  
+  if (!file) {
+    MagicToolbox.showNotification('Please select a PDF file', 'error');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  // Add page selection parameters if provided
+  const startPage = document.getElementById('startPage').value;
+  const endPage = document.getElementById('endPage').value;
+  
+  if (startPage) {
+    formData.append('start_page', startPage);
+  }
+  if (endPage) {
+    formData.append('end_page', endPage);
+  }
+  
+  const convertBtn = document.getElementById('convertBtn');
+  const progressSection = document.getElementById('progressSection');
+  const resultSection = document.getElementById('resultSection');
+  const progressMessage = document.getElementById('progressMessage');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  
+  // Show progress
+  convertBtn.disabled = true;
+  progressSection.style.display = 'block';
+  resultSection.style.display = 'none';
+  
+  // Reset progress
+  progressBar.style.width = '0%';
+  progressText.textContent = '0%';
+  progressMessage.textContent = 'Converting your PDF...';
+  
+  try {
+    // Simulate progress animation
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+      progress += 10;
+      progressBar.style.width = Math.min(progress, 90) + '%';
+      progressText.textContent = Math.min(progress, 90) + '%';
+      
+      if (progress >= 90) {
+        clearInterval(progressInterval);
+      }
+    }, 200);
+    
+    // Call the API
+    const response = await fetch('/api/v1/tools/pdf-docx-converter/convert/', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    clearInterval(progressInterval);
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Conversion failed');
+    }
+    
+    // Complete progress
+    progressBar.style.width = '100%';
+    progressText.textContent = '100%';
+    
+    // Get blob and show result
+    const blob = await response.blob();
+    const convertedDocUrl = URL.createObjectURL(blob);
+    
+    // Update file information
+    const baseName = file.name.replace(/\.pdf$/i, '');
+    const convertedFilename = `${baseName}.docx`;
+    
+    document.getElementById('originalFileName').textContent = file.name;
+    document.getElementById('originalFileSize').textContent = MagicToolbox.formatFileSize(file.size);
+    document.getElementById('convertedFileName').textContent = convertedFilename;
+    document.getElementById('convertedFileSize').textContent = MagicToolbox.formatFileSize(blob.size);
+    
+    // Set up download
+    const downloadBtn = document.getElementById('downloadBtn');
+    downloadBtn.href = convertedDocUrl;
+    downloadBtn.download = convertedFilename;
+    
+    // Show results
+    setTimeout(() => {
+      progressSection.style.display = 'none';
+      resultSection.style.display = 'block';
+      convertBtn.disabled = false;
+      
+      // Scroll to results
+      resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 500);
+    
+  } catch (error) {
+    MagicToolbox.showNotification('Conversion failed: ' + error.message, 'error');
+    progressSection.style.display = 'none';
+    convertBtn.disabled = false;
+  }
+});
+</script>
+{% endblock %}

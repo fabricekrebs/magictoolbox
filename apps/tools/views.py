@@ -201,6 +201,12 @@ class ToolViewSet(viewsets.ViewSet):
         if request.data.get("speed_multiplier"):
             parameters["speed_multiplier"] = request.data.get("speed_multiplier")
 
+        # PDF to DOCX converter parameters
+        if request.data.get("start_page"):
+            parameters["start_page"] = request.data.get("start_page")
+        if request.data.get("end_page"):
+            parameters["end_page"] = request.data.get("end_page")
+
         # Process multiple files
         if len(files) > 1:
             # Create a ZIP file with all converted images
@@ -285,6 +291,8 @@ class ToolViewSet(viewsets.ViewSet):
                     "gpx": "application/gpx+xml",
                     "kml": "application/vnd.google-earth.kml+xml",
                     "xml": "application/xml",
+                    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "pdf": "application/pdf",
                 }
                 content_type = content_type_map.get(file_ext, "application/octet-stream")
 
