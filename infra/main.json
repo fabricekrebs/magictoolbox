@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "10379250166280190377"
+      "templateHash": "11809116429382465634"
     }
   },
   "parameters": {
@@ -103,7 +103,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "570389338696297949"
+              "templateHash": "657768186941819201"
             }
           },
           "parameters": {
@@ -138,15 +138,7 @@
                   {
                     "name": "snet-container-apps",
                     "properties": {
-                      "addressPrefix": "10.0.0.0/23",
-                      "delegations": [
-                        {
-                          "name": "Microsoft.App.environments",
-                          "properties": {
-                            "serviceName": "Microsoft.App/environments"
-                          }
-                        }
-                      ]
+                      "addressPrefix": "10.0.0.0/23"
                     }
                   },
                   {

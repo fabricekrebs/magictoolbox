@@ -24,14 +24,7 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-05-01' = {
         name: 'snet-container-apps'
         properties: {
           addressPrefix: '10.0.0.0/23' // /23 for Container Apps (512 IPs)
-          delegations: [
-            {
-              name: 'Microsoft.App.environments'
-              properties: {
-                serviceName: 'Microsoft.App/environments'
-              }
-            }
-          ]
+          // Delegation is automatically added by Container Apps Environment, do not pre-delegate
         }
       }
       {
