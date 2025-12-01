@@ -31,10 +31,9 @@ class UnitConverter(BaseTool):
     max_file_size = 0
     requires_file_upload = False
 
-    # Load standard unit data from JSON
+    # Path to unit data JSON (loaded lazily)
     _data_path = Path(__file__).parent / "unit_converter_data.json"
-    with open(_data_path, "r") as f:
-        _UNIT_DATA = json.load(f)
+    _UNIT_DATA = None  # Loaded on first access
 
     # Temperature units (special conversion logic)
     TEMPERATURE_UNITS = {
@@ -42,6 +41,14 @@ class UnitConverter(BaseTool):
         "fahrenheit": {"name": "Fahrenheit"},
         "kelvin": {"name": "Kelvin"},
     }
+
+    @classmethod
+    def _load_unit_data(cls):
+        """Lazily load unit data from JSON file."""
+        if cls._UNIT_DATA is None:
+            with open(cls._data_path, "r") as f:
+                cls._UNIT_DATA = json.load(f)
+        return cls._UNIT_DATA
 
     # Supported conversion types (for easy reference)
     SUPPORTED_TYPES = [
@@ -70,26 +77,23 @@ class UnitConverter(BaseTool):
         base_metadata = super().get_metadata()
 
         # Extract all unit keys from the JSON data
+        unit_data = self._load_unit_data()
         base_metadata.update(
             {
-                "supported_conversion_types": list(self._UNIT_DATA.keys())
+                "supported_conversion_types": list(unit_data.keys())
                 + ["Temperature", "Fuel Consumption", "Currency", "Numbers", "Case"],
                 "length_units": {
-                    k: v["name"]
-                    for k, v in self._UNIT_DATA.get("Length", {}).get("units", {}).items()
+                    k: v["name"] for k, v in unit_data.get("Length", {}).get("units", {}).items()
                 },
                 "temperature_units": {k: v["name"] for k, v in self.TEMPERATURE_UNITS.items()},
                 "volume_units": {
-                    k: v["name"]
-                    for k, v in self._UNIT_DATA.get("Volume", {}).get("units", {}).items()
+                    k: v["name"] for k, v in unit_data.get("Volume", {}).get("units", {}).items()
                 },
                 "area_units": {
-                    k: v["name"]
-                    for k, v in self._UNIT_DATA.get("Area", {}).get("units", {}).items()
+                    k: v["name"] for k, v in unit_data.get("Area", {}).get("units", {}).items()
                 },
                 "energy_units": {
-                    k: v["name"]
-                    for k, v in self._UNIT_DATA.get("Energy", {}).get("units", {}).items()
+                    k: v["name"] for k, v in unit_data.get("Energy", {}).get("units", {}).items()
                 },
                 "requires_file_upload": False,
             }
@@ -115,7 +119,8 @@ class UnitConverter(BaseTool):
 
         # Normalize conversion_type - allow case-insensitive exact matches
         # Build valid types list
-        valid_types_exact = list(self._UNIT_DATA.keys()) + [
+        unit_data = self._load_unit_data()
+        valid_types_exact = list(unit_data.keys()) + [
             "Temperature",
             "Fuel Consumption",
             "Currency",
@@ -167,8 +172,8 @@ class UnitConverter(BaseTool):
                 "pascalcase",
                 "kebabcase",
             ]
-        elif conversion_type_key in self._UNIT_DATA:
-            valid_units = self._UNIT_DATA[conversion_type_key]["units"].keys()
+        elif conversion_type_key in unit_data:
+            valid_units = unit_data[conversion_type_key]["units"].keys()
         else:
             return False, f"Unknown conversion type: {conversion_type_key}"
 
@@ -243,7 +248,7 @@ class UnitConverter(BaseTool):
                 result = self._convert_case(value, from_unit, to_unit)
             elif conversion_type_key == "Currency":
                 result = self._convert_currency(value, from_unit, to_unit)
-            elif conversion_type_key in self._UNIT_DATA:
+            elif conversion_type_key in self._load_unit_data():
                 result = self._convert_standard(conversion_type_key, value, from_unit, to_unit)
             else:
                 raise ValueError(f"Unsupported conversion type: {conversion_type_key}")
@@ -278,7 +283,8 @@ class UnitConverter(BaseTool):
 
     def _convert_standard(self, category: str, value: str, from_unit: str, to_unit: str) -> Decimal:
         """Convert using standard factor-based conversion."""
-        units = self._UNIT_DATA[category]["units"]
+        unit_data = self._load_unit_data()
+        units = unit_data[category]["units"]
 
         if from_unit not in units:
             raise ValueError(f"Unknown source unit: {from_unit}")
