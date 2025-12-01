@@ -90,16 +90,18 @@ jobs:
               postgresAdminPassword="$POSTGRES_PASSWORD" \
               djangoSecretKey="$DJANGO_SECRET"
       
-      - name: Deploy infrastructure
+      - name: Deploy infrastructure (with Key Vault references)
         if: github.event.inputs.destroy != 'true'
         run: |
+          echo "🔐 Deploying with Key Vault secret references..."
           az deployment group create \
             --resource-group $RESOURCE_GROUP \
             --template-file ./infra/main.bicep \
             --parameters ./infra/parameters.${{ steps.set_env.outputs.environment }}.json \
             --parameters \
               postgresAdminPassword="$POSTGRES_PASSWORD" \
-              djangoSecretKey="$DJANGO_SECRET"
+              djangoSecretKey="$DJANGO_SECRET" \
+              useKeyVaultReferences=true
       
       - name: Set resource group for destroy (Dev)
         if: github.event.inputs.environment == 'dev' && github.event.inputs.destroy == 'true'

@@ -1,13 +1,14 @@
 // RBAC role assignments for Managed Identity access to Azure resources
-// Note: Key Vault access removed - secrets are passed directly to Container App
 param storageAccountName string
 param acrName string
+param keyVaultName string
 param containerAppIdentityPrincipalId string
 
 // Built-in Azure Role Definition IDs
 // https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles
 var storageBlobDataContributorRoleId = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
 var acrPullRoleId = '7f951dda-4ed3-4680-a7ca-43fe172d538d' // AcrPull role
+var keyVaultSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6' // Key Vault Secrets User
 
 // Reference existing resources
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' existing = {
@@ -16,6 +17,10 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' existing 
 
 resource acr 'Microsoft.ContainerRegistry/registries@2023-01-01-preview' existing = {
   name: acrName
+}
+
+resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' existing = {
+  name: keyVaultName
 }
 
 // Grant Container App managed identity access to Blob Storage
@@ -40,6 +45,18 @@ resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-
   }
 }
 
+// Grant Container App managed identity Key Vault Secrets User access
+resource keyVaultSecretsUserRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(keyVault.id, containerAppIdentityPrincipalId, keyVaultSecretsUserRoleId)
+  scope: keyVault
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
+    principalId: containerAppIdentityPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // Outputs
 output storageRoleAssignmentId string = storageBlobDataContributorRoleAssignment.id
 output acrRoleAssignmentId string = acrPullRoleAssignment.id
+output keyVaultRoleAssignmentId string = keyVaultSecretsUserRoleAssignment.id

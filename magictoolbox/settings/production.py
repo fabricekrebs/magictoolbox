@@ -62,13 +62,15 @@ MEDIA_URL = f"https://{AZURE_CUSTOM_DOMAIN}/{AZURE_CONTAINER}/"
 
 # Azure Key Vault for secrets management
 # Use Managed Identity for secure, keyless authentication
+# Set KEY_VAULT_ENABLED=true to enable Key Vault integration
 try:
     from azure.core.exceptions import AzureError
     from azure.identity import DefaultAzureCredential
     from azure.keyvault.secrets import SecretClient
 
+    KEY_VAULT_ENABLED = config("KEY_VAULT_ENABLED", default=False, cast=bool)
     KEY_VAULT_NAME = config("KEY_VAULT_NAME", default="")
-    if KEY_VAULT_NAME:
+    if KEY_VAULT_ENABLED and KEY_VAULT_NAME:
         AZURE_KEY_VAULT_URL = f"https://{KEY_VAULT_NAME}.vault.azure.net/"
         credential = DefaultAzureCredential()
         secret_client = SecretClient(vault_url=AZURE_KEY_VAULT_URL, credential=credential)

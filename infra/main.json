@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "5972480805911267412"
+      "templateHash": "3788869463774352821"
     }
   },
   "parameters": {
@@ -51,6 +51,13 @@
       "type": "securestring",
       "metadata": {
         "description": "The Django secret key"
+      }
+    },
+    "useKeyVaultReferences": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Use Key Vault references in Container App (false for first deployment, true after RBAC propagates)"
       }
     },
     "tags": {
@@ -1012,6 +1019,12 @@
           "acrPassword": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acr-deployment'), '2025-04-01').outputs.acrPassword.value]"
           },
+          "useKeyVaultReferences": {
+            "value": "[parameters('useKeyVaultReferences')]"
+          },
+          "keyVaultUri": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault-deployment'), '2025-04-01').outputs.keyVaultUri.value]"
+          },
           "djangoSecretKey": {
             "value": "[parameters('djangoSecretKey')]"
           },
@@ -1026,9 +1039,6 @@
           },
           "appInsightsConnectionString": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring-deployment'), '2025-04-01').outputs.applicationInsightsConnectionString.value]"
-          },
-          "keyVaultName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault-deployment'), '2025-04-01').outputs.keyVaultName.value]"
           },
           "storageAccountName": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage-deployment'), '2025-04-01').outputs.storageAccountName.value]"
@@ -1053,7 +1063,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "11084273680517945243"
+              "templateHash": "2207255809263783438"
             }
           },
           "parameters": {
@@ -1081,23 +1091,35 @@
             "acrPassword": {
               "type": "securestring"
             },
+            "useKeyVaultReferences": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Use Key Vault references for secrets (requires RBAC to be configured first)"
+              }
+            },
+            "keyVaultUri": {
+              "type": "string"
+            },
             "djangoSecretKey": {
-              "type": "securestring"
+              "type": "securestring",
+              "defaultValue": ""
             },
             "postgresPassword": {
-              "type": "securestring"
+              "type": "securestring",
+              "defaultValue": ""
             },
             "redisAccessKey": {
-              "type": "securestring"
+              "type": "securestring",
+              "defaultValue": ""
             },
             "storageAccountKey": {
-              "type": "securestring"
+              "type": "securestring",
+              "defaultValue": ""
             },
             "appInsightsConnectionString": {
-              "type": "securestring"
-            },
-            "keyVaultName": {
-              "type": "string"
+              "type": "securestring",
+              "defaultValue": ""
             },
             "storageAccountName": {
               "type": "string"
@@ -1176,32 +1198,7 @@
                       "passwordSecretRef": "acr-password"
                     }
                   ],
-                  "secrets": [
-                    {
-                      "name": "acr-password",
-                      "value": "[parameters('acrPassword')]"
-                    },
-                    {
-                      "name": "django-secret-key",
-                      "value": "[parameters('djangoSecretKey')]"
-                    },
-                    {
-                      "name": "postgres-password",
-                      "value": "[parameters('postgresPassword')]"
-                    },
-                    {
-                      "name": "redis-access-key",
-                      "value": "[parameters('redisAccessKey')]"
-                    },
-                    {
-                      "name": "storage-account-key",
-                      "value": "[parameters('storageAccountKey')]"
-                    },
-                    {
-                      "name": "appinsights-connection-string",
-                      "value": "[parameters('appInsightsConnectionString')]"
-                    }
-                  ]
+                  "secrets": "[if(parameters('useKeyVaultReferences'), createArray(createObject('name', 'acr-password', 'value', parameters('acrPassword')), createObject('name', 'django-secret-key', 'keyVaultUrl', format('{0}secrets/django-secret-key', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'postgres-password', 'keyVaultUrl', format('{0}secrets/postgres-password', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'redis-access-key', 'keyVaultUrl', format('{0}secrets/redis-access-key', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'storage-account-key', 'keyVaultUrl', format('{0}secrets/storage-account-key', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'appinsights-connection-string', 'keyVaultUrl', format('{0}secrets/appinsights-connection-string', parameters('keyVaultUri')), 'identity', 'system')), createArray(createObject('name', 'acr-password', 'value', parameters('acrPassword')), createObject('name', 'django-secret-key', 'value', parameters('djangoSecretKey')), createObject('name', 'postgres-password', 'value', parameters('postgresPassword')), createObject('name', 'redis-access-key', 'value', parameters('redisAccessKey')), createObject('name', 'storage-account-key', 'value', parameters('storageAccountKey')), createObject('name', 'appinsights-connection-string', 'value', parameters('appInsightsConnectionString'))))]"
                 },
                 "template": {
                   "containers": [
@@ -1292,10 +1289,6 @@
                         {
                           "name": "AZURE_STORAGE_CONTAINER_STATIC",
                           "value": "static"
-                        },
-                        {
-                          "name": "KEY_VAULT_NAME",
-                          "value": "[parameters('keyVaultName')]"
                         },
                         {
                           "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
@@ -1420,6 +1413,9 @@
           "acrName": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acr-deployment'), '2025-04-01').outputs.acrName.value]"
           },
+          "keyVaultName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault-deployment'), '2025-04-01').outputs.keyVaultName.value]"
+          },
           "containerAppIdentityPrincipalId": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'container-apps-deployment'), '2025-04-01').outputs.containerAppIdentityPrincipalId.value]"
           }
@@ -1431,7 +1427,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "6249190800734094352"
+              "templateHash": "4019838750478201136"
             }
           },
           "parameters": {
@@ -1441,13 +1437,17 @@
             "acrName": {
               "type": "string"
             },
+            "keyVaultName": {
+              "type": "string"
+            },
             "containerAppIdentityPrincipalId": {
               "type": "string"
             }
           },
           "variables": {
             "storageBlobDataContributorRoleId": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
-            "acrPullRoleId": "7f951dda-4ed3-4680-a7ca-43fe172d538d"
+            "acrPullRoleId": "7f951dda-4ed3-4680-a7ca-43fe172d538d",
+            "keyVaultSecretsUserRoleId": "4633458b-17de-408a-b874-0445c86b69e6"
           },
           "resources": [
             {
@@ -1471,6 +1471,17 @@
                 "principalId": "[parameters('containerAppIdentityPrincipalId')]",
                 "principalType": "ServicePrincipal"
               }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.KeyVault/vaults/{0}', parameters('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('containerAppIdentityPrincipalId'), variables('keyVaultSecretsUserRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('keyVaultSecretsUserRoleId'))]",
+                "principalId": "[parameters('containerAppIdentityPrincipalId')]",
+                "principalType": "ServicePrincipal"
+              }
             }
           ],
           "outputs": {
@@ -1481,6 +1492,10 @@
             "acrRoleAssignmentId": {
               "type": "string",
               "value": "[extensionResourceId(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), parameters('containerAppIdentityPrincipalId'), variables('acrPullRoleId')))]"
+            },
+            "keyVaultRoleAssignmentId": {
+              "type": "string",
+              "value": "[extensionResourceId(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('containerAppIdentityPrincipalId'), variables('keyVaultSecretsUserRoleId')))]"
             }
           }
         }
@@ -1488,6 +1503,7 @@
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deployments', 'acr-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'container-apps-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'keyvault-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'storage-deployment')]"
       ]
     }

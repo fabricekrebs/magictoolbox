@@ -1,6 +1,6 @@
 // Azure Container Apps Environment and App
-// Note: Secrets are passed directly as secure parameters instead of using Key Vault references
-// This avoids timing/permission issues with Managed Identity during deployment
+// Supports both direct secrets and Key Vault references
+// Use useKeyVaultReferences=false for initial deployment, true after RBAC is configured
 param location string
 param namingPrefix string
 param tags object
@@ -12,18 +12,22 @@ param acrUsername string
 @secure()
 param acrPassword string
 
-@secure()
-param djangoSecretKey string
-@secure()
-param postgresPassword string
-@secure()
-param redisAccessKey string
-@secure()
-param storageAccountKey string
-@secure()
-param appInsightsConnectionString string
+@description('Use Key Vault references for secrets (requires RBAC to be configured first)')
+param useKeyVaultReferences bool = false
 
-param keyVaultName string
+param keyVaultUri string
+
+@secure()
+param djangoSecretKey string = ''
+@secure()
+param postgresPassword string = ''
+@secure()
+param redisAccessKey string = ''
+@secure()
+param storageAccountKey string = ''
+@secure()
+param appInsightsConnectionString string = ''
+
 param storageAccountName string
 param redisHostName string
 param postgresHost string
@@ -99,7 +103,37 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
           passwordSecretRef: 'acr-password'
         }
       ]
-      secrets: [
+      secrets: useKeyVaultReferences ? [
+        {
+          name: 'acr-password'
+          value: acrPassword
+        }
+        {
+          name: 'django-secret-key'
+          keyVaultUrl: '${keyVaultUri}secrets/django-secret-key'
+          identity: 'system'
+        }
+        {
+          name: 'postgres-password'
+          keyVaultUrl: '${keyVaultUri}secrets/postgres-password'
+          identity: 'system'
+        }
+        {
+          name: 'redis-access-key'
+          keyVaultUrl: '${keyVaultUri}secrets/redis-access-key'
+          identity: 'system'
+        }
+        {
+          name: 'storage-account-key'
+          keyVaultUrl: '${keyVaultUri}secrets/storage-account-key'
+          identity: 'system'
+        }
+        {
+          name: 'appinsights-connection-string'
+          keyVaultUrl: '${keyVaultUri}secrets/appinsights-connection-string'
+          identity: 'system'
+        }
+      ] : [
         {
           name: 'acr-password'
           value: acrPassword
@@ -215,10 +249,6 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             {
               name: 'AZURE_STORAGE_CONTAINER_STATIC'
               value: 'static'
-            }
-            {
-              name: 'KEY_VAULT_NAME'
-              value: keyVaultName
             }
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'

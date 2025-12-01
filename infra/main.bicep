@@ -31,6 +31,9 @@ param postgresAdminPassword string
 @secure()
 param djangoSecretKey string
 
+@description('Use Key Vault references in Container App (false for first deployment, true after RBAC propagates)')
+param useKeyVaultReferences bool = false
+
 @description('Tags to apply to all resources')
 param tags object = {
   Application: 'MagicToolbox'
@@ -118,7 +121,7 @@ module postgresql './modules/postgresql.bicep' = {
   }
 }
 
-// Azure Container Apps Environment and App
+// Azure Container Apps Environment and App (initial deployment without Key Vault secrets)
 module containerApps './modules/container-apps.bicep' = {
   name: 'container-apps-deployment'
   params: {
@@ -130,12 +133,13 @@ module containerApps './modules/container-apps.bicep' = {
     acrLoginServer: acr.outputs.loginServer
     acrUsername: acr.outputs.acrUsername
     acrPassword: acr.outputs.acrPassword
+    useKeyVaultReferences: useKeyVaultReferences
+    keyVaultUri: keyVault.outputs.keyVaultUri
     djangoSecretKey: djangoSecretKey
     postgresPassword: postgresAdminPassword
     redisAccessKey: redis.outputs.accessKey
     storageAccountKey: storage.outputs.storageAccountKey
     appInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
-    keyVaultName: keyVault.outputs.keyVaultName
     storageAccountName: storage.outputs.storageAccountName
     redisHostName: redis.outputs.hostName
     postgresHost: postgresql.outputs.fqdn
@@ -144,12 +148,13 @@ module containerApps './modules/container-apps.bicep' = {
   }
 }
 
-// RBAC role assignments for Managed Identity (ACR and Storage only, no Key Vault)
+// RBAC role assignments for Managed Identity (ACR, Storage, and Key Vault)
 module rbac './modules/rbac.bicep' = {
   name: 'rbac-deployment'
   params: {
     storageAccountName: storage.outputs.storageAccountName
     acrName: acr.outputs.acrName
+    keyVaultName: keyVault.outputs.keyVaultName
     containerAppIdentityPrincipalId: containerApps.outputs.containerAppIdentityPrincipalId
   }
 }
