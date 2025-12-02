@@ -28,7 +28,7 @@ db.sqlite3-journal
 *.env
 
 # IDE
-.vscode/
+
 .idea/
 *.swp
 *.swo

@@ -25,6 +25,13 @@ try:
 except ImportError:
     Converter = None
 
+try:
+    from azure.identity import DefaultAzureCredential
+    from azure.storage.blob import BlobServiceClient
+except ImportError:
+    DefaultAzureCredential = None
+    BlobServiceClient = None
+
 
 class PdfDocxConverter(BaseTool):
     """
@@ -49,8 +56,10 @@ class PdfDocxConverter(BaseTool):
     max_file_size = 100 * 1024 * 1024  # 100MB per file
 
     # Processing mode configuration
-    # PDF to DOCX conversion ONLY uses Azure Functions (no sync mode)
-    use_azure_functions = True  # Always use Azure Functions
+    @property
+    def use_azure_functions(self) -> bool:
+        """Check if Azure Functions mode is enabled via settings."""
+        return getattr(settings, "USE_AZURE_FUNCTIONS_PDF_CONVERSION", False)
 
     def validate(
         self, input_file: UploadedFile, parameters: Dict[str, Any]
