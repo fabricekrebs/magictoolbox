@@ -230,9 +230,7 @@ class PdfDocxConverter(BaseTool):
 
                     # Call Azure Function (async, don't wait for response)
                     self.logger.info(f"Calling Azure Function: {function_url}")
-                    response = requests.post(
-                        function_url, json=payload, headers=headers, timeout=5
-                    )
+                    response = requests.post(function_url, json=payload, headers=headers, timeout=5)
 
                     if response.status_code == 200:
                         self.logger.info(
