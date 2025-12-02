@@ -213,6 +213,12 @@ try:
 except ImportError as e:
     logger.warning(f"Application Insights packages not installed: {e}. Telemetry disabled.")
 
+# Azure Functions Configuration
+USE_AZURE_FUNCTIONS_PDF_CONVERSION = config(
+    "USE_AZURE_FUNCTIONS_PDF_CONVERSION", default=False, cast=bool
+)
+AZURE_FUNCTION_PDF_CONVERSION_URL = config("AZURE_FUNCTION_PDF_CONVERSION_URL", default="")
+
 # Email Configuration (configure based on your email service)
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = config("EMAIL_HOST", default="smtp.sendgrid.net")
