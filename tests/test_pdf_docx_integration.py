@@ -3,11 +3,13 @@ Integration tests for PDF to DOCX converter with Azure Functions.
 Tests the actual code paths without Azure deployment.
 """
 import os
-from unittest.mock import Mock, patch, MagicMock
-from django.test import TestCase, override_settings
+from unittest.mock import MagicMock, Mock, patch
+
 from django.core.files.uploadedfile import SimpleUploadedFile
-from apps.tools.plugins.pdf_docx_converter import PdfDocxConverter
+from django.test import TestCase, override_settings
+
 from apps.tools.models import ToolExecution
+from apps.tools.plugins.pdf_docx_converter import PdfDocxConverter
 
 
 class TestPdfDocxIntegration(TestCase):

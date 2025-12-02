@@ -1,6 +1,7 @@
-import requests
 import json
 import time
+
+import requests
 
 BASE_URL = "https://app-we-magictoolbox-dev-01.calmisland-ca0bbf54.westeurope.azurecontainerapps.io"
 API_URL = f"{BASE_URL}/api/v1"

@@ -19,8 +19,8 @@ def setup_containers():
 
     try:
         # Connect to Azurite using account URL and key
-        from azure.storage.blob import BlobServiceClient
         from azure.core.credentials import AzureNamedKeyCredential
+        from azure.storage.blob import BlobServiceClient
 
         credential = AzureNamedKeyCredential("devstorageaccount1", AZURITE_ACCOUNT_KEY)
         blob_service_client = BlobServiceClient(

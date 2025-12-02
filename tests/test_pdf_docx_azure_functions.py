@@ -2,10 +2,12 @@
 Test Azure Functions integration for PDF to DOCX converter.
 """
 
-import pytest
-from django.core.files.uploadedfile import SimpleUploadedFile
+from unittest.mock import MagicMock, Mock, patch
+
 from django.conf import settings
-from unittest.mock import Mock, patch, MagicMock
+from django.core.files.uploadedfile import SimpleUploadedFile
+
+import pytest
 
 from apps.tools.plugins.pdf_docx_converter import PdfDocxConverter
 

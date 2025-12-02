@@ -110,12 +110,13 @@ def delete_conversion(request, execution_id):
     Delete a conversion and its associated files from storage.
     Only the owner can delete their own conversions.
     """
-    from azure.identity import DefaultAzureCredential
-    from azure.storage.blob import BlobServiceClient
     from django.conf import settings
     from django.contrib import messages
     from django.http import JsonResponse
     from django.shortcuts import redirect
+
+    from azure.identity import DefaultAzureCredential
+    from azure.storage.blob import BlobServiceClient
 
     try:
         # Get execution and verify ownership
@@ -209,12 +210,13 @@ def delete_all_conversions(request):
     Delete all conversions and their associated files from storage.
     Only deletes the authenticated user's own conversions.
     """
-    from azure.identity import DefaultAzureCredential
-    from azure.storage.blob import BlobServiceClient
     from django.conf import settings
     from django.contrib import messages
     from django.http import JsonResponse
     from django.shortcuts import redirect
+
+    from azure.identity import DefaultAzureCredential
+    from azure.storage.blob import BlobServiceClient
 
     try:
         # Get all conversions for the user
@@ -872,10 +874,11 @@ class ToolExecutionViewSet(viewsets.ReadOnlyModelViewSet):
 
         GET /api/v1/tools/executions/{execution_id}/download/
         """
-        from azure.identity import DefaultAzureCredential
-        from azure.storage.blob import BlobServiceClient
         from django.conf import settings
         from django.http import HttpResponse
+
+        from azure.identity import DefaultAzureCredential
+        from azure.storage.blob import BlobServiceClient
 
         try:
             # Ensure users can only download their own files
