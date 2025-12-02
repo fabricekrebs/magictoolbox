@@ -14,6 +14,7 @@ Architecture:
 7. User polls Django API for status and downloads result
 """
 
+import json
 import logging
 import os
 import tempfile
@@ -496,7 +497,6 @@ def db_diagnostic(req: func.HttpRequest) -> func.HttpResponse:
     Returns:
         200 OK with database connection test results
     """
-    import json
     logger.info("Database diagnostic endpoint called")
     
     result = {
@@ -612,7 +612,6 @@ def http_trigger_test(req: func.HttpRequest) -> func.HttpResponse:
     debug = req.params.get('debug', '').lower() == 'true'
     
     if debug:
-        import json
         env_info = {
             "status": "healthy",
             "function": "pdf-to-docx-converter",
