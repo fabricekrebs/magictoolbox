@@ -108,6 +108,15 @@ resource staticContainer 'Microsoft.Storage/storageAccounts/blobServices/contain
   }
 }
 
+// Container for Function App deployment packages (FlexConsumption requirement)
+resource deploymentPackageContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'deploymentpackage'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
 // Outputs
 output storageAccountId string = storageAccount.id
 output storageAccountName string = storageAccount.name

@@ -180,6 +180,7 @@ module rbac './modules/rbac.bicep' = {
     acrName: acr.outputs.acrName
     keyVaultName: keyVault.outputs.keyVaultName
     containerAppIdentityPrincipalId: containerApps.outputs.containerAppIdentityPrincipalId
+    functionAppIdentityPrincipalId: functionApp.outputs.functionAppPrincipalId
   }
 }
 
@@ -190,19 +191,14 @@ module functionApp './modules/function-app.bicep' = {
     location: location
     namingPrefix: namingPrefix
     tags: tags
-    storageAccountId: storage.outputs.storageAccountId
     storageAccountName: storage.outputs.storageAccountName
     logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
-    keyVaultName: keyVault.outputs.keyVaultName
     postgresqlServerName: postgresql.outputs.postgresServerName
     postgresqlDatabaseName: postgresql.outputs.databaseName
     postgresqlAdminUser: postgresAdminUsername
     postgresqlAdminPassword: postgresAdminPassword
     applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
   }
-  dependsOn: [
-    rbac  // Ensure RBAC is set up before Function App
-  ]
 }
 
 // Outputs

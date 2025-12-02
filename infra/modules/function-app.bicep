@@ -6,10 +6,8 @@ param namingPrefix string
 param tags object
 
 // Dependencies
-param storageAccountId string
 param storageAccountName string
 param logAnalyticsWorkspaceId string
-param keyVaultName string
 
 // Database connection (for updating ToolExecution records)
 param postgresqlServerName string
@@ -23,25 +21,25 @@ param applicationInsightsConnectionString string
 
 // Function App names
 var functionAppName = 'func-${namingPrefix}-${uniqueString(resourceGroup().id)}'
-var appServicePlanName = 'plan-${namingPrefix}-func-${uniqueString(resourceGroup().id)}'
+var appServicePlanName = 'plan-flex-${namingPrefix}-${uniqueString(resourceGroup().id)}'
 
-// App Service Plan (Consumption for serverless)
-resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
+// App Service Plan (FlexConsumption for Managed Identity support with disabled shared key access)
+resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: appServicePlanName
   location: location
   tags: tags
   sku: {
-    name: 'Y1'  // Consumption (serverless) plan
-    tier: 'Dynamic'
+    name: 'FC1'  // FlexConsumption plan
+    tier: 'FlexConsumption'
   }
   properties: {
     reserved: true  // Linux
   }
-  kind: 'functionapp,linux'
+  kind: 'functionapp'
 }
 
 // Function App
-resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
+resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
   name: functionAppName
   location: location
   tags: tags
@@ -52,30 +50,42 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
   properties: {
     serverFarmId: appServicePlan.id
     reserved: true  // Linux
+    functionAppConfig: {
+      deployment: {
+        storage: {
+          type: 'blobContainer'
+          value: 'https://${storageAccountName}.blob.${environment().suffixes.storage}/deploymentpackage'
+          authentication: {
+            type: 'SystemAssignedIdentity'
+          }
+        }
+      }
+      scaleAndConcurrency: {
+        maximumInstanceCount: 100
+        instanceMemoryMB: 2048
+      }
+      runtime: {
+        name: 'python'
+        version: '3.11'
+      }
+    }
     siteConfig: {
-      linuxFxVersion: 'PYTHON|3.11'  // Python 3.11 runtime
-      alwaysOn: false  // Not available in consumption plan
-      functionAppScaleLimit: 10  // Max concurrent instances
       appSettings: [
         {
-          name: 'AzureWebJobsStorage'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};AccountKey=listKeys(${storageAccountId}, \'2023-01-01\').keys[0].value;EndpointSuffix=core.windows.net'
+          name: 'AzureWebJobsStorage__blobServiceUri'
+          value: 'https://${storageAccountName}.blob.${environment().suffixes.storage}'
         }
         {
-          name: 'FUNCTIONS_EXTENSION_VERSION'
-          value: '~4'
+          name: 'AzureWebJobsStorage__queueServiceUri'
+          value: 'https://${storageAccountName}.queue.${environment().suffixes.storage}'
         }
         {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'python'
+          name: 'AzureWebJobsStorage__tableServiceUri'
+          value: 'https://${storageAccountName}.table.${environment().suffixes.storage}'
         }
         {
-          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};AccountKey=listKeys(${storageAccountId}, \'2023-01-01\').keys[0].value;EndpointSuffix=core.windows.net'
-        }
-        {
-          name: 'WEBSITE_CONTENTSHARE'
-          value: toLower(functionAppName)
+          name: 'AzureWebJobsStorage__credential'
+          value: 'managedidentity'
         }
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
@@ -105,18 +115,8 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           name: 'DB_PORT'
           value: '5432'
         }
-        {
-          name: 'WEBSITE_RUN_FROM_PACKAGE'
-          value: '1'
-        }
-        {
-          name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
-          value: 'true'
-        }
-        {
-          name: 'ENABLE_ORYX_BUILD'
-          value: 'true'
-        }
+        // Note: WEBSITE_RUN_FROM_PACKAGE, SCM_DO_BUILD_DURING_DEPLOYMENT, and ENABLE_ORYX_BUILD
+        // are not supported with FlexConsumption SKU and have been removed
       ]
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
@@ -130,44 +130,8 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
   }
 }
 
-// Reference to existing storage account for RBAC
-resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' existing = {
-  name: storageAccountName
-}
-
-// Reference to existing Key Vault for RBAC
-resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' existing = {
-  name: keyVaultName
-}
-
-// Grant Function App "Storage Blob Data Contributor" role on storage account
-// This allows the function to read/write blobs using Managed Identity
-resource blobContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(functionApp.id, storageAccountId, 'Storage Blob Data Contributor')
-  scope: storageAccount
-  properties: {
-    roleDefinitionId: subscriptionResourceId(
-      'Microsoft.Authorization/roleDefinitions',
-      'ba92f5b4-2d11-453d-a403-e96b0029c9fe'  // Storage Blob Data Contributor
-    )
-    principalId: functionApp.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-// Grant Function App access to Key Vault secrets (optional)
-resource keyVaultSecretsUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(functionApp.id, keyVaultName, 'Key Vault Secrets User')
-  scope: keyVault
-  properties: {
-    roleDefinitionId: subscriptionResourceId(
-      'Microsoft.Authorization/roleDefinitions',
-      '4633458b-17de-408a-b874-0445c86b69e6'  // Key Vault Secrets User
-    )
-    principalId: functionApp.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
+// Note: RBAC role assignments for Storage and Key Vault are handled in the rbac.bicep module
+// to avoid duplicate assignments and ensure proper deployment order
 
 // Diagnostic settings for Function App
 resource functionAppDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
@@ -179,20 +143,12 @@ resource functionAppDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-0
       {
         category: 'FunctionAppLogs'
         enabled: true
-        retentionPolicy: {
-          enabled: true
-          days: 30
-        }
       }
     ]
     metrics: [
       {
         category: 'AllMetrics'
         enabled: true
-        retentionPolicy: {
-          enabled: true
-          days: 30
-        }
       }
     ]
   }

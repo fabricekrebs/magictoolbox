@@ -13,6 +13,12 @@
     },
     "postgresAdminUsername": {
       "value": "mtbadmin"
+    },
+    "postgresAdminPassword": {
+      "value": "DevP@ssw0rd!2025#MTB$PostgreSQL%Secure&TestOnly*"
+    },
+    "djangoSecretKey": {
+      "value": "dev-django-secret-key-for-testing-only-not-for-production-use-2025-magictoolbox-changeme"
     }
   }
 }
