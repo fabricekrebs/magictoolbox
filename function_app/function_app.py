@@ -487,7 +487,7 @@ def pdf_to_docx_converter(req: func.HttpRequest) -> func.HttpResponse:
 
 
 @app.function_name(name="DatabaseDiagnostic")
-@app.route(route="db-diagnostic", methods=["GET"])
+@app.route(route="db-diagnostic", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def db_diagnostic(req: func.HttpRequest) -> func.HttpResponse:
     """
     Database connection diagnostic endpoint.
@@ -595,7 +595,7 @@ def db_diagnostic(req: func.HttpRequest) -> func.HttpResponse:
 
 
 @app.function_name(name="HttpTriggerTest")
-@app.route(route="health", methods=["GET"])
+@app.route(route="health", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def http_trigger_test(req: func.HttpRequest) -> func.HttpResponse:
     """
     Simple HTTP health check endpoint for testing.
