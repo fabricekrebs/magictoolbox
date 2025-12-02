@@ -318,54 +318,90 @@ def convert_pdf_to_docx(
             os.unlink(temp_docx)
 
 
-@app.blob_trigger(
-    arg_name="pdfblob",
-    path="uploads/pdf/{name}",
-    connection="AzureWebJobsStorage",
-)
-def pdf_to_docx_converter(pdfblob: func.InputStream):
+@app.function_name(name="PdfToDocxConverter")
+@app.route(route="pdf-to-docx", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
+def pdf_to_docx_converter(req: func.HttpRequest) -> func.HttpResponse:
     """
-    Azure Function triggered by PDF upload to convert to DOCX.
+    Azure Function HTTP trigger to convert PDF to DOCX.
 
-    Trigger: Blob uploaded to uploads/pdf/{name}
-    Input: PDF file stream with metadata
-    Output: DOCX file written to processed/docx/{name}
-    Side Effect: Updates ToolExecution record in database
+    Expected JSON body:
+    {
+        "execution_id": "uuid-string",
+        "blob_name": "pdf/execution_id.pdf",
+        "original_filename": "document.pdf",
+        "start_page": 0,
+        "end_page": null
+    }
 
-    Metadata expected on blob:
-    - execution_id: UUID of ToolExecution record
-    - start_page: First page to convert (optional, default: 0)
-    - end_page: Last page to convert (optional, default: None/all)
-    - original_filename: Original filename uploaded by user
+    Returns:
+    - 200: Processing started successfully
+    - 400: Invalid request
+    - 500: Processing failed
     """
     try:
-        logger.info("=== PDF to DOCX Conversion Started ===")
-        logger.info(f"Blob name: {pdfblob.name}")
-        logger.info(f"Blob size: {pdfblob.length} bytes")
+        logger.info("=== PDF to DOCX Conversion Started (HTTP Trigger) ===")
 
-        # Extract metadata from blob
-        execution_id = pdfblob.metadata.get("execution_id")
-        if not execution_id:
-            logger.error("No execution_id in blob metadata")
-            return
+        # Parse request body
+        try:
+            req_body = req.get_json()
+        except ValueError:
+            return func.HttpResponse(
+                '{"error": "Invalid JSON in request body"}',
+                status_code=400,
+                mimetype="application/json",
+            )
+
+        # Validate required fields
+        execution_id = req_body.get("execution_id")
+        blob_name = req_body.get("blob_name")
+        original_filename = req_body.get("original_filename", "document.pdf")
+
+        if not execution_id or not blob_name:
+            return func.HttpResponse(
+                '{"error": "Missing required fields: execution_id, blob_name"}',
+                status_code=400,
+                mimetype="application/json",
+            )
 
         logger.info(f"Execution ID: {execution_id}")
-
-        # Get conversion parameters from metadata
-        start_page = int(pdfblob.metadata.get("start_page", "0"))
-        end_page_str = pdfblob.metadata.get("end_page", "")
-        end_page = int(end_page_str) if end_page_str else None
-        original_filename = pdfblob.metadata.get("original_filename", "document.pdf")
-
+        logger.info(f"Blob name: {blob_name}")
         logger.info(f"Original filename: {original_filename}")
+
+        # Get conversion parameters
+        start_page = int(req_body.get("start_page", 0))
+        end_page = req_body.get("end_page")
+        if end_page is not None:
+            end_page = int(end_page)
+
         logger.info(f"Page range: {start_page} to {end_page or 'end'}")
 
         # Update status to processing
         update_execution_status(execution_id, "processing")
 
+        # Download PDF from blob storage
+        blob_service = get_blob_service_client()
+        blob_client = blob_service.get_blob_client(container="uploads", blob=blob_name)
+
+        # Download blob data
+        pdf_data = blob_client.download_blob().readall()
+        logger.info(f"Downloaded PDF: {len(pdf_data)} bytes")
+
+        # Create a temporary file-like object for conversion
+        import io
+
+        class PdfStream:
+            def __init__(self, data):
+                self._data = data
+                self._stream = io.BytesIO(data)
+
+            def read(self):
+                return self._data
+
+        pdf_stream = PdfStream(pdf_data)
+
         # Convert PDF to DOCX
         docx_bytes, docx_size = convert_pdf_to_docx(
-            pdf_stream=pdfblob,
+            pdf_stream=pdf_stream,
             start_page=start_page,
             end_page=end_page,
         )
@@ -375,7 +411,6 @@ def pdf_to_docx_converter(pdfblob: func.InputStream):
         output_filename = Path(original_filename).stem + ".docx"
 
         # Upload DOCX to processed container
-        blob_service = get_blob_service_client()
         output_blob_client = blob_service.get_blob_client(
             container="processed", blob=output_blob_name
         )
@@ -403,6 +438,12 @@ def pdf_to_docx_converter(pdfblob: func.InputStream):
 
         logger.info("=== PDF to DOCX Conversion Completed Successfully ===")
 
+        return func.HttpResponse(
+            '{"status": "completed", "execution_id": "' + execution_id + '"}',
+            status_code=200,
+            mimetype="application/json",
+        )
+
     except Exception as e:
         logger.error("=== PDF to DOCX Conversion Failed ===")
         logger.error(f"Error: {str(e)}", exc_info=True)
@@ -420,8 +461,11 @@ def pdf_to_docx_converter(pdfblob: func.InputStream):
                 error_traceback=error_traceback,
             )
 
-        # Re-raise to trigger Azure Functions retry logic
-        raise
+        return func.HttpResponse(
+            '{"error": "' + str(e).replace('"', '\\"') + '"}',
+            status_code=500,
+            mimetype="application/json",
+        )
 
 
 @app.function_name(name="HttpTriggerTest")
