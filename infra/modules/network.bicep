@@ -34,6 +34,20 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-05-01' = {
           privateEndpointNetworkPolicies: 'Disabled' // Required for private endpoints
         }
       }
+      {
+        name: 'snet-function-apps'
+        properties: {
+          addressPrefix: '10.0.3.0/24' // /24 for Function Apps VNet integration (256 IPs)
+          delegations: [
+            {
+              name: 'delegation'
+              properties: {
+                serviceName: 'Microsoft.Web/serverFarms'
+              }
+            }
+          ]
+        }
+      }
     ]
   }
 }
@@ -43,3 +57,4 @@ output vnetId string = virtualNetwork.id
 output vnetName string = virtualNetwork.name
 output containerAppsSubnetId string = virtualNetwork.properties.subnets[0].id
 output privateEndpointsSubnetId string = virtualNetwork.properties.subnets[1].id
+output functionAppsSubnetId string = virtualNetwork.properties.subnets[2].id

@@ -13,11 +13,15 @@ param logAnalyticsWorkspaceId string
 param postgresqlServerName string
 param postgresqlDatabaseName string
 param postgresqlAdminUser string
-@secure()
-param postgresqlAdminPassword string
 
 // Application Insights
 param applicationInsightsConnectionString string
+
+// VNet integration
+param functionAppsSubnetId string
+
+// Key Vault (for secret references)
+param keyVaultName string
 
 // Function App names
 var functionAppName = 'func-${namingPrefix}-${uniqueString(resourceGroup().id)}'
@@ -109,11 +113,15 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'DB_PASSWORD'
-          value: postgresqlAdminPassword
+          value: '@Microsoft.KeyVault(SecretUri=https://${keyVaultName}.vault.${environment().suffixes.keyvaultDns}/secrets/postgres-password/)'
         }
         {
           name: 'DB_PORT'
           value: '5432'
+        }
+        {
+          name: 'WEBSITE_VNET_ROUTE_ALL'
+          value: '1'
         }
         // Note: WEBSITE_RUN_FROM_PACKAGE, SCM_DO_BUILD_DURING_DEPLOYMENT, and ENABLE_ORYX_BUILD
         // are not supported with FlexConsumption SKU and have been removed
@@ -127,6 +135,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
       }
     }
     httpsOnly: true
+    virtualNetworkSubnetId: functionAppsSubnetId
   }
 }
 

@@ -197,8 +197,9 @@ module functionApp './modules/function-app.bicep' = {
     postgresqlServerName: postgresql.outputs.postgresServerName
     postgresqlDatabaseName: postgresql.outputs.databaseName
     postgresqlAdminUser: postgresAdminUsername
-    postgresqlAdminPassword: postgresAdminPassword
     applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
+    functionAppsSubnetId: network.outputs.functionAppsSubnetId
+    keyVaultName: keyVault.outputs.keyVaultName
   }
 }
 
