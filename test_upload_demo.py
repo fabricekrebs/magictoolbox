@@ -17,31 +17,28 @@ print(f"\n1. Uploading {pdf_file} to {url}")
 
 with open(pdf_file, "rb") as f:
     files = {"file": ("demo_file.pdf", f, "application/pdf")}
-    data = {
-        "start_page": "0",
-        "end_page": ""
-    }
-    
+    data = {"start_page": "0", "end_page": ""}
+
     response = requests.post(url, files=files, data=data)
-    
+
     print(f"   Status Code: {response.status_code}")
-    
+
     if response.status_code in [200, 201, 202]:
         try:
             result = response.json()
             print(f"   ✅ Upload successful!")
             print(f"\n2. Response data:")
             print(json.dumps(result, indent=2))
-            
+
             # Check if we got an execution_id
             if "execution_id" in result or "executionId" in result:
                 execution_id = result.get("execution_id") or result.get("executionId")
                 print(f"\n3. Execution ID: {execution_id}")
                 print(f"   Waiting for Azure Function to process...")
-                
+
                 # Wait a bit for processing
                 time.sleep(5)
-                
+
                 # Check execution status
                 status_url = f"{API_URL}/executions/{execution_id}/"
                 print(f"\n4. Checking status at: {status_url}")
@@ -57,4 +54,3 @@ with open(pdf_file, "rb") as f:
     else:
         print(f"   ❌ Upload failed")
         print(f"   Response: {response.text[:500]}")
-

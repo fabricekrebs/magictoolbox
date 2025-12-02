@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 def get_blob_service_client() -> BlobServiceClient:
     """
     Get BlobServiceClient using connection string for local dev or Managed Identity for Azure.
-    
+
     Returns:
         BlobServiceClient configured appropriately for the environment
     """
@@ -45,16 +45,16 @@ def get_blob_service_client() -> BlobServiceClient:
     if connection_string and "127.0.0.1" in connection_string:
         logger.info("Using connection string for local development")
         return BlobServiceClient.from_connection_string(connection_string)
-    
+
     # Use Managed Identity for Azure deployment
     storage_account_name = os.environ.get("AZURE_STORAGE_ACCOUNT_NAME")
     if not storage_account_name:
         raise ValueError("AZURE_STORAGE_ACCOUNT_NAME environment variable not set")
-    
+
     logger.info(f"Using Managed Identity for Azure storage account: {storage_account_name}")
     account_url = f"https://{storage_account_name}.blob.core.windows.net"
     credential = DefaultAzureCredential()
-    
+
     return BlobServiceClient(account_url=account_url, credential=credential)
 
 
@@ -69,10 +69,10 @@ def update_execution_status(
 ) -> None:
     """
     Update ToolExecution record in database.
-    
+
     Supports both SQLite (local development) and PostgreSQL (production).
     Environment detection based on DJANGO_DB_PATH or DB_HOST.
-    
+
     Args:
         execution_id: UUID of the ToolExecution record
         status: Status to set (processing, completed, failed)
@@ -85,28 +85,28 @@ def update_execution_status(
     # Detect database type from environment
     sqlite_path = os.environ.get("DJANGO_DB_PATH")
     db_host = os.environ.get("DB_HOST")
-    
+
     # Determine which database to use
     use_sqlite = sqlite_path is not None
     use_postgres = db_host is not None
-    
+
     if not use_sqlite and not use_postgres:
         logger.error("No database configuration found (DJANGO_DB_PATH or DB_HOST)")
         return
-    
+
     try:
         # Normalize execution_id (remove hyphens for database query)
         # Django stores UUIDs without hyphens in SQLite
         execution_id_normalized = execution_id.replace("-", "")
-        
+
         if use_sqlite:
             # SQLite connection for local development
             import sqlite3
-            
+
             logger.info(f"Connecting to SQLite database: {sqlite_path}")
             conn = sqlite3.connect(sqlite_path)
             cursor = conn.cursor()
-            
+
             # SQLite queries (use ? placeholders and ISO format for timestamps)
             # Table name is tool_executions (not tools_toolexecution)
             if status == "processing":
@@ -115,8 +115,10 @@ def update_execution_status(
                     SET status = ?, started_at = ?
                     WHERE id = ?
                 """
-                cursor.execute(query, (status, datetime.now(timezone.utc).isoformat(), execution_id_normalized))
-                
+                cursor.execute(
+                    query, (status, datetime.now(timezone.utc).isoformat(), execution_id_normalized)
+                )
+
             elif status == "completed":
                 query = """
                     UPDATE tool_executions
@@ -133,9 +135,17 @@ def update_execution_status(
                 now = datetime.now(timezone.utc).isoformat()
                 cursor.execute(
                     query,
-                    (status, now, output_file, output_filename, output_size, now, execution_id_normalized),
+                    (
+                        status,
+                        now,
+                        output_file,
+                        output_filename,
+                        output_size,
+                        now,
+                        execution_id_normalized,
+                    ),
                 )
-                
+
             elif status == "failed":
                 query = """
                     UPDATE tool_executions
@@ -153,27 +163,27 @@ def update_execution_status(
                     query,
                     (status, now, error_message, error_traceback, now, execution_id_normalized),
                 )
-            
+
             conn.commit()
             cursor.close()
             conn.close()
-            
+
             logger.info(f"Updated execution {execution_id} to status: {status} (SQLite)")
-            
+
         else:
             # PostgreSQL connection for production
             import psycopg2
             from psycopg2.extras import Json
-            
+
             db_name = os.environ.get("DB_NAME")
             db_user = os.environ.get("DB_USER")
             db_password = os.environ.get("DB_PASSWORD")
             db_port = os.environ.get("DB_PORT", "5432")
-            
+
             if not all([db_host, db_name, db_user, db_password]):
                 logger.error("PostgreSQL environment variables not complete")
                 return
-            
+
             logger.info(f"Connecting to PostgreSQL database: {db_host}")
             conn = psycopg2.connect(
                 host=db_host,
@@ -183,9 +193,9 @@ def update_execution_status(
                 port=db_port,
                 sslmode="require",
             )
-            
+
             cursor = conn.cursor()
-            
+
             # PostgreSQL queries (use %s placeholders and EXTRACT for duration)
             if status == "processing":
                 query = """
@@ -194,7 +204,7 @@ def update_execution_status(
                     WHERE id = %s
                 """
                 cursor.execute(query, (status, datetime.now(timezone.utc), execution_id))
-                
+
             elif status == "completed":
                 query = """
                     UPDATE tool_executions
@@ -218,7 +228,7 @@ def update_execution_status(
                         execution_id,
                     ),
                 )
-                
+
             elif status == "failed":
                 query = """
                     UPDATE tool_executions
@@ -240,13 +250,13 @@ def update_execution_status(
                         execution_id,
                     ),
                 )
-            
+
             conn.commit()
             cursor.close()
             conn.close()
-            
+
             logger.info(f"Updated execution {execution_id} to status: {status} (PostgreSQL)")
-        
+
     except Exception as e:
         logger.error(f"Failed to update execution status: {e}", exc_info=True)
 
@@ -258,12 +268,12 @@ def convert_pdf_to_docx(
 ) -> Tuple[bytes, int]:
     """
     Convert PDF to DOCX format using pdf2docx library.
-    
+
     Args:
         pdf_stream: Azure Function InputStream containing PDF data
         start_page: First page to convert (0-indexed)
         end_page: Last page to convert (None = all pages)
-    
+
     Returns:
         Tuple of (docx_bytes, docx_size)
     """
@@ -271,35 +281,35 @@ def convert_pdf_to_docx(
         from pdf2docx import Converter
     except ImportError:
         raise ImportError("pdf2docx library not installed")
-    
+
     temp_pdf = None
     temp_docx = None
-    
+
     try:
         # Create temporary files
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
             tmp_pdf.write(pdf_stream.read())
             temp_pdf = tmp_pdf.name
-        
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp_docx:
             temp_docx = tmp_docx.name
-        
+
         # Convert PDF to DOCX
         logger.info(f"Converting PDF (pages: {start_page}-{end_page or 'end'})")
-        
+
         cv = Converter(temp_pdf)
         cv.convert(temp_docx, start=start_page, end=end_page)
         cv.close()
-        
+
         # Read DOCX file
         with open(temp_docx, "rb") as f:
             docx_bytes = f.read()
-        
+
         docx_size = len(docx_bytes)
         logger.info(f"Conversion successful, DOCX size: {docx_size / 1024:.1f} KB")
-        
+
         return docx_bytes, docx_size
-        
+
     finally:
         # Cleanup temporary files
         if temp_pdf and os.path.exists(temp_pdf):
@@ -316,12 +326,12 @@ def convert_pdf_to_docx(
 def pdf_to_docx_converter(pdfblob: func.InputStream):
     """
     Azure Function triggered by PDF upload to convert to DOCX.
-    
+
     Trigger: Blob uploaded to uploads/pdf/{name}
     Input: PDF file stream with metadata
     Output: DOCX file written to processed/docx/{name}
     Side Effect: Updates ToolExecution record in database
-    
+
     Metadata expected on blob:
     - execution_id: UUID of ToolExecution record
     - start_page: First page to convert (optional, default: 0)
@@ -332,44 +342,44 @@ def pdf_to_docx_converter(pdfblob: func.InputStream):
         logger.info(f"=== PDF to DOCX Conversion Started ===")
         logger.info(f"Blob name: {pdfblob.name}")
         logger.info(f"Blob size: {pdfblob.length} bytes")
-        
+
         # Extract metadata from blob
         execution_id = pdfblob.metadata.get("execution_id")
         if not execution_id:
             logger.error("No execution_id in blob metadata")
             return
-        
+
         logger.info(f"Execution ID: {execution_id}")
-        
+
         # Get conversion parameters from metadata
         start_page = int(pdfblob.metadata.get("start_page", "0"))
         end_page_str = pdfblob.metadata.get("end_page", "")
         end_page = int(end_page_str) if end_page_str else None
         original_filename = pdfblob.metadata.get("original_filename", "document.pdf")
-        
+
         logger.info(f"Original filename: {original_filename}")
         logger.info(f"Page range: {start_page} to {end_page or 'end'}")
-        
+
         # Update status to processing
         update_execution_status(execution_id, "processing")
-        
+
         # Convert PDF to DOCX
         docx_bytes, docx_size = convert_pdf_to_docx(
             pdf_stream=pdfblob,
             start_page=start_page,
             end_page=end_page,
         )
-        
+
         # Generate output blob name
         output_blob_name = f"docx/{execution_id}.docx"
         output_filename = Path(original_filename).stem + ".docx"
-        
+
         # Upload DOCX to processed container
         blob_service = get_blob_service_client()
         output_blob_client = blob_service.get_blob_client(
             container="processed", blob=output_blob_name
         )
-        
+
         output_blob_client.upload_blob(
             docx_bytes,
             overwrite=True,
@@ -379,9 +389,9 @@ def pdf_to_docx_converter(pdfblob: func.InputStream):
                 "converted_at": datetime.now(timezone.utc).isoformat(),
             },
         )
-        
+
         logger.info(f"Uploaded DOCX to: processed/{output_blob_name}")
-        
+
         # Update execution status to completed
         update_execution_status(
             execution_id=execution_id,
@@ -390,18 +400,18 @@ def pdf_to_docx_converter(pdfblob: func.InputStream):
             output_filename=output_filename,
             output_size=docx_size,
         )
-        
+
         logger.info(f"=== PDF to DOCX Conversion Completed Successfully ===")
-        
+
     except Exception as e:
         logger.error(f"=== PDF to DOCX Conversion Failed ===")
         logger.error(f"Error: {str(e)}", exc_info=True)
-        
+
         # Update execution status to failed
         import traceback
-        
+
         error_traceback = traceback.format_exc()
-        
+
         if "execution_id" in locals():
             update_execution_status(
                 execution_id=execution_id,
@@ -409,7 +419,7 @@ def pdf_to_docx_converter(pdfblob: func.InputStream):
                 error_message=str(e),
                 error_traceback=error_traceback,
             )
-        
+
         # Re-raise to trigger Azure Functions retry logic
         raise
 
@@ -419,14 +429,14 @@ def pdf_to_docx_converter(pdfblob: func.InputStream):
 def http_trigger_test(req: func.HttpRequest) -> func.HttpResponse:
     """
     Simple HTTP health check endpoint for testing.
-    
+
     GET /api/health
-    
+
     Returns:
         200 OK with function app status
     """
     logger.info("Health check endpoint called")
-    
+
     return func.HttpResponse(
         body='{"status": "healthy", "function": "pdf-to-docx-converter"}',
         status_code=200,

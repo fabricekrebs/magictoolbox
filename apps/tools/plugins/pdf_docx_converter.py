@@ -47,7 +47,7 @@ class PdfDocxConverter(BaseTool):
     # File constraints
     allowed_input_types = [".pdf"]
     max_file_size = 100 * 1024 * 1024  # 100MB per file
-    
+
     # Processing mode configuration
     # PDF to DOCX conversion ONLY uses Azure Functions (no sync mode)
     use_azure_functions = True  # Always use Azure Functions
@@ -101,22 +101,24 @@ class PdfDocxConverter(BaseTool):
     def process(self, input_file: UploadedFile, parameters: Dict[str, Any]) -> Tuple[str, str]:
         """
         Convert PDF to DOCX format using Azure Functions.
-        
+
         Uploads PDF to blob storage and returns execution_id for async processing.
 
         Returns:
             Tuple of (execution_id, None) to signal async processing
         """
         return self._process_async(input_file, parameters)
-    
-    def process_multiple(self, input_files: list[UploadedFile], parameters: Dict[str, Any]) -> list[Tuple[str, str]]:
+
+    def process_multiple(
+        self, input_files: list[UploadedFile], parameters: Dict[str, Any]
+    ) -> list[Tuple[str, str]]:
         """
         Process multiple PDF files for conversion.
-        
+
         Args:
             input_files: List of uploaded PDF files
             parameters: Conversion parameters (applied to all files)
-        
+
         Returns:
             List of tuples (execution_id, original_filename) for each file
         """
@@ -125,11 +127,13 @@ class PdfDocxConverter(BaseTool):
             execution_id, _ = self._process_async(input_file, parameters)
             results.append((execution_id, input_file.name))
         return results
-    
-    def _process_async(self, input_file: UploadedFile, parameters: Dict[str, Any]) -> Tuple[str, str]:
+
+    def _process_async(
+        self, input_file: UploadedFile, parameters: Dict[str, Any]
+    ) -> Tuple[str, str]:
         """
         Upload PDF to Azure Blob Storage for async processing by Azure Function.
-        
+
         Returns:
             Tuple of (execution_id, None) to signal async processing
         """
@@ -140,17 +144,17 @@ class PdfDocxConverter(BaseTool):
             raise ToolExecutionError(
                 "Azure SDK not installed. Install azure-storage-blob and azure-identity."
             )
-        
+
         # Generate unique execution ID
         execution_id = str(uuid.uuid4())
-        
+
         # Create blob name
         blob_name = f"pdf/{execution_id}.pdf"
-        
+
         try:
             # Detect environment and get appropriate blob service client
             connection_string = getattr(settings, "AZURE_STORAGE_CONNECTION_STRING", None)
-            
+
             if connection_string and "127.0.0.1" in connection_string:
                 # Local development with Azurite
                 self.logger.info("Using local Azurite for blob storage")
@@ -162,44 +166,50 @@ class PdfDocxConverter(BaseTool):
                     raise ToolExecutionError(
                         "AZURE_ACCOUNT_NAME not configured for production environment"
                     )
-                
-                self.logger.info(f"Using Azure Managed Identity for storage account: {storage_account_name}")
+
+                self.logger.info(
+                    f"Using Azure Managed Identity for storage account: {storage_account_name}"
+                )
                 account_url = f"https://{storage_account_name}.blob.core.windows.net"
                 credential = DefaultAzureCredential()
                 blob_service = BlobServiceClient(account_url=account_url, credential=credential)
-            
+
             # Get blob client
             blob_client = blob_service.get_blob_client(container="uploads", blob=blob_name)
-            
+
             # Prepare metadata for Azure Function
             metadata = {
                 "execution_id": execution_id,
                 "start_page": str(parameters.get("start_page", 0)),
-                "end_page": str(parameters.get("end_page", "")) if parameters.get("end_page") else "",
+                "end_page": str(parameters.get("end_page", ""))
+                if parameters.get("end_page")
+                else "",
                 "original_filename": input_file.name,
             }
-            
+
             # Upload PDF to blob storage
             self.logger.info(f"Uploading PDF for async processing: {blob_name}")
             blob_client.upload_blob(input_file.read(), metadata=metadata, overwrite=True)
-            
+
             self.logger.info(
                 f"PDF uploaded successfully. Execution ID: {execution_id}. "
                 f"Azure Function will process the file."
             )
-            
+
             # Return execution ID to signal async processing
             # The caller should create a ToolExecution record with this ID
             return execution_id, None
-            
+
         except Exception as e:
             self.logger.error(f"Failed to upload PDF to blob storage: {e}", exc_info=True)
             raise ToolExecutionError(f"Failed to upload PDF for processing: {str(e)}")
-    
-    def _process_sync(self, input_file: UploadedFile, parameters: Dict[str, Any]) -> Tuple[str, str]:
+
+    def _process_sync(
+        self, input_file: UploadedFile, parameters: Dict[str, Any]
+    ) -> Tuple[str, str]:
         """
         Synchronous PDF to DOCX conversion (legacy mode).
-        
+
         Returns:
             Tuple of (output_file_path, output_filename)
         """
