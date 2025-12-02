@@ -180,11 +180,20 @@ def update_execution_status(
             db_password = os.environ.get("DB_PASSWORD")
             db_port = os.environ.get("DB_PORT", "5432")
 
+            # Log environment variables for debugging (mask password)
+            logger.info(f"DB_HOST: {db_host}")
+            logger.info(f"DB_NAME: {db_name}")
+            logger.info(f"DB_USER: {db_user}")
+            logger.info(f"DB_PORT: {db_port}")
+            logger.info(f"DB_PASSWORD present: {bool(db_password)}")
+            logger.info(f"DB_PASSWORD length: {len(db_password) if db_password else 0}")
+
             if not all([db_host, db_name, db_user, db_password]):
                 logger.error("PostgreSQL environment variables not complete")
+                logger.error(f"Missing: db_host={bool(db_host)}, db_name={bool(db_name)}, db_user={bool(db_user)}, db_password={bool(db_password)}")
                 return
 
-            logger.info(f"Connecting to PostgreSQL database: {db_host}")
+            logger.info(f"Attempting to connect to PostgreSQL: {db_host}:{db_port}/{db_name} as {db_user}")
             conn = psycopg2.connect(
                 host=db_host,
                 database=db_name,
@@ -255,10 +264,12 @@ def update_execution_status(
             cursor.close()
             conn.close()
 
-            logger.info(f"Updated execution {execution_id} to status: {status} (PostgreSQL)")
+            logger.info(f"✅ Successfully updated execution {execution_id} to status: {status} (PostgreSQL)")
 
     except Exception as e:
-        logger.error(f"Failed to update execution status: {e}", exc_info=True)
+        logger.error(f"❌ Failed to update execution status: {type(e).__name__}: {e}", exc_info=True)
+        # Log additional context for debugging
+        logger.error(f"Execution ID: {execution_id}, Status: {status}, DB Host: {os.environ.get('DB_HOST')}")
 
 
 def convert_pdf_to_docx(
@@ -340,6 +351,12 @@ def pdf_to_docx_converter(req: func.HttpRequest) -> func.HttpResponse:
     """
     try:
         logger.info("=== PDF to DOCX Conversion Started (HTTP Trigger) ===")
+        
+        # Log environment variables for debugging
+        logger.info(f"Environment check - DB_HOST: {os.environ.get('DB_HOST', 'NOT SET')}")
+        logger.info(f"Environment check - DB_NAME: {os.environ.get('DB_NAME', 'NOT SET')}")
+        logger.info(f"Environment check - DB_USER: {os.environ.get('DB_USER', 'NOT SET')}")
+        logger.info(f"Environment check - DB_PASSWORD present: {bool(os.environ.get('DB_PASSWORD'))}")
 
         # Parse request body
         try:
