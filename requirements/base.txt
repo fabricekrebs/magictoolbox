@@ -54,3 +54,4 @@ pydantic>=2.5,<2.6
 
 # Utilities
 python-dateutil>=2.8,<2.9
+requests>=2.31,<3.0  # For HTTP calls to Azure Functions
