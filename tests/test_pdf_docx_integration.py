@@ -60,7 +60,7 @@ class TestPdfDocxIntegration(TestCase):
         self.assertTrue(converter.use_azure_functions)
 
         # Create a ToolExecution
-        execution = ToolExecution.objects.create(tool_name="pdf_docx_converter", status="pending")
+        _execution = ToolExecution.objects.create(tool_name="pdf_docx_converter", status="pending")
 
         # Simulate async processing
         try:
@@ -75,7 +75,7 @@ class TestPdfDocxIntegration(TestCase):
             self.assertIsNotNone(mock_blob_client)
             self.assertIsNotNone(mock_credential)
 
-        except Exception as e:
+        except Exception:
             # Expected - we're testing the logic, not actual execution
             pass
 

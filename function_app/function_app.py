@@ -339,7 +339,7 @@ def pdf_to_docx_converter(pdfblob: func.InputStream):
     - original_filename: Original filename uploaded by user
     """
     try:
-        logger.info(f"=== PDF to DOCX Conversion Started ===")
+        logger.info("=== PDF to DOCX Conversion Started ===")
         logger.info(f"Blob name: {pdfblob.name}")
         logger.info(f"Blob size: {pdfblob.length} bytes")
 
@@ -401,10 +401,10 @@ def pdf_to_docx_converter(pdfblob: func.InputStream):
             output_size=docx_size,
         )
 
-        logger.info(f"=== PDF to DOCX Conversion Completed Successfully ===")
+        logger.info("=== PDF to DOCX Conversion Completed Successfully ===")
 
     except Exception as e:
-        logger.error(f"=== PDF to DOCX Conversion Failed ===")
+        logger.error("=== PDF to DOCX Conversion Failed ===")
         logger.error(f"Error: {str(e)}", exc_info=True)
 
         # Update execution status to failed

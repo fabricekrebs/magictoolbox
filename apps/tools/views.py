@@ -486,7 +486,7 @@ class ToolViewSet(viewsets.ViewSet):
                         # Find the corresponding file for size
                         file_size = next((f.size for f in files if f.name == original_filename), 0)
 
-                        execution = ToolExecution.objects.create(
+                        _execution = ToolExecution.objects.create(
                             id=execution_id,
                             user=request.user,
                             tool_name=pk,
@@ -507,7 +507,7 @@ class ToolViewSet(viewsets.ViewSet):
                         {
                             "message": f"{len(files)} files uploaded for processing",
                             "executions": executions,
-                            "batchStatusUrl": f"/api/v1/executions/batch-status/",
+                            "batchStatusUrl": "/api/v1/executions/batch-status/",
                         },
                         status=status.HTTP_202_ACCEPTED,
                     )
@@ -530,7 +530,7 @@ class ToolViewSet(viewsets.ViewSet):
                     execution_id, _ = tool_instance.process(file, parameters)
 
                     # Create ToolExecution record
-                    execution = ToolExecution.objects.create(
+                    _execution = ToolExecution.objects.create(
                         id=execution_id,
                         user=request.user,
                         tool_name=pk,
@@ -611,7 +611,7 @@ class ToolViewSet(viewsets.ViewSet):
                     execution_id = output_path
 
                     # Create ToolExecution record for tracking
-                    execution = ToolExecution.objects.create(
+                    _execution = ToolExecution.objects.create(
                         id=execution_id,
                         user=request.user,
                         tool_name=pk,

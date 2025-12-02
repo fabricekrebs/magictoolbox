@@ -29,7 +29,7 @@ class TestPdfDocxConverterAzureFunctions:
         # Need to recreate the class to pick up the new setting
         from apps.tools.plugins.pdf_docx_converter import PdfDocxConverter as PDFConverter
 
-        converter = PDFConverter()
+        _converter = PDFConverter()
 
         # The class attribute is set at class definition time, so we need to check via settings
         assert mock_settings.USE_AZURE_FUNCTIONS_PDF_CONVERSION is True
