@@ -42,7 +42,7 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-05-01' = {
             {
               name: 'delegation'
               properties: {
-                serviceName: 'Microsoft.Web/serverFarms'
+                serviceName: 'Microsoft.App/environments' // FlexConsumption uses Container Apps infra
               }
             }
           ]
