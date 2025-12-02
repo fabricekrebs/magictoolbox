@@ -564,7 +564,7 @@ Download converted DOCX file.
 - [Azure Functions Documentation](https://docs.microsoft.com/azure/azure-functions/)
 - [Azure Blob Storage Triggers](https://docs.microsoft.com/azure/azure-functions/functions-bindings-storage-blob-trigger)
 - [pdf2docx Library](https://github.com/dothinking/pdf2docx)
-- [MagicToolbox Deployment Guide](./FRESH_DEPLOYMENT_GUIDE.md)
+- [MagicToolbox Deployment Guide](./AZURE_DEPLOYMENT_README.md)
 
 ---
 

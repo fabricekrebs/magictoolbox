@@ -20,6 +20,7 @@ on:
       - develop
     paths:
       - 'infra/**'
+      - 'function_app/**'
       - '.github/workflows/deploy-infrastructure.yml'
 
 permissions:
@@ -64,6 +65,18 @@ jobs:
       - name: Validate Bicep templates
         run: |
           az bicep build --file ./infra/main.bicep
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Azure Functions Core Tools
+        run: |
+          wget -q https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb
+          sudo dpkg -i packages-microsoft-prod.deb
+          sudo apt-get update
+          sudo apt-get install -y azure-functions-core-tools-4
       
       - name: Set secrets for Dev
         if: steps.set_env.outputs.environment == 'dev' && github.event.inputs.destroy != 'true'
@@ -128,3 +141,21 @@ jobs:
             --resource-group $RESOURCE_GROUP \
             --name main \
             --query properties.outputs
+      
+      - name: Get Function App name
+        if: github.event.inputs.destroy != 'true'
+        id: get_function_app
+        run: |
+          FUNC_APP_NAME=$(az deployment group show \
+            --resource-group $RESOURCE_GROUP \
+            --name main \
+            --query properties.outputs.functionAppName.value -o tsv)
+          echo "function_app_name=$FUNC_APP_NAME" >> $GITHUB_OUTPUT
+          echo "Function App name: $FUNC_APP_NAME"
+      
+      - name: Deploy Function App code
+        if: github.event.inputs.destroy != 'true'
+        run: |
+          echo "📦 Deploying Azure Function App code..."
+          cd function_app
+          func azure functionapp publish ${{ steps.get_function_app.outputs.function_app_name }} --python

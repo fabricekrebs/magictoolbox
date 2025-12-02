@@ -1,5 +1,5 @@
 // Main orchestration template for MagicToolbox Azure infrastructure
-// Last updated: 2025-11-27
+// Last updated: 2025-12-02
 targetScope = 'resourceGroup'
 
 // Parameters

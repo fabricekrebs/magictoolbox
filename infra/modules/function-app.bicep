@@ -105,7 +105,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'DB_NAME'
-          value: postgresqlDatabaseName
+          value: postgresqlDatabaseName // 'magictoolbox' - matches actual database name
         }
         {
           name: 'DB_USER'

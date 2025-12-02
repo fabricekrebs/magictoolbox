@@ -23,8 +23,10 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 import azure.functions as func
+import psycopg2
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
+from pdf2docx import Converter
 
 # Initialize Function App (Azure Functions v2 programming model)
 app = func.FunctionApp()
