@@ -485,6 +485,115 @@ def pdf_to_docx_converter(req: func.HttpRequest) -> func.HttpResponse:
         )
 
 
+@app.function_name(name="DatabaseDiagnostic")
+@app.route(route="db-diagnostic", methods=["GET"])
+def db_diagnostic(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Database connection diagnostic endpoint.
+    
+    GET /api/db-diagnostic
+    
+    Returns:
+        200 OK with database connection test results
+    """
+    import json
+    logger.info("Database diagnostic endpoint called")
+    
+    result = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "environment_variables": {},
+        "connection_test": {}
+    }
+    
+    # Check environment variables
+    db_host = os.environ.get("DB_HOST")
+    db_name = os.environ.get("DB_NAME")
+    db_user = os.environ.get("DB_USER")
+    db_password = os.environ.get("DB_PASSWORD")
+    db_port = os.environ.get("DB_PORT", "5432")
+    
+    result["environment_variables"] = {
+        "DB_HOST": db_host or "NOT_SET",
+        "DB_NAME": db_name or "NOT_SET",
+        "DB_USER": db_user or "NOT_SET",
+        "DB_PORT": db_port,
+        "DB_PASSWORD_SET": bool(db_password),
+        "DB_PASSWORD_LENGTH": len(db_password) if db_password else 0,
+        "DB_PASSWORD_IS_KEYVAULT_REF": "@Microsoft.KeyVault" in (db_password or ""),
+        "DB_PASSWORD_FIRST_CHAR": db_password[0] if db_password else None,
+    }
+    
+    # Test database connection
+    if not all([db_host, db_name, db_user, db_password]):
+        result["connection_test"]["status"] = "skipped"
+        result["connection_test"]["reason"] = "Missing required environment variables"
+        return func.HttpResponse(
+            body=json.dumps(result, indent=2),
+            status_code=200,
+            mimetype="application/json"
+        )
+    
+    try:
+        logger.info(f"Testing PostgreSQL connection to {db_host}:{db_port}/{db_name} as {db_user}")
+        
+        conn = psycopg2.connect(
+            host=db_host,
+            database=db_name,
+            user=db_user,
+            password=db_password,
+            port=db_port,
+            connect_timeout=10,
+            sslmode='require'
+        )
+        
+        # Test basic query
+        cursor = conn.cursor()
+        cursor.execute("SELECT version(), current_database(), current_user;")
+        db_version, db_name_connected, db_user_connected = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        result["connection_test"]["status"] = "success"
+        result["connection_test"]["connected_to"] = {
+            "database": db_name_connected,
+            "user": db_user_connected,
+            "version": db_version
+        }
+        logger.info("✅ Database connection test successful")
+        
+    except psycopg2.OperationalError as e:
+        result["connection_test"]["status"] = "failed"
+        result["connection_test"]["error_type"] = "OperationalError"
+        result["connection_test"]["error_message"] = str(e)
+        result["connection_test"]["error_details"] = {
+            "pgcode": getattr(e, 'pgcode', None),
+            "pgerror": getattr(e, 'pgerror', None),
+        }
+        logger.error(f"❌ Database connection failed (OperationalError): {e}")
+        
+    except psycopg2.Error as e:
+        result["connection_test"]["status"] = "failed"
+        result["connection_test"]["error_type"] = type(e).__name__
+        result["connection_test"]["error_message"] = str(e)
+        result["connection_test"]["error_details"] = {
+            "pgcode": getattr(e, 'pgcode', None),
+            "pgerror": getattr(e, 'pgerror', None),
+        }
+        logger.error(f"❌ Database connection failed ({type(e).__name__}): {e}")
+        
+    except Exception as e:
+        result["connection_test"]["status"] = "failed"
+        result["connection_test"]["error_type"] = type(e).__name__
+        result["connection_test"]["error_message"] = str(e)
+        logger.error(f"❌ Database connection failed (unexpected error): {e}", exc_info=True)
+    
+    return func.HttpResponse(
+        body=json.dumps(result, indent=2),
+        status_code=200,
+        mimetype="application/json"
+    )
+
+
 @app.function_name(name="HttpTriggerTest")
 @app.route(route="health", methods=["GET"])
 def http_trigger_test(req: func.HttpRequest) -> func.HttpResponse:
@@ -492,11 +601,38 @@ def http_trigger_test(req: func.HttpRequest) -> func.HttpResponse:
     Simple HTTP health check endpoint for testing.
 
     GET /api/health
+    GET /api/health?debug=true (returns environment info)
 
     Returns:
         200 OK with function app status
     """
     logger.info("Health check endpoint called")
+    
+    # If debug parameter is provided, return environment info
+    debug = req.params.get('debug', '').lower() == 'true'
+    
+    if debug:
+        import json
+        env_info = {
+            "status": "healthy",
+            "function": "pdf-to-docx-converter",
+            "environment": {
+                "DB_HOST": os.environ.get("DB_HOST", "NOT_SET"),
+                "DB_NAME": os.environ.get("DB_NAME", "NOT_SET"),
+                "DB_USER": os.environ.get("DB_USER", "NOT_SET"),
+                "DB_PORT": os.environ.get("DB_PORT", "NOT_SET"),
+                "DB_PASSWORD_SET": bool(os.environ.get("DB_PASSWORD")),
+                "DB_PASSWORD_LENGTH": len(os.environ.get("DB_PASSWORD", "")),
+                "DB_PASSWORD_IS_KEYVAULT_REF": "@Microsoft.KeyVault" in os.environ.get("DB_PASSWORD", ""),
+                "AZURE_STORAGE_ACCOUNT_NAME": os.environ.get("AZURE_STORAGE_ACCOUNT_NAME", "NOT_SET"),
+                "WEBSITE_VNET_ROUTE_ALL": os.environ.get("WEBSITE_VNET_ROUTE_ALL", "NOT_SET")
+            }
+        }
+        return func.HttpResponse(
+            body=json.dumps(env_info, indent=2),
+            status_code=200,
+            mimetype="application/json",
+        )
 
     return func.HttpResponse(
         body='{"status": "healthy", "function": "pdf-to-docx-converter"}',
