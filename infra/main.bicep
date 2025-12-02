@@ -150,6 +150,7 @@ module containerApps './modules/container-apps.bicep' = {
     postgresDatabase: postgresql.outputs.databaseName
     postgresAdminUsername: postgresAdminUsername
     containerAppsSubnetId: network.outputs.containerAppsSubnetId
+    functionAppHostName: functionApp.outputs.functionAppHostName
   }
 }
 
