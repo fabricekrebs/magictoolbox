@@ -56,9 +56,31 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
     reserved: true  // Linux
     siteConfig: {
       appSettings: [
+        // Identity-based storage connection (no shared key needed)
         {
-          name: 'AzureWebJobsStorage'
-          value: '@Microsoft.KeyVault(SecretUri=https://${keyVaultName}.vault.${environment().suffixes.keyvaultDns}/secrets/storage-account-key/)'
+          name: 'AzureWebJobsStorage__accountName'
+          value: storageAccountName
+        }
+        {
+          name: 'AzureWebJobsStorage__credential'
+          value: 'managedidentity'
+        }
+        {
+          name: 'AzureWebJobsStorage__clientId'
+          value: 'system'
+        }
+        // Blob service identity-based connection
+        {
+          name: 'AzureWebJobsStorage__blobServiceUri'
+          value: 'https://${storageAccountName}.blob.${environment().suffixes.storage}'
+        }
+        {
+          name: 'AzureWebJobsStorage__queueServiceUri'
+          value: 'https://${storageAccountName}.queue.${environment().suffixes.storage}'
+        }
+        {
+          name: 'AzureWebJobsStorage__tableServiceUri'
+          value: 'https://${storageAccountName}.table.${environment().suffixes.storage}'
         }
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'

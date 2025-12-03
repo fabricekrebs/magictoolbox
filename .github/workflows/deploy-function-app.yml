@@ -38,31 +38,36 @@ jobs:
         with:
           python-version: '3.11'
       
-      - name: Install Azure Functions Core Tools
-        run: |
-          wget -q https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb
-          sudo dpkg -i packages-microsoft-prod.deb
-          sudo apt-get update
-          sudo apt-get install -y azure-functions-core-tools-4
-      
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_DEV }}
       
-      - name: Get Function App name
+      - name: Get Function App name and Resource Group
         id: get_function_app
         run: |
           FUNC_APP_NAME=$(az functionapp list \
             --resource-group ${{ secrets.RESOURCE_GROUP_DEV }} \
             --query "[?contains(name, 'func-')].name | [0]" -o tsv)
           echo "function_app_name=$FUNC_APP_NAME" >> $GITHUB_OUTPUT
+          echo "resource_group=${{ secrets.RESOURCE_GROUP_DEV }}" >> $GITHUB_OUTPUT
           echo "📦 Deploying to Function App: $FUNC_APP_NAME"
       
-      - name: Deploy Function App code
+      - name: Create deployment package
         run: |
           cd function_app
-          func azure functionapp publish ${{ steps.get_function_app.outputs.function_app_name }} --python --build-native-deps
+          # Create zip with all function app files (no local install needed - Azure will do remote build)
+          zip -r ../function_app.zip . -x "*.pyc" -x "__pycache__/*" -x "local.settings.json" -x ".python_packages/*"
+      
+      - name: Deploy to Azure Functions via REST API
+        run: |
+          # Deploy using Azure REST API instead of func tools to avoid storage access issues
+          # This method uses service principal auth and doesn't require direct storage access from runner
+          az functionapp deployment source config-zip \
+            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
+            --name ${{ steps.get_function_app.outputs.function_app_name }} \
+            --src function_app.zip \
+            --timeout 600
   
   deploy-function-prod:
     name: Deploy Function App to Production
@@ -80,28 +85,33 @@ jobs:
         with:
           python-version: '3.11'
       
-      - name: Install Azure Functions Core Tools
-        run: |
-          wget -q https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb
-          sudo dpkg -i packages-microsoft-prod.deb
-          sudo apt-get update
-          sudo apt-get install -y azure-functions-core-tools-4
-      
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_PROD }}
       
-      - name: Get Function App name
+      - name: Get Function App name and Resource Group
         id: get_function_app
         run: |
           FUNC_APP_NAME=$(az functionapp list \
             --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
             --query "[?contains(name, 'func-')].name | [0]" -o tsv)
           echo "function_app_name=$FUNC_APP_NAME" >> $GITHUB_OUTPUT
+          echo "resource_group=${{ secrets.RESOURCE_GROUP_PROD }}" >> $GITHUB_OUTPUT
           echo "📦 Deploying to Function App: $FUNC_APP_NAME"
       
-      - name: Deploy Function App code
+      - name: Create deployment package
         run: |
           cd function_app
-          func azure functionapp publish ${{ steps.get_function_app.outputs.function_app_name }} --python --build-native-deps
+          # Create zip with all function app files (no local install needed - Azure will do remote build)
+          zip -r ../function_app.zip . -x "*.pyc" -x "__pycache__/*" -x "local.settings.json" -x ".python_packages/*"
+      
+      - name: Deploy to Azure Functions via REST API
+        run: |
+          # Deploy using Azure REST API instead of func tools to avoid storage access issues
+          # This method uses service principal auth and doesn't require direct storage access from runner
+          az functionapp deployment source config-zip \
+            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
+            --name ${{ steps.get_function_app.outputs.function_app_name }} \
+            --src function_app.zip \
+            --timeout 600
