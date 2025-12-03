@@ -62,7 +62,7 @@ jobs:
       - name: Deploy Function App code
         run: |
           cd function_app
-          func azure functionapp publish ${{ steps.get_function_app.outputs.function_app_name }} --python
+          func azure functionapp publish ${{ steps.get_function_app.outputs.function_app_name }} --python --build local
   
   deploy-function-prod:
     name: Deploy Function App to Production
@@ -104,4 +104,4 @@ jobs:
       - name: Deploy Function App code
         run: |
           cd function_app
-          func azure functionapp publish ${{ steps.get_function_app.outputs.function_app_name }} --python
+          func azure functionapp publish ${{ steps.get_function_app.outputs.function_app_name }} --python --build local
