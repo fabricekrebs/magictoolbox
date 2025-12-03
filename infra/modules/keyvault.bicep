@@ -14,6 +14,9 @@ var keyVaultName = 'kv${locationAbbr}${replace(namingPrefix, '-', '')}01'
 @description('Environment (dev, staging, prod)')
 param environment string = 'dev'
 
+@description('Subnet ID for Function Apps to access Key Vault')
+param functionAppsSubnetId string = ''
+
 resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' = {
   name: keyVaultName
   location: location
@@ -35,7 +38,12 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' = {
       bypass: 'AzureServices'
       defaultAction: 'Deny' // Use private endpoints only
       ipRules: []
-      virtualNetworkRules: []
+      virtualNetworkRules: !empty(functionAppsSubnetId) ? [
+        {
+          id: functionAppsSubnetId
+          ignoreMissingVnetServiceEndpoint: false
+        }
+      ] : []
     }
   }
 }

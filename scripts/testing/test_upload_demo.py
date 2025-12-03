@@ -11,7 +11,8 @@ print("Testing PDF to DOCX Conversion via Django API")
 print("=" * 60)
 
 # Upload PDF
-pdf_file = "demo_file.pdf"
+import os
+pdf_file = os.path.join(os.path.dirname(__file__), "../../tests/fixtures/demo_file.pdf")
 url = f"{API_URL}/tools/pdf-docx-converter/convert/"
 
 print(f"\n1. Uploading {pdf_file} to {url}")

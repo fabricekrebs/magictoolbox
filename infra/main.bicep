@@ -89,6 +89,7 @@ module keyVault './modules/keyvault.bicep' = {
     storageAccountKey: storage.outputs.storageAccountKey
     applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
     acrPassword: acr.outputs.acrPassword
+    functionAppsSubnetId: network.outputs.functionAppsSubnetId
   }
 }
 

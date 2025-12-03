@@ -1,0 +1,55 @@
+{
+  "timestamp": "2025-12-03T06:21:28.383857+00:00",
+  "storage": {
+    "accessible": true,
+    "write": {
+      "success": true,
+      "duration_ms": 144.62,
+      "error": null
+    },
+    "read": {
+      "success": true,
+      "duration_ms": 10.9,
+      "error": null
+    },
+    "delete": {
+      "success": true,
+      "duration_ms": 11.08,
+      "error": null
+    },
+    "details": {
+      "account_url": "sawemagictoolboxdev01",
+      "test_blob": "connectivity-test/4c48086e.txt",
+      "bytes_read": 53
+    }
+  },
+  "database": {
+    "accessible": false,
+    "connect": {
+      "success": false,
+      "duration_ms": null,
+      "error": "OperationalError: connection to server at \"psql-westeurope-magictoolbox-dev-01.postgres.database.azure.com\" (10.0.2.6), port 5432 failed: FATAL:  password authentication failed for user \"magictoolbox\"\n"
+    },
+    "write": {
+      "success": false,
+      "duration_ms": null,
+      "error": null
+    },
+    "read": {
+      "success": false,
+      "duration_ms": null,
+      "error": null
+    },
+    "delete": {
+      "success": false,
+      "duration_ms": null,
+      "error": null
+    },
+    "details": {
+      "host": "psql-westeurope-magictoolbox-dev-01.postgres.database.azure.com",
+      "database": "magictoolbox",
+      "user": "magictoolbox"
+    }
+  },
+  "overall_status": "degraded"
+}
