@@ -25,6 +25,14 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-05-01' = {
         properties: {
           addressPrefix: '10.0.0.0/23' // /23 for Container Apps (512 IPs)
           // Delegation is automatically added by Container Apps Environment, do not pre-delegate
+          serviceEndpoints: [
+            {
+              service: 'Microsoft.Storage'
+              locations: [
+                location
+              ]
+            }
+          ]
         }
       }
       {

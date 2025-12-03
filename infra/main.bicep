@@ -99,6 +99,7 @@ module storage './modules/storage.bicep' = {
     location: location
     namingPrefix: namingPrefix
     tags: tags
+    containerAppsSubnetId: network.outputs.containerAppsSubnetId
   }
 }
 
