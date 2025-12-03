@@ -58,6 +58,16 @@ jobs:
           cd function_app
           zip -r ../function_app.zip . -x "*.pyc" -x "__pycache__/*" -x "local.settings.json" -x ".python_packages/*"
       
+      - name: Temporarily enable storage public network access for deployment
+        run: |
+          echo "⚙️ Temporarily enabling public network access for deployment..."
+          az storage account update \
+            --name sawemagictoolboxdev01 \
+            --resource-group ${{ secrets.RESOURCE_GROUP_DEV }} \
+            --public-network-access Enabled \
+            --default-action Allow
+          sleep 10  # Wait for propagation
+      
       - name: Ensure deployments container exists
         run: |
           az storage container create \
@@ -100,6 +110,16 @@ jobs:
             --settings WEBSITE_RUN_FROM_PACKAGE="${BLOB_URL}"
           
           echo "✅ Deployed from: ${BLOB_NAME}"
+      
+      - name: Restore storage private network access
+        if: always()
+        run: |
+          echo "🔒 Restoring private network access..."
+          az storage account update \
+            --name sawemagictoolboxdev01 \
+            --resource-group ${{ secrets.RESOURCE_GROUP_DEV }} \
+            --public-network-access Disabled \
+            --default-action Deny
   
   deploy-function-prod:
     name: Deploy Function App to Production
@@ -137,6 +157,16 @@ jobs:
           cd function_app
           zip -r ../function_app.zip . -x "*.pyc" -x "__pycache__/*" -x "local.settings.json" -x ".python_packages/*"
       
+      - name: Temporarily enable storage public network access for deployment
+        run: |
+          echo "⚙️ Temporarily enabling public network access for deployment..."
+          az storage account update \
+            --name sawemagictoolboxprod01 \
+            --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
+            --public-network-access Enabled \
+            --default-action Allow
+          sleep 10  # Wait for propagation
+      
       - name: Ensure deployments container exists
         run: |
           az storage container create \
@@ -179,3 +209,13 @@ jobs:
             --settings WEBSITE_RUN_FROM_PACKAGE="${BLOB_URL}"
           
           echo "✅ Deployed from: ${BLOB_NAME}"
+      
+      - name: Restore storage private network access
+        if: always()
+        run: |
+          echo "🔒 Restoring private network access..."
+          az storage account update \
+            --account-name sawemagictoolboxprod01 \
+            --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
+            --public-network-access Disabled \
+            --default-action Deny
