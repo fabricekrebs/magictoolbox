@@ -92,6 +92,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           value: 'managedidentity'
         }
         {
+          name: 'AzureWebJobsStorage__accountName'
+          value: storageAccountName
+        }
+        {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: applicationInsightsConnectionString
         }
