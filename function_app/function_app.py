@@ -14,6 +14,7 @@ from uuid import uuid4
 
 import azure.functions as func
 from azure.storage.blob import BlobServiceClient
+from azure.identity import DefaultAzureCredential
 from pdf2docx import Converter
 import psycopg2
 
@@ -32,9 +33,31 @@ logger = logging.getLogger(__name__)
 
 
 def get_blob_service_client() -> BlobServiceClient:
-    """Get BlobServiceClient using connection string."""
+    """
+    Get BlobServiceClient using Managed Identity or connection string.
+    Supports both connection string format and service URI format.
+    """
     connection_string = os.environ.get("AzureWebJobsStorage")
-    return BlobServiceClient.from_connection_string(connection_string)
+    
+    # Check if it's a service URI (Managed Identity)
+    if connection_string and connection_string.startswith("https://"):
+        # Extract account name from blob service URI
+        account_url = os.environ.get("AzureWebJobsStorage__blobServiceUri")
+        if account_url:
+            logger.info(f"Using Managed Identity for storage: {account_url}")
+            credential = DefaultAzureCredential()
+            return BlobServiceClient(account_url=account_url, credential=credential)
+        else:
+            # Fallback: extract account name from connection string
+            account_name = os.environ.get("AZURE_STORAGE_ACCOUNT_NAME", "sawemagictoolboxdev01")
+            account_url = f"https://{account_name}.blob.core.windows.net"
+            logger.info(f"Using Managed Identity for storage (fallback): {account_url}")
+            credential = DefaultAzureCredential()
+            return BlobServiceClient(account_url=account_url, credential=credential)
+    else:
+        # Traditional connection string
+        logger.info("Using connection string for storage")
+        return BlobServiceClient.from_connection_string(connection_string)
 
 
 def update_database_status(execution_id: str, status: str, output_file: str = None, 
