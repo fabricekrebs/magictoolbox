@@ -17,8 +17,8 @@ param postgresqlAdminUser string
 // Application Insights
 param applicationInsightsConnectionString string
 
-// VNet integration
-param functionAppsSubnetId string
+// VNet integration (not supported in Consumption plan Y1)
+// param functionAppsSubnetId string
 
 // Key Vault (for secret references)
 param keyVaultName string
@@ -57,24 +57,8 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
     siteConfig: {
       appSettings: [
         {
-          name: 'AzureWebJobsStorage__blobServiceUri'
-          value: 'https://${storageAccountName}.blob.${environment().suffixes.storage}'
-        }
-        {
-          name: 'AzureWebJobsStorage__queueServiceUri'
-          value: 'https://${storageAccountName}.queue.${environment().suffixes.storage}'
-        }
-        {
-          name: 'AzureWebJobsStorage__tableServiceUri'
-          value: 'https://${storageAccountName}.table.${environment().suffixes.storage}'
-        }
-        {
-          name: 'AzureWebJobsStorage__credential'
-          value: 'managedidentity'
-        }
-        {
-          name: 'AzureWebJobsStorage__accountName'
-          value: storageAccountName
+          name: 'AzureWebJobsStorage'
+          value: '@Microsoft.KeyVault(SecretUri=https://${keyVaultName}.vault.${environment().suffixes.keyvaultDns}/secrets/storage-account-key/)'
         }
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
@@ -90,7 +74,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'DB_NAME'
-          value: postgresqlDatabaseName // 'magictoolbox' - matches actual database name
+          value: postgresqlDatabaseName
         }
         {
           name: 'DB_USER'
@@ -103,10 +87,6 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'DB_PORT'
           value: '5432'
-        }
-        {
-          name: 'WEBSITE_VNET_ROUTE_ALL'
-          value: '1'
         }
         {
           name: 'FUNCTIONS_WORKER_RUNTIME'
@@ -130,7 +110,8 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
       }
     }
     httpsOnly: true
-    virtualNetworkSubnetId: functionAppsSubnetId
+    // Note: Consumption plan (Y1) does not support VNet integration
+    // virtualNetworkSubnetId: functionAppsSubnetId
   }
 }
 

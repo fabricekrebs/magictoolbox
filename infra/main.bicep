@@ -200,7 +200,7 @@ module functionApp './modules/function-app.bicep' = {
     postgresqlDatabaseName: postgresql.outputs.databaseName
     postgresqlAdminUser: postgresAdminUsername
     applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
-    functionAppsSubnetId: network.outputs.functionAppsSubnetId
+    // functionAppsSubnetId: network.outputs.functionAppsSubnetId // Not supported in Consumption plan
     keyVaultName: keyVault.outputs.keyVaultName
   }
 }

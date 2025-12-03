@@ -202,9 +202,37 @@ class PdfDocxConverter(BaseTool):
 
             self.logger.info(
                 f"PDF uploaded successfully. Execution ID: {execution_id}. "
-                f"Azure Function will be triggered automatically via blob trigger."
+                f"Triggering Azure Function HTTP endpoint for processing."
             )
 
+            # Trigger Azure Function via HTTP (workaround for Flex Consumption blob trigger limitations)
+            try:
+                import requests
+                function_url = getattr(settings, "AZURE_FUNCTION_PDF_CONVERT_URL", None)
+                
+                if function_url:
+                    payload = {
+                        "execution_id": execution_id,
+                        "blob_name": blob_name
+                    }
+                    self.logger.info(f"Calling Azure Function at {function_url}")
+                    response = requests.post(function_url, json=payload, timeout=300)
+                    
+                    if response.status_code == 200:
+                        self.logger.info(f"Azure Function triggered successfully")
+                    else:
+                        self.logger.warning(
+                            f"Azure Function returned status {response.status_code}: {response.text}"
+                        )
+                else:
+                    self.logger.info(
+                        "AZURE_FUNCTION_PDF_CONVERT_URL not configured. "
+                        "Relying on blob trigger (may not work with Flex Consumption)."
+                    )
+            except Exception as http_error:
+                self.logger.error(f"Failed to trigger Azure Function via HTTP: {http_error}")
+                # Don't fail the upload - the blob trigger might still work
+            
             # Return execution ID to signal async processing
             # The caller should create a ToolExecution record with this ID
             return execution_id, None
