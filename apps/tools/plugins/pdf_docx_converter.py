@@ -202,57 +202,8 @@ class PdfDocxConverter(BaseTool):
 
             self.logger.info(
                 f"PDF uploaded successfully. Execution ID: {execution_id}. "
-                f"Triggering Azure Function via HTTP."
+                f"Azure Function will be triggered automatically via blob trigger."
             )
-
-            # Trigger Azure Function via HTTP
-            function_url = getattr(settings, "AZURE_FUNCTION_PDF_CONVERSION_URL", "")
-            if function_url:
-                try:
-                    import requests
-
-                    # Get function key from settings or use managed identity
-                    function_key = getattr(settings, "AZURE_FUNCTION_PDF_CONVERSION_KEY", None)
-
-                    # Prepare request payload
-                    payload = {
-                        "execution_id": execution_id,
-                        "blob_name": blob_name,
-                        "original_filename": input_file.name,
-                        "start_page": parameters.get("start_page", 0),
-                        "end_page": parameters.get("end_page"),
-                    }
-
-                    # Prepare headers
-                    headers = {"Content-Type": "application/json"}
-                    if function_key:
-                        headers["x-functions-key"] = function_key
-
-                    # Call Azure Function (async, don't wait for response)
-                    self.logger.info(f"Calling Azure Function: {function_url}")
-                    response = requests.post(
-                        function_url, json=payload, headers=headers, timeout=30
-                    )
-
-                    if response.status_code == 200:
-                        self.logger.info(
-                            f"Azure Function triggered successfully for execution {execution_id}"
-                        )
-                    else:
-                        self.logger.warning(
-                            f"Azure Function returned status {response.status_code}: {response.text}"
-                        )
-                except Exception as e:
-                    self.logger.error(
-                        f"Failed to trigger Azure Function: {e}. "
-                        f"Processing will continue if Function has blob trigger fallback.",
-                        exc_info=True,
-                    )
-            else:
-                self.logger.warning(
-                    "AZURE_FUNCTION_PDF_CONVERSION_URL not configured. "
-                    "Relying on blob trigger (if configured)."
-                )
 
             # Return execution ID to signal async processing
             # The caller should create a ToolExecution record with this ID

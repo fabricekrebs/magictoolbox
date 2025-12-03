@@ -891,10 +891,13 @@ class ToolExecutionViewSet(viewsets.ReadOnlyModelViewSet):
                 )
 
             # Get blob name from execution record or construct from execution_id
-            # The output_file field should contain the blob path (e.g., "docx/{uuid}.docx")
-            # For now, always construct it since Azure Function may not have updated the field
+            # The output_file field contains the full path including container (e.g., "processed/docx/{uuid}.docx")
+            # We need to strip the container name since we specify it separately
             if execution.output_file and execution.output_file.name:
                 blob_name = execution.output_file.name
+                # Remove "processed/" prefix if present
+                if blob_name.startswith("processed/"):
+                    blob_name = blob_name[len("processed/"):]
             else:
                 blob_name = f"docx/{execution.id}.docx"
             logger.info(f"Using blob name: {blob_name}")
