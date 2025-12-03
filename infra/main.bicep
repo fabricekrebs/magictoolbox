@@ -100,6 +100,7 @@ module storage './modules/storage.bicep' = {
     namingPrefix: namingPrefix
     tags: tags
     containerAppsSubnetId: network.outputs.containerAppsSubnetId
+    functionAppsSubnetId: network.outputs.functionAppsSubnetId
   }
 }
 

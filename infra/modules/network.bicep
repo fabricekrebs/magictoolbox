@@ -62,6 +62,14 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-05-01' = {
               }
             }
           ]
+          serviceEndpoints: [
+            {
+              service: 'Microsoft.Storage'
+              locations: [
+                location
+              ]
+            }
+          ]
         }
       }
     ]

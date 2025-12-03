@@ -3,6 +3,7 @@ param location string
 param namingPrefix string
 param tags object
 param containerAppsSubnetId string = '' // Optional: Container Apps subnet for VNet rules
+param functionAppsSubnetId string = '' // Optional: Function Apps subnet for VNet rules
 
 // Location abbreviation for naming (shortened for storage 24 char limit)
 var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
@@ -42,12 +43,20 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
       bypass: 'AzureServices'
       defaultAction: 'Deny' // Use private endpoints and VNet rules
       ipRules: []
-      virtualNetworkRules: containerAppsSubnetId != '' ? [
-        {
-          id: containerAppsSubnetId
-          action: 'Allow'
-        }
-      ] : []
+      virtualNetworkRules: union(
+        containerAppsSubnetId != '' ? [
+          {
+            id: containerAppsSubnetId
+            action: 'Allow'
+          }
+        ] : [],
+        functionAppsSubnetId != '' ? [
+          {
+            id: functionAppsSubnetId
+            action: 'Allow'
+          }
+        ] : []
+      )
     }
   }
 }
