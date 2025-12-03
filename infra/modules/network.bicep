@@ -40,6 +40,14 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-05-01' = {
         properties: {
           addressPrefix: '10.0.2.0/24' // /24 for private endpoints (256 IPs)
           privateEndpointNetworkPolicies: 'Disabled' // Required for private endpoints
+          serviceEndpoints: [
+            {
+              service: 'Microsoft.Storage'
+              locations: [
+                location
+              ]
+            }
+          ]
         }
       }
       {
