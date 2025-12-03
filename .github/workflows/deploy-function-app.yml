@@ -56,18 +56,50 @@ jobs:
       - name: Create deployment package
         run: |
           cd function_app
-          # Create zip with all function app files (no local install needed - Azure will do remote build)
           zip -r ../function_app.zip . -x "*.pyc" -x "__pycache__/*" -x "local.settings.json" -x ".python_packages/*"
       
-      - name: Deploy to Azure Functions via REST API
+      - name: Ensure deployments container exists
         run: |
-          # Deploy using Azure REST API instead of func tools to avoid storage access issues
-          # This method uses service principal auth and doesn't require direct storage access from runner
-          az functionapp deployment source config-zip \
+          az storage container create \
+            --account-name sawemagictoolboxdev01 \
+            --name deployments \
+            --auth-mode login \
+            --only-show-errors || true
+      
+      - name: Upload package and deploy via run-from-package
+        run: |
+          TIMESTAMP=$(date +%s)
+          BLOB_NAME="deployments/function_app_${TIMESTAMP}.zip"
+          
+          # Upload using service principal auth
+          az storage blob upload \
+            --account-name sawemagictoolboxdev01 \
+            --container-name deployments \
+            --name ${BLOB_NAME} \
+            --file function_app.zip \
+            --auth-mode login \
+            --overwrite
+          
+          # Generate SAS URL (1 year validity for run-from-package)
+          EXPIRY=$(date -u -d '1 year' '+%Y-%m-%dT%H:%MZ')
+          BLOB_URL=$(az storage blob generate-sas \
+            --account-name sawemagictoolboxdev01 \
+            --container-name deployments \
+            --name ${BLOB_NAME} \
+            --permissions r \
+            --expiry ${EXPIRY} \
+            --auth-mode login \
+            --full-uri \
+            --https-only \
+            -o tsv)
+          
+          # Deploy by setting WEBSITE_RUN_FROM_PACKAGE
+          az functionapp config appsettings set \
             --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
             --name ${{ steps.get_function_app.outputs.function_app_name }} \
-            --src function_app.zip \
-            --timeout 600
+            --settings WEBSITE_RUN_FROM_PACKAGE="${BLOB_URL}"
+          
+          echo "✅ Deployed from: ${BLOB_NAME}"
   
   deploy-function-prod:
     name: Deploy Function App to Production
@@ -103,15 +135,47 @@ jobs:
       - name: Create deployment package
         run: |
           cd function_app
-          # Create zip with all function app files (no local install needed - Azure will do remote build)
           zip -r ../function_app.zip . -x "*.pyc" -x "__pycache__/*" -x "local.settings.json" -x ".python_packages/*"
       
-      - name: Deploy to Azure Functions via REST API
+      - name: Ensure deployments container exists
         run: |
-          # Deploy using Azure REST API instead of func tools to avoid storage access issues
-          # This method uses service principal auth and doesn't require direct storage access from runner
-          az functionapp deployment source config-zip \
+          az storage container create \
+            --account-name sawemagictoolboxprod01 \
+            --name deployments \
+            --auth-mode login \
+            --only-show-errors || true
+      
+      - name: Upload package and deploy via run-from-package
+        run: |
+          TIMESTAMP=$(date +%s)
+          BLOB_NAME="deployments/function_app_${TIMESTAMP}.zip"
+          
+          # Upload using service principal auth
+          az storage blob upload \
+            --account-name sawemagictoolboxprod01 \
+            --container-name deployments \
+            --name ${BLOB_NAME} \
+            --file function_app.zip \
+            --auth-mode login \
+            --overwrite
+          
+          # Generate SAS URL (1 year validity for run-from-package)
+          EXPIRY=$(date -u -d '1 year' '+%Y-%m-%dT%H:%MZ')
+          BLOB_URL=$(az storage blob generate-sas \
+            --account-name sawemagictoolboxprod01 \
+            --container-name deployments \
+            --name ${BLOB_NAME} \
+            --permissions r \
+            --expiry ${EXPIRY} \
+            --auth-mode login \
+            --full-uri \
+            --https-only \
+            -o tsv)
+          
+          # Deploy by setting WEBSITE_RUN_FROM_PACKAGE
+          az functionapp config appsettings set \
             --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
             --name ${{ steps.get_function_app.outputs.function_app_name }} \
-            --src function_app.zip \
-            --timeout 600
+            --settings WEBSITE_RUN_FROM_PACKAGE="${BLOB_URL}"
+          
+          echo "✅ Deployed from: ${BLOB_NAME}"
