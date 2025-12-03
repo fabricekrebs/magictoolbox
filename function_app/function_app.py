@@ -7,8 +7,10 @@ import logging
 import tempfile
 import os
 import sys
+import json
 from pathlib import Path
 from datetime import datetime, timezone
+from uuid import uuid4
 
 import azure.functions as func
 from azure.storage.blob import BlobServiceClient
@@ -141,6 +143,281 @@ def update_database_status(execution_id: str, status: str, output_file: str = No
     except Exception as e:
         logger.error(f"❌ Database update failed: {type(e).__name__}: {str(e)}")
         # Don't raise - we don't want database errors to fail the conversion
+
+
+@app.function_name(name="ConnectivityCheck")
+@app.route(route="health/connectivity", methods=["GET", "POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def connectivity_check(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    HTTP-triggered function to validate storage and database connectivity.
+    Tests write, read, and delete operations for both services.
+    """
+    logger.info("=" * 80)
+    logger.info("🔍 CONNECTIVITY CHECK STARTED")
+    logger.info("=" * 80)
+    
+    results = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "storage": {
+            "accessible": False,
+            "write": {"success": False, "duration_ms": None, "error": None},
+            "read": {"success": False, "duration_ms": None, "error": None},
+            "delete": {"success": False, "duration_ms": None, "error": None},
+            "details": {}
+        },
+        "database": {
+            "accessible": False,
+            "connect": {"success": False, "duration_ms": None, "error": None},
+            "write": {"success": False, "duration_ms": None, "error": None},
+            "read": {"success": False, "duration_ms": None, "error": None},
+            "delete": {"success": False, "duration_ms": None, "error": None},
+            "details": {}
+        },
+        "overall_status": "failed"
+    }
+    
+    test_id = str(uuid4())[:8]
+    
+    # ========================================
+    # STORAGE CONNECTIVITY TEST
+    # ========================================
+    logger.info("☁️ Testing Storage Account Connectivity...")
+    try:
+        blob_service = get_blob_service_client()
+        results["storage"]["accessible"] = True
+        results["storage"]["details"]["account_url"] = blob_service.account_name
+        logger.info(f"✅ Storage client initialized: {blob_service.account_name}")
+        
+        # Test WRITE
+        logger.info("📝 Testing WRITE operation...")
+        try:
+            start = datetime.now(timezone.utc)
+            test_blob_name = f"connectivity-test/{test_id}.txt"
+            test_content = f"Connectivity test at {results['timestamp']}"
+            
+            blob_client = blob_service.get_blob_client(
+                container="uploads",
+                blob=test_blob_name
+            )
+            blob_client.upload_blob(test_content.encode(), overwrite=True)
+            
+            duration = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            results["storage"]["write"]["success"] = True
+            results["storage"]["write"]["duration_ms"] = round(duration, 2)
+            results["storage"]["details"]["test_blob"] = test_blob_name
+            logger.info(f"✅ WRITE successful ({duration:.2f}ms)")
+            
+        except Exception as e:
+            results["storage"]["write"]["error"] = f"{type(e).__name__}: {str(e)}"
+            logger.error(f"❌ WRITE failed: {e}")
+        
+        # Test READ
+        logger.info("📖 Testing READ operation...")
+        try:
+            start = datetime.now(timezone.utc)
+            blob_client = blob_service.get_blob_client(
+                container="uploads",
+                blob=test_blob_name
+            )
+            blob_data = blob_client.download_blob().readall()
+            
+            duration = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            results["storage"]["read"]["success"] = True
+            results["storage"]["read"]["duration_ms"] = round(duration, 2)
+            results["storage"]["details"]["bytes_read"] = len(blob_data)
+            logger.info(f"✅ READ successful ({duration:.2f}ms, {len(blob_data)} bytes)")
+            
+        except Exception as e:
+            results["storage"]["read"]["error"] = f"{type(e).__name__}: {str(e)}"
+            logger.error(f"❌ READ failed: {e}")
+        
+        # Test DELETE
+        logger.info("🗑️ Testing DELETE operation...")
+        try:
+            start = datetime.now(timezone.utc)
+            blob_client = blob_service.get_blob_client(
+                container="uploads",
+                blob=test_blob_name
+            )
+            blob_client.delete_blob()
+            
+            duration = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            results["storage"]["delete"]["success"] = True
+            results["storage"]["delete"]["duration_ms"] = round(duration, 2)
+            logger.info(f"✅ DELETE successful ({duration:.2f}ms)")
+            
+        except Exception as e:
+            results["storage"]["delete"]["error"] = f"{type(e).__name__}: {str(e)}"
+            logger.error(f"❌ DELETE failed: {e}")
+        
+    except Exception as e:
+        results["storage"]["details"]["error"] = f"{type(e).__name__}: {str(e)}"
+        logger.error(f"❌ Storage client initialization failed: {e}")
+    
+    # ========================================
+    # DATABASE CONNECTIVITY TEST
+    # ========================================
+    logger.info("💾 Testing Database Connectivity...")
+    try:
+        # Get database connection parameters
+        db_host = os.environ.get("DB_HOST")
+        db_name = os.environ.get("DB_NAME")
+        db_user = os.environ.get("DB_USER")
+        db_password = os.environ.get("DB_PASSWORD")
+        db_port = os.environ.get("DB_PORT", "5432")
+        
+        results["database"]["details"]["host"] = db_host
+        results["database"]["details"]["database"] = db_name
+        results["database"]["details"]["user"] = db_user
+        
+        # Test CONNECTION
+        logger.info("🔌 Testing DATABASE connection...")
+        try:
+            start = datetime.now(timezone.utc)
+            conn = psycopg2.connect(
+                host=db_host,
+                database=db_name,
+                user=db_user,
+                password=db_password,
+                port=db_port,
+                sslmode="require",
+                connect_timeout=10
+            )
+            
+            duration = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            results["database"]["accessible"] = True
+            results["database"]["connect"]["success"] = True
+            results["database"]["connect"]["duration_ms"] = round(duration, 2)
+            logger.info(f"✅ CONNECTION successful ({duration:.2f}ms)")
+            
+            cursor = conn.cursor()
+            
+            # Test WRITE (INSERT)
+            logger.info("📝 Testing WRITE (INSERT) operation...")
+            try:
+                start = datetime.now(timezone.utc)
+                
+                # Create test table if not exists
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS connectivity_tests (
+                        id VARCHAR(50) PRIMARY KEY,
+                        test_data TEXT,
+                        created_at TIMESTAMP WITH TIME ZONE
+                    )
+                """)
+                
+                # Insert test record
+                cursor.execute(
+                    "INSERT INTO connectivity_tests (id, test_data, created_at) VALUES (%s, %s, %s)",
+                    (test_id, f"Test at {results['timestamp']}", datetime.now(timezone.utc))
+                )
+                conn.commit()
+                
+                duration = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                results["database"]["write"]["success"] = True
+                results["database"]["write"]["duration_ms"] = round(duration, 2)
+                logger.info(f"✅ WRITE successful ({duration:.2f}ms)")
+                
+            except Exception as e:
+                conn.rollback()
+                results["database"]["write"]["error"] = f"{type(e).__name__}: {str(e)}"
+                logger.error(f"❌ WRITE failed: {e}")
+            
+            # Test READ (SELECT)
+            logger.info("📖 Testing READ (SELECT) operation...")
+            try:
+                start = datetime.now(timezone.utc)
+                cursor.execute(
+                    "SELECT id, test_data, created_at FROM connectivity_tests WHERE id = %s",
+                    (test_id,)
+                )
+                row = cursor.fetchone()
+                
+                duration = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                results["database"]["read"]["success"] = True
+                results["database"]["read"]["duration_ms"] = round(duration, 2)
+                results["database"]["details"]["row_found"] = row is not None
+                logger.info(f"✅ READ successful ({duration:.2f}ms, found: {row is not None})")
+                
+            except Exception as e:
+                results["database"]["read"]["error"] = f"{type(e).__name__}: {str(e)}"
+                logger.error(f"❌ READ failed: {e}")
+            
+            # Test DELETE
+            logger.info("🗑️ Testing DELETE operation...")
+            try:
+                start = datetime.now(timezone.utc)
+                cursor.execute(
+                    "DELETE FROM connectivity_tests WHERE id = %s",
+                    (test_id,)
+                )
+                rows_deleted = cursor.rowcount
+                conn.commit()
+                
+                duration = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+                results["database"]["delete"]["success"] = True
+                results["database"]["delete"]["duration_ms"] = round(duration, 2)
+                results["database"]["details"]["rows_deleted"] = rows_deleted
+                logger.info(f"✅ DELETE successful ({duration:.2f}ms, {rows_deleted} row(s))")
+                
+            except Exception as e:
+                conn.rollback()
+                results["database"]["delete"]["error"] = f"{type(e).__name__}: {str(e)}"
+                logger.error(f"❌ DELETE failed: {e}")
+            
+            cursor.close()
+            conn.close()
+            
+        except Exception as e:
+            results["database"]["connect"]["error"] = f"{type(e).__name__}: {str(e)}"
+            logger.error(f"❌ DATABASE connection failed: {e}")
+        
+    except Exception as e:
+        results["database"]["details"]["error"] = f"{type(e).__name__}: {str(e)}"
+        logger.error(f"❌ Database test failed: {e}")
+    
+    # ========================================
+    # OVERALL STATUS
+    # ========================================
+    storage_ok = (
+        results["storage"]["accessible"] and
+        results["storage"]["write"]["success"] and
+        results["storage"]["read"]["success"] and
+        results["storage"]["delete"]["success"]
+    )
+    
+    database_ok = (
+        results["database"]["accessible"] and
+        results["database"]["connect"]["success"] and
+        results["database"]["write"]["success"] and
+        results["database"]["read"]["success"] and
+        results["database"]["delete"]["success"]
+    )
+    
+    if storage_ok and database_ok:
+        results["overall_status"] = "healthy"
+        status_code = 200
+        logger.info("=" * 80)
+        logger.info("✅ ALL CONNECTIVITY CHECKS PASSED")
+        logger.info("=" * 80)
+    elif storage_ok or database_ok:
+        results["overall_status"] = "degraded"
+        status_code = 207  # Multi-Status
+        logger.warning("=" * 80)
+        logger.warning("⚠️ SOME CONNECTIVITY CHECKS FAILED")
+        logger.warning("=" * 80)
+    else:
+        results["overall_status"] = "unhealthy"
+        status_code = 503  # Service Unavailable
+        logger.error("=" * 80)
+        logger.error("❌ ALL CONNECTIVITY CHECKS FAILED")
+        logger.error("=" * 80)
+    
+    return func.HttpResponse(
+        body=json.dumps(results, indent=2),
+        status_code=status_code,
+        mimetype="application/json"
+    )
 
 
 @app.function_name(name="PdfToDocxConverter")
