@@ -74,6 +74,7 @@ function_app/__pycache__/
 
 # Local testing files
 *.pdf
+!tests/fixtures/*.pdf
 test_*.pdf
 LOCAL_TESTING_REPORT.md
 AZURE_FUNCTIONS_CORE_TOOLS_TESTING.md
