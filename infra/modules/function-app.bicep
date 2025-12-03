@@ -25,16 +25,16 @@ param keyVaultName string
 
 // Function App names
 var functionAppName = 'func-${namingPrefix}-${uniqueString(resourceGroup().id)}'
-var appServicePlanName = 'plan-flex-${namingPrefix}-${uniqueString(resourceGroup().id)}'
+var appServicePlanName = 'plan-consumption-${namingPrefix}-${uniqueString(resourceGroup().id)}'
 
-// App Service Plan (FlexConsumption for Managed Identity support with disabled shared key access)
+// App Service Plan (Consumption Y1 for blob trigger support)
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: appServicePlanName
   location: location
   tags: tags
   sku: {
-    name: 'FC1'  // FlexConsumption plan
-    tier: 'FlexConsumption'
+    name: 'Y1'  // Consumption plan
+    tier: 'Dynamic'
   }
   properties: {
     reserved: true  // Linux
@@ -54,25 +54,6 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
   properties: {
     serverFarmId: appServicePlan.id
     reserved: true  // Linux
-    functionAppConfig: {
-      deployment: {
-        storage: {
-          type: 'blobContainer'
-          value: 'https://${storageAccountName}.blob.${environment().suffixes.storage}/deploymentpackage'
-          authentication: {
-            type: 'SystemAssignedIdentity'
-          }
-        }
-      }
-      scaleAndConcurrency: {
-        maximumInstanceCount: 100
-        instanceMemoryMB: 2048
-      }
-      runtime: {
-        name: 'python'
-        version: '3.11'
-      }
-    }
     siteConfig: {
       appSettings: [
         {
@@ -127,8 +108,18 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'WEBSITE_VNET_ROUTE_ALL'
           value: '1'
         }
-        // Note: WEBSITE_RUN_FROM_PACKAGE, SCM_DO_BUILD_DURING_DEPLOYMENT, and ENABLE_ORYX_BUILD
-        // are not supported with FlexConsumption SKU and have been removed
+        {
+          name: 'FUNCTIONS_WORKER_RUNTIME'
+          value: 'python'
+        }
+        {
+          name: 'FUNCTIONS_EXTENSION_VERSION'
+          value: '~4'
+        }
+        {
+          name: 'PYTHON_VERSION'
+          value: '3.11'
+        }
       ]
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
