@@ -81,6 +81,15 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_42F67BE674A5497C85CF302CE4944DBB }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_AEC7EFE7AC0F4A628C105E193375EED8 }}
 
+      - name: Temporarily enable storage public access
+        run: |
+          az storage account update \
+            --name sawemagictoolboxdev01 \
+            --resource-group rg-westeurope-magictoolbox-dev-01 \
+            --public-network-access Enabled \
+            --default-action Allow
+          sleep 10
+
       - name: 'Deploy to Azure Functions'
         uses: Azure/functions-action@v1
         id: deploy-to-function
@@ -88,4 +97,13 @@ jobs:
           app-name: 'func-magictoolbox-dev-rze6cb73hmijy'
           slot-name: 'Production'
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+      
+      - name: Restore storage private access
+        if: always()
+        run: |
+          az storage account update \
+            --name sawemagictoolboxdev01 \
+            --resource-group rg-westeurope-magictoolbox-dev-01 \
+            --public-network-access Disabled \
+            --default-action Deny
           
