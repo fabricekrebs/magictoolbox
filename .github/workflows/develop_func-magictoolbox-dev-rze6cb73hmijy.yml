@@ -2,12 +2,13 @@
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 # More info on Python, GitHub Actions, and Azure Functions: https://aka.ms/python-webapps-actions
 
-name: Build and deploy Python project to Azure Function App - func-magictoolbox-dev-rze6cb73hmijy
+name: Build and deploy Python project to Azure Function App - func-magictoolbox-dev-rze6cb73hmijy (DISABLED - Using deploy-function-app.yml instead)
 
 on:
-  push:
-    branches:
-      - develop
+  # Disabled - using deploy-function-app.yml workflow instead
+  # push:
+  #   branches:
+  #     - develop
   workflow_dispatch:
 
 env:
