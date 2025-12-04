@@ -90,8 +90,8 @@ jobs:
             --auth-mode login \
             --overwrite
           
-          # Generate SAS URL (1 year validity for run-from-package)
-          EXPIRY=$(date -u -d '1 year' '+%Y-%m-%dT%H:%MZ')
+          # Generate SAS URL (7 days validity - max for user delegation SAS)
+          EXPIRY=$(date -u -d '7 days' '+%Y-%m-%dT%H:%MZ')
           BLOB_URL=$(az storage blob generate-sas \
             --account-name sawemagictoolboxdev01 \
             --container-name deployments \
@@ -190,8 +190,8 @@ jobs:
             --auth-mode login \
             --overwrite
           
-          # Generate SAS URL (1 year validity for run-from-package)
-          EXPIRY=$(date -u -d '1 year' '+%Y-%m-%dT%H:%MZ')
+          # Generate SAS URL (7 days validity - max for user delegation SAS)
+          EXPIRY=$(date -u -d '7 days' '+%Y-%m-%dT%H:%MZ')
           BLOB_URL=$(az storage blob generate-sas \
             --account-name sawemagictoolboxprod01 \
             --container-name deployments \
