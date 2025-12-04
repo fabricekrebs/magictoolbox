@@ -264,6 +264,10 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE
 USE_AZURE_FUNCTIONS_PDF_CONVERSION = config(
     "USE_AZURE_FUNCTIONS_PDF_CONVERSION", default=False, cast=bool
 )
+AZURE_FUNCTION_PDF_CONVERT_URL = config(
+    "AZURE_FUNCTION_PDF_CONVERT_URL", 
+    default=""
+)
 
 # Azure Storage Configuration
 # For local development, use connection string to Azurite

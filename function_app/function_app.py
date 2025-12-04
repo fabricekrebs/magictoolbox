@@ -444,18 +444,24 @@ def connectivity_check(req: func.HttpRequest) -> func.HttpResponse:
 @app.function_name(name="PdfToDocxConverter")
 @app.blob_trigger(
     arg_name="blob",
-    path="uploads/pdf/{name}",
+    path="uploads/{name}",
     connection="AzureWebJobsStorage",
 )
 def pdf_to_docx_converter(blob: func.InputStream) -> None:
     """
     Convert PDF to DOCX when a new PDF is uploaded.
+    Triggers on any file in uploads/ container.
     """
     logger.info("=" * 80)
     logger.info("🎉 BLOB TRIGGER FIRED - PDF TO DOCX CONVERSION!")
     logger.info(f"📄 Blob name: {blob.name}")
     logger.info(f"📦 Blob size: {blob.length} bytes")
     logger.info(f"🔖 Blob URI: {blob.uri}")
+    
+    # Only process PDF files in the pdf/ subfolder
+    if not blob.name.startswith("pdf/") or not blob.name.endswith(".pdf"):
+        logger.info(f"⏭️ Skipping non-PDF file: {blob.name}")
+        return
     
     # Log metadata
     if blob.metadata:
@@ -464,9 +470,14 @@ def pdf_to_docx_converter(blob: func.InputStream) -> None:
             logger.info(f"   {key}: {value}")
     
     try:
-        # Extract execution_id from blob name
-        execution_id = Path(blob.name).stem
-        logger.info(f"🆔 Execution ID: {execution_id}")
+        # Extract execution_id from blob metadata (preferred) or blob name (fallback)
+        if blob.metadata and "execution_id" in blob.metadata:
+            execution_id = blob.metadata["execution_id"]
+            logger.info(f"🆔 Execution ID from metadata: {execution_id}")
+        else:
+            # Fallback: extract from blob name (pdf/uuid.pdf -> uuid)
+            execution_id = Path(blob.name).stem
+            logger.info(f"🆔 Execution ID from blob name: {execution_id}")
         
         # Step 1: Update database status to 'processing'
         logger.info("⏳ Step 1: Updating database status to 'processing'...")
@@ -536,10 +547,11 @@ def pdf_to_docx_converter(blob: func.InputStream) -> None:
         # Step 5: Update database status to 'completed'
         logger.info("✅ Step 5: Updating database status to 'completed'...")
         output_filename = Path(original_filename).stem + ".docx"
+        # Store just the blob path without container name (Django expects this format)
         update_database_status(
             execution_id=execution_id,
             status="completed",
-            output_file=f"processed/{output_blob_name}",
+            output_file=output_blob_name,  # Just "docx/{uuid}.docx" without "processed/" prefix
             output_filename=output_filename,
             output_size=len(docx_content)
         )
@@ -658,15 +670,27 @@ def pdf_to_docx_http(req: func.HttpRequest) -> func.HttpResponse:
                 container="processed",
                 blob=output_blob_name
             )
+            
+            # Get original filename from blob metadata if available
+            try:
+                source_blob_client = blob_service.get_blob_client(container=container_name, blob=blob_path)
+                blob_props = source_blob_client.get_blob_properties()
+                original_filename = blob_props.metadata.get("original_filename", "document.pdf") if blob_props.metadata else "document.pdf"
+            except:
+                original_filename = "document.pdf"
+            
             output_blob_client.upload_blob(docx_content, overwrite=True)
             logger.info(f"✅ Uploaded to: processed/{output_blob_name}")
             
             # Step 5: Update database with success
             logger.info("💾 Step 5: Updating database with results...")
+            output_filename = Path(original_filename).stem + ".docx"
             update_database_status(
                 execution_id=execution_id,
                 status="completed",
-                output_url=f"processed/{output_blob_name}"
+                output_file=output_blob_name,
+                output_filename=output_filename,
+                output_size=len(docx_content)
             )
             
             logger.info("🎉 PDF to DOCX conversion completed successfully!")

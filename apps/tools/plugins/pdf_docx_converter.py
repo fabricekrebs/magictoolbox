@@ -213,7 +213,7 @@ class PdfDocxConverter(BaseTool):
                 if function_url:
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": blob_name
+                        "blob_name": f"uploads/{blob_name}"  # Full path: uploads/pdf/{uuid}.pdf
                     }
                     self.logger.info(f"Calling Azure Function at {function_url}")
                     response = requests.post(function_url, json=payload, timeout=300)

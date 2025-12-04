@@ -128,6 +128,23 @@ module postgresql './modules/postgresql.bicep' = {
   }
 }
 
+// Azure Function App for PDF to DOCX conversion (optional - deploy when USE_AZURE_FUNCTIONS_PDF_CONVERSION=true)
+module functionApp './modules/function-app.bicep' = {
+  name: 'function-app-deployment'
+  params: {
+    location: location
+    namingPrefix: namingPrefix
+    tags: tags
+    storageAccountName: storage.outputs.storageAccountName
+    logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
+    postgresqlServerName: postgresql.outputs.postgresServerName
+    postgresqlDatabaseName: postgresql.outputs.databaseName
+    postgresqlAdminUser: postgresAdminUsername
+    applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
+    keyVaultName: keyVault.outputs.keyVaultName
+  }
+}
+
 // Azure Container Apps Environment and App (with VNet integration)
 module containerApps './modules/container-apps.bicep' = {
   name: 'container-apps-deployment'
@@ -153,6 +170,7 @@ module containerApps './modules/container-apps.bicep' = {
     postgresDatabase: postgresql.outputs.databaseName
     postgresAdminUsername: postgresAdminUsername
     containerAppsSubnetId: network.outputs.containerAppsSubnetId
+    functionAppUrl: 'https://${functionApp.outputs.functionAppHostName}/api/convert/pdf-to-docx'
   }
 }
 
@@ -184,24 +202,6 @@ module rbac './modules/rbac.bicep' = {
     keyVaultName: keyVault.outputs.keyVaultName
     containerAppIdentityPrincipalId: containerApps.outputs.containerAppIdentityPrincipalId
     functionAppIdentityPrincipalId: functionApp.outputs.functionAppPrincipalId
-  }
-}
-
-// Azure Function App for PDF to DOCX conversion (optional - deploy when USE_AZURE_FUNCTIONS_PDF_CONVERSION=true)
-module functionApp './modules/function-app.bicep' = {
-  name: 'function-app-deployment'
-  params: {
-    location: location
-    namingPrefix: namingPrefix
-    tags: tags
-    storageAccountName: storage.outputs.storageAccountName
-    logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
-    postgresqlServerName: postgresql.outputs.postgresServerName
-    postgresqlDatabaseName: postgresql.outputs.databaseName
-    postgresqlAdminUser: postgresAdminUsername
-    applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
-    // functionAppsSubnetId: network.outputs.functionAppsSubnetId // Not supported in Consumption plan
-    keyVaultName: keyVault.outputs.keyVaultName
   }
 }
 
