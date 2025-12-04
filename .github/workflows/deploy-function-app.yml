@@ -76,41 +76,12 @@ jobs:
             --auth-mode login \
             --only-show-errors || true
       
-      - name: Upload package and deploy via run-from-package
-        run: |
-          TIMESTAMP=$(date +%s)
-          BLOB_NAME="deployments/function_app_${TIMESTAMP}.zip"
-          
-          # Upload using service principal auth
-          az storage blob upload \
-            --account-name sawemagictoolboxdev01 \
-            --container-name deployments \
-            --name ${BLOB_NAME} \
-            --file function_app.zip \
-            --auth-mode login \
-            --overwrite
-          
-          # Generate SAS URL (7 days validity - max for user delegation SAS)
-          EXPIRY=$(date -u -d '7 days' '+%Y-%m-%dT%H:%MZ')
-          BLOB_URL=$(az storage blob generate-sas \
-            --account-name sawemagictoolboxdev01 \
-            --container-name deployments \
-            --name ${BLOB_NAME} \
-            --permissions r \
-            --expiry ${EXPIRY} \
-            --auth-mode login \
-            --as-user \
-            --full-uri \
-            --https-only \
-            -o tsv)
-          
-          # Deploy by setting WEBSITE_RUN_FROM_PACKAGE
-          az functionapp config appsettings set \
-            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
-            --name ${{ steps.get_function_app.outputs.function_app_name }} \
-            --settings WEBSITE_RUN_FROM_PACKAGE="${BLOB_URL}"
-          
-          echo "✅ Deployed from: ${BLOB_NAME}"
+      - name: Deploy to Azure Functions using zip deploy
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ steps.get_function_app.outputs.function_app_name }}
+          package: function_app.zip
+          respect-funcignore: true
       
       - name: Restore storage private network access
         if: always()
