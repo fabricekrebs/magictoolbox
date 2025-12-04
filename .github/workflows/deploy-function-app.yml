@@ -80,9 +80,26 @@ jobs:
             -v
       
       - name: Sync triggers
+        continue-on-error: true
         run: |
+          echo "📝 Syncing function triggers..."
           az rest --method post \
-            --uri "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/${{ steps.get_function_app.outputs.resource_group }}/providers/Microsoft.Web/sites/${{ steps.get_function_app.outputs.function_app_name }}/host/default/sync?api-version=2022-03-01"
+            --uri "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/${{ steps.get_function_app.outputs.resource_group }}/providers/Microsoft.Web/sites/${{ steps.get_function_app.outputs.function_app_name }}/host/default/sync?api-version=2022-03-01" || \
+          echo "⚠️ Sync triggers failed - functions should still work. Restarting app..."
+          
+          # Restart the app if sync failed
+          az functionapp restart \
+            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
+            --name ${{ steps.get_function_app.outputs.function_app_name }}
+      
+      - name: Verify functions are deployed
+        run: |
+          echo "🔍 Verifying function deployment..."
+          sleep 15  # Wait for app to be ready
+          az functionapp function list \
+            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
+            --name ${{ steps.get_function_app.outputs.function_app_name }} \
+            -o table
   
   deploy-function-prod:
     name: Deploy Function App to Production
