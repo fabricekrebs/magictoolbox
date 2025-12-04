@@ -76,21 +76,14 @@ jobs:
             --auth-mode login \
             --only-show-errors || true
       
-      - name: Remove WEBSITE_RUN_FROM_PACKAGE setting
+      - name: Deploy using az functionapp deployment source config-zip
         run: |
-          az functionapp config appsettings delete \
+          az functionapp deployment source config-zip \
             --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
             --name ${{ steps.get_function_app.outputs.function_app_name }} \
-            --setting-names WEBSITE_RUN_FROM_PACKAGE || true
-      
-      - name: Deploy to Azure Functions using zip deploy
-        uses: Azure/functions-action@v1
-        with:
-          app-name: ${{ steps.get_function_app.outputs.function_app_name }}
-          package: function_app.zip
-          respect-funcignore: true
-          scm-do-build-during-deployment: true
-          enable-oryx-build: true
+            --src function_app.zip \
+            --build-remote true \
+            --timeout 600
       
       - name: Restore storage private network access
         if: always()
