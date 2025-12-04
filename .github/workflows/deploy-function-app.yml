@@ -99,6 +99,7 @@ jobs:
             --permissions r \
             --expiry ${EXPIRY} \
             --auth-mode login \
+            --as-user \
             --full-uri \
             --https-only \
             -o tsv)
@@ -198,6 +199,7 @@ jobs:
             --permissions r \
             --expiry ${EXPIRY} \
             --auth-mode login \
+            --as-user \
             --full-uri \
             --https-only \
             -o tsv)
