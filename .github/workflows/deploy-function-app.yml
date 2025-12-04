@@ -58,42 +58,31 @@ jobs:
           cd function_app
           zip -r ../function_app.zip . -x "*.pyc" -x "__pycache__/*" -x "local.settings.json" -x ".python_packages/*"
       
-      - name: Temporarily enable storage public network access for deployment
+      - name: Get deployment credentials
+        id: get_credentials
         run: |
-          echo "⚙️ Temporarily enabling public network access for deployment..."
-          az storage account update \
-            --name sawemagictoolboxdev01 \
-            --resource-group ${{ secrets.RESOURCE_GROUP_DEV }} \
-            --public-network-access Enabled \
-            --default-action Allow
-          sleep 10  # Wait for propagation
-      
-      - name: Ensure deployments container exists
-        run: |
-          az storage container create \
-            --account-name sawemagictoolboxdev01 \
-            --name deployments \
-            --auth-mode login \
-            --only-show-errors || true
-      
-      - name: Deploy using az functionapp deployment source config-zip
-        run: |
-          az functionapp deployment source config-zip \
+          CREDS=$(az functionapp deployment list-publishing-credentials \
             --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
             --name ${{ steps.get_function_app.outputs.function_app_name }} \
-            --src function_app.zip \
-            --build-remote true \
-            --timeout 600
+            --query '{username:publishingUserName, password:publishingPassword}' -o json)
+          echo "username=$(echo $CREDS | jq -r '.username')" >> $GITHUB_OUTPUT
+          echo "::add-mask::$(echo $CREDS | jq -r '.password')"
+          echo "password=$(echo $CREDS | jq -r '.password')" >> $GITHUB_OUTPUT
       
-      - name: Restore storage private network access
-        if: always()
+      - name: Deploy via Kudu ZIP API
         run: |
-          echo "🔒 Restoring private network access..."
-          az storage account update \
-            --name sawemagictoolboxdev01 \
-            --resource-group ${{ secrets.RESOURCE_GROUP_DEV }} \
-            --public-network-access Disabled \
-            --default-action Deny
+          curl -X POST \
+            "https://${{ steps.get_function_app.outputs.function_app_name }}.scm.azurewebsites.net/api/zipdeploy?isAsync=false" \
+            -u "${{ steps.get_credentials.outputs.username }}:${{ steps.get_credentials.outputs.password }}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @function_app.zip \
+            --max-time 600 \
+            -v
+      
+      - name: Sync triggers
+        run: |
+          az rest --method post \
+            --uri "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/${{ steps.get_function_app.outputs.resource_group }}/providers/Microsoft.Web/sites/${{ steps.get_function_app.outputs.function_app_name }}/host/default/sync?api-version=2022-03-01"
   
   deploy-function-prod:
     name: Deploy Function App to Production
