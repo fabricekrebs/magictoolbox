@@ -5,14 +5,18 @@ Minimal Azure Function for testing Flex Consumption deployment.
 import logging
 import json
 import os
+import sys
+import tempfile
 from datetime import datetime, timezone
 from uuid import uuid4
+from pathlib import Path
 
 import azure.functions as func
 from azure.storage.blob import BlobServiceClient
 from azure.identity import DefaultAzureCredential
 import psycopg2
 from psycopg2 import sql
+from pdf2docx import Converter
 
 # Initialize Function App
 app = func.FunctionApp()
@@ -238,4 +242,246 @@ def echo(req: func.HttpRequest) -> func.HttpResponse:
         mimetype="application/json",
         status_code=200
     )
+
+
+def update_database_status(execution_id: str, status: str, output_file: str = None, 
+                          output_filename: str = None, output_size: int = None, 
+                          error: str = None) -> None:
+    """
+    Update the ToolExecution record in PostgreSQL database.
+    
+    Args:
+        execution_id: UUID of the execution
+        status: Status to set (processing, completed, failed)
+        output_file: Path to output file in blob storage
+        output_filename: Display name of output file
+        output_size: Size of output file in bytes
+        error: Error message if status is failed
+    """
+    try:
+        logger.info(f"💾 Updating database for execution_id: {execution_id}")
+        logger.info(f"   Status: {status}")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Build UPDATE query
+        if status == "completed":
+            query = """
+                UPDATE tools_toolexecution 
+                SET status = %s, 
+                    output_file = %s, 
+                    output_filename = %s,
+                    output_size = %s,
+                    completed_at = %s,
+                    updated_at = %s
+                WHERE id = %s
+            """
+            params = (
+                status,
+                output_file,
+                output_filename,
+                output_size,
+                datetime.now(timezone.utc),
+                datetime.now(timezone.utc),
+                execution_id
+            )
+            logger.info(f"   Output file: {output_file}")
+            logger.info(f"   Output filename: {output_filename}")
+            logger.info(f"   Output size: {output_size:,} bytes")
+            
+        elif status == "failed":
+            query = """
+                UPDATE tools_toolexecution 
+                SET status = %s, 
+                    error_message = %s,
+                    completed_at = %s,
+                    updated_at = %s
+                WHERE id = %s
+            """
+            params = (
+                status,
+                error,
+                datetime.now(timezone.utc),
+                datetime.now(timezone.utc),
+                execution_id
+            )
+            logger.info(f"   Error: {error}")
+            
+        else:  # processing
+            query = """
+                UPDATE tools_toolexecution 
+                SET status = %s, 
+                    updated_at = %s
+                WHERE id = %s
+            """
+            params = (
+                status,
+                datetime.now(timezone.utc),
+                execution_id
+            )
+        
+        cursor.execute(query, params)
+        conn.commit()
+        logger.info(f"✅ Database updated successfully")
+        
+        cursor.close()
+        conn.close()
+        
+    except Exception as e:
+        logger.error(f"❌ Database update failed: {type(e).__name__}: {str(e)}")
+        raise
+
+
+@app.route(route="convert/pdf-to-docx", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def pdf_to_docx_http(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    HTTP-triggered PDF to DOCX conversion.
+    
+    Request body should contain JSON:
+    {
+        "execution_id": "uuid-string",
+        "blob_name": "uploads/pdf/uuid.pdf"
+    }
+    """
+    logger.info("=" * 80)
+    logger.info("🎉 HTTP TRIGGER - PDF TO DOCX CONVERSION")
+    
+    try:
+        # Parse request body
+        req_body = req.get_json()
+        execution_id = req_body.get("execution_id")
+        blob_name = req_body.get("blob_name")
+        
+        if not execution_id or not blob_name:
+            return func.HttpResponse(
+                json.dumps({"error": "Missing execution_id or blob_name"}),
+                status_code=400,
+                mimetype="application/json"
+            )
+        
+        logger.info(f"🆔 Execution ID: {execution_id}")
+        logger.info(f"📄 Blob name: {blob_name}")
+        
+        # Get blob service client
+        blob_service = get_blob_service_client()
+        
+        # Extract container and blob path
+        parts = blob_name.split("/", 1)
+        if len(parts) != 2:
+            return func.HttpResponse(
+                json.dumps({"error": "Invalid blob_name format. Expected: container/path"}),
+                status_code=400,
+                mimetype="application/json"
+            )
+        
+        container_name, blob_path = parts
+        blob_client = blob_service.get_blob_client(container=container_name, blob=blob_path)
+        
+        # Step 1: Update database status to 'processing'
+        logger.info("⏳ Step 1: Updating database status to 'processing'...")
+        update_database_status(execution_id, "processing")
+        
+        # Step 2: Download PDF from blob storage
+        logger.info("📖 Step 2: Downloading PDF from blob storage...")
+        pdf_content = blob_client.download_blob().readall()
+        logger.info(f"✅ Downloaded {len(pdf_content):,} bytes")
+        
+        # Step 3: Convert PDF to DOCX
+        logger.info("🔄 Step 3: Converting PDF to DOCX...")
+        start_time = datetime.now(timezone.utc)
+        
+        # Save PDF to temp file
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_pdf:
+            temp_pdf.write(pdf_content)
+            temp_pdf_path = temp_pdf.name
+        
+        temp_docx_path = temp_pdf_path.replace(".pdf", ".docx")
+        
+        try:
+            # Convert using pdf2docx
+            cv = Converter(temp_pdf_path)
+            cv.convert(temp_docx_path, start=0, end=None)
+            cv.close()
+            
+            conversion_time = (datetime.now(timezone.utc) - start_time).total_seconds()
+            logger.info(f"✅ Conversion completed in {conversion_time:.2f}s")
+            
+            # Step 4: Upload DOCX to processed container
+            logger.info("📤 Step 4: Uploading DOCX to blob storage...")
+            with open(temp_docx_path, "rb") as docx_file:
+                docx_content = docx_file.read()
+            
+            output_blob_name = f"docx/{execution_id}.docx"
+            output_blob_client = blob_service.get_blob_client(
+                container="processed",
+                blob=output_blob_name
+            )
+            
+            # Get original filename from blob metadata if available
+            try:
+                source_blob_client = blob_service.get_blob_client(container=container_name, blob=blob_path)
+                blob_props = source_blob_client.get_blob_properties()
+                original_filename = blob_props.metadata.get("original_filename", "document.pdf") if blob_props.metadata else "document.pdf"
+            except:
+                original_filename = "document.pdf"
+            
+            output_blob_client.upload_blob(docx_content, overwrite=True)
+            logger.info(f"✅ Uploaded to: processed/{output_blob_name}")
+            
+            # Step 5: Update database with success
+            logger.info("💾 Step 5: Updating database with results...")
+            output_filename = Path(original_filename).stem + ".docx"
+            update_database_status(
+                execution_id=execution_id,
+                status="completed",
+                output_file=output_blob_name,
+                output_filename=output_filename,
+                output_size=len(docx_content)
+            )
+            
+            logger.info("🎉 PDF to DOCX conversion completed successfully!")
+            logger.info("=" * 80)
+            
+            return func.HttpResponse(
+                json.dumps({
+                    "status": "completed",
+                    "execution_id": execution_id,
+                    "output_blob": output_blob_name,
+                    "conversion_time_seconds": conversion_time
+                }),
+                status_code=200,
+                mimetype="application/json"
+            )
+            
+        finally:
+            # Cleanup temp files
+            if os.path.exists(temp_pdf_path):
+                os.remove(temp_pdf_path)
+            if os.path.exists(temp_docx_path):
+                os.remove(temp_docx_path)
+    
+    except Exception as e:
+        logger.error(f"❌ Conversion failed: {type(e).__name__}: {str(e)}")
+        logger.error("=" * 80)
+        
+        # Try to update database
+        try:
+            if 'execution_id' in locals():
+                update_database_status(
+                    execution_id=execution_id,
+                    status="failed",
+                    error=f"{type(e).__name__}: {str(e)}"
+                )
+        except Exception as db_error:
+            logger.error(f"❌ Failed to update database: {db_error}")
+        
+        return func.HttpResponse(
+            json.dumps({
+                "status": "failed",
+                "error": f"{type(e).__name__}: {str(e)}"
+            }),
+            status_code=500,
+            mimetype="application/json"
+        )
 # Minimal Function App for testing

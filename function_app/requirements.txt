@@ -7,3 +7,6 @@ azure-storage-blob>=12.19.0,<13.0.0
 
 # Database
 psycopg2-binary>=2.9.9,<3.0.0
+
+# PDF Conversion
+pdf2docx>=0.5.8,<1.0.0
