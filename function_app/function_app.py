@@ -285,7 +285,7 @@ def update_database_status(execution_id: str, status: str, output_file: str = No
         # Build UPDATE query
         if status == "completed":
             query = """
-                UPDATE tools_toolexecution 
+                UPDATE tool_executions 
                 SET status = %s, 
                     output_file = %s, 
                     output_filename = %s,
@@ -309,7 +309,7 @@ def update_database_status(execution_id: str, status: str, output_file: str = No
             
         elif status == "failed":
             query = """
-                UPDATE tools_toolexecution 
+                UPDATE tool_executions 
                 SET status = %s, 
                     error_message = %s,
                     completed_at = %s,
@@ -327,7 +327,7 @@ def update_database_status(execution_id: str, status: str, output_file: str = No
             
         else:  # processing
             query = """
-                UPDATE tools_toolexecution 
+                UPDATE tool_executions 
                 SET status = %s, 
                     updated_at = %s
                 WHERE id = %s
