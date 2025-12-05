@@ -129,18 +129,6 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'DB_PORT'
           value: '5432'
         }
-        {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'python'
-        }
-        {
-          name: 'FUNCTIONS_EXTENSION_VERSION'
-          value: '~4'
-        }
-        {
-          name: 'PYTHON_VERSION'
-          value: '3.11'
-        }
       ]
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
