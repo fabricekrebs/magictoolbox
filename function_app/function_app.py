@@ -4,9 +4,13 @@ Minimal Azure Function for testing Flex Consumption deployment.
 
 import logging
 import json
+import os
 from datetime import datetime, timezone
+from uuid import uuid4
 
 import azure.functions as func
+from azure.storage.blob import BlobServiceClient
+from azure.identity import DefaultAzureCredential
 
 # Initialize Function App
 app = func.FunctionApp()
@@ -17,6 +21,94 @@ logging.basicConfig(
     format='[%(asctime)s] %(levelname)s: %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def get_blob_service_client() -> BlobServiceClient:
+    """Get BlobServiceClient using Managed Identity."""
+    storage_account_name = os.environ.get("AZURE_STORAGE_ACCOUNT_NAME")
+    if not storage_account_name:
+        raise ValueError("AZURE_STORAGE_ACCOUNT_NAME not configured")
+    
+    account_url = f"https://{storage_account_name}.blob.core.windows.net"
+    logger.info(f"Connecting to storage: {account_url}")
+    
+    credential = DefaultAzureCredential()
+    return BlobServiceClient(account_url=account_url, credential=credential)
+
+
+@app.route(route="storage/test", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
+def test_storage(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Test blob storage read and write operations.
+    """
+    logger.info("Storage test endpoint called")
+    
+    results = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "write": {"success": False, "error": None},
+        "read": {"success": False, "error": None},
+        "delete": {"success": False, "error": None}
+    }
+    
+    try:
+        # Get blob service client
+        blob_service_client = get_blob_service_client()
+        container_name = "uploads"
+        test_blob_name = f"test-{uuid4()}.txt"
+        test_content = f"Test blob created at {datetime.now(timezone.utc).isoformat()}"
+        
+        # Test 1: Write
+        try:
+            blob_client = blob_service_client.get_blob_client(container=container_name, blob=test_blob_name)
+            blob_client.upload_blob(test_content, overwrite=True)
+            results["write"]["success"] = True
+            results["write"]["blob_name"] = test_blob_name
+            logger.info(f"Successfully wrote blob: {test_blob_name}")
+        except Exception as e:
+            results["write"]["error"] = str(e)
+            logger.error(f"Write failed: {e}")
+        
+        # Test 2: Read (only if write succeeded)
+        if results["write"]["success"]:
+            try:
+                blob_client = blob_service_client.get_blob_client(container=container_name, blob=test_blob_name)
+                downloaded_content = blob_client.download_blob().readall().decode('utf-8')
+                results["read"]["success"] = (downloaded_content == test_content)
+                results["read"]["content_match"] = results["read"]["success"]
+                logger.info(f"Successfully read blob: {test_blob_name}")
+            except Exception as e:
+                results["read"]["error"] = str(e)
+                logger.error(f"Read failed: {e}")
+        
+        # Test 3: Delete (cleanup)
+        if results["write"]["success"]:
+            try:
+                blob_client = blob_service_client.get_blob_client(container=container_name, blob=test_blob_name)
+                blob_client.delete_blob()
+                results["delete"]["success"] = True
+                logger.info(f"Successfully deleted blob: {test_blob_name}")
+            except Exception as e:
+                results["delete"]["error"] = str(e)
+                logger.error(f"Delete failed: {e}")
+        
+        results["overall_status"] = "success" if all([
+            results["write"]["success"],
+            results["read"]["success"],
+            results["delete"]["success"]
+        ]) else "partial"
+        
+    except Exception as e:
+        results["overall_status"] = "failed"
+        results["error"] = str(e)
+        logger.error(f"Storage test failed: {e}")
+    
+    status_code = 200 if results.get("overall_status") in ["success", "partial"] else 500
+    
+    return func.HttpResponse(
+        body=json.dumps(results, indent=2),
+        mimetype="application/json",
+        status_code=status_code
+    )
 
 
 @app.route(route="health", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
