@@ -1,6 +1,6 @@
 """
 Azure Function for PDF to DOCX conversion using HTTP trigger.
-Flex Consumption plan with HTTP-triggered conversions for reliability.
+Flex Consumption plan with HTTP-triggered conversions for maximum reliability.
 """
 
 import logging
