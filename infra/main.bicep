@@ -141,6 +141,7 @@ module functionApp './modules/function-app.bicep' = {
     postgresqlDatabaseName: postgresql.outputs.databaseName
     postgresqlAdminUser: postgresAdminUsername
     applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
+    applicationInsightsInstrumentationKey: monitoring.outputs.applicationInsightsInstrumentationKey
     keyVaultName: keyVault.outputs.keyVaultName
   }
 }

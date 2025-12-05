@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "9410225664302337125"
+      "templateHash": "7547244177578502635"
     }
   },
   "parameters": {
@@ -1168,6 +1168,9 @@
           "applicationInsightsConnectionString": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring-deployment'), '2025-04-01').outputs.applicationInsightsConnectionString.value]"
           },
+          "applicationInsightsInstrumentationKey": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring-deployment'), '2025-04-01').outputs.applicationInsightsInstrumentationKey.value]"
+          },
           "keyVaultName": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault-deployment'), '2025-04-01').outputs.keyVaultName.value]"
           }
@@ -1179,7 +1182,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "18425596636522720853"
+              "templateHash": "14533985214857678482"
             }
           },
           "parameters": {
@@ -1208,6 +1211,9 @@
               "type": "string"
             },
             "applicationInsightsConnectionString": {
+              "type": "string"
+            },
+            "applicationInsightsInstrumentationKey": {
               "type": "string"
             },
             "keyVaultName": {
@@ -1295,6 +1301,30 @@
                     {
                       "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
                       "value": "[parameters('applicationInsightsConnectionString')]"
+                    },
+                    {
+                      "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                      "value": "[parameters('applicationInsightsInstrumentationKey')]"
+                    },
+                    {
+                      "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
+                      "value": "~3"
+                    },
+                    {
+                      "name": "XDT_MicrosoftApplicationInsights_Mode",
+                      "value": "recommended"
+                    },
+                    {
+                      "name": "InstrumentationEngine_EXTENSION_VERSION",
+                      "value": "disabled"
+                    },
+                    {
+                      "name": "APPLICATIONINSIGHTS_ENABLE_AGENT",
+                      "value": "true"
+                    },
+                    {
+                      "name": "APPLICATIONINSIGHTS_SAMPLING_PERCENTAGE",
+                      "value": "100"
                     },
                     {
                       "name": "AZURE_STORAGE_ACCOUNT_NAME",

@@ -16,6 +16,7 @@ param postgresqlAdminUser string
 
 // Application Insights
 param applicationInsightsConnectionString string
+param applicationInsightsInstrumentationKey string
 
 // VNet integration (not supported in Consumption plan Y1)
 // param functionAppsSubnetId string
@@ -101,9 +102,34 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'AzureWebJobsStorage__tableServiceUri'
           value: 'https://${storageAccountName}.table.${environment().suffixes.storage}'
         }
+        // Application Insights integration
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: applicationInsightsConnectionString
+        }
+        {
+          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+          value: applicationInsightsInstrumentationKey
+        }
+        {
+          name: 'ApplicationInsightsAgent_EXTENSION_VERSION'
+          value: '~3'  // Enable Application Insights agent for advanced monitoring
+        }
+        {
+          name: 'XDT_MicrosoftApplicationInsights_Mode'
+          value: 'recommended'  // Enable recommended Application Insights features
+        }
+        {
+          name: 'InstrumentationEngine_EXTENSION_VERSION'
+          value: 'disabled'  // Not needed for Python Functions
+        }
+        {
+          name: 'APPLICATIONINSIGHTS_ENABLE_AGENT'
+          value: 'true'  // Enable Application Insights SDK
+        }
+        {
+          name: 'APPLICATIONINSIGHTS_SAMPLING_PERCENTAGE'
+          value: '100'  // 100% sampling for dev, reduce in production
         }
         {
           name: 'AZURE_STORAGE_ACCOUNT_NAME'
