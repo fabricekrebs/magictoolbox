@@ -58,6 +58,13 @@ jobs:
           cd function_app
           zip -r ../function_app.zip . -x "*.pyc" -x "__pycache__/*" -x "local.settings.json" -x ".python_packages/*"
       
+      - name: Remove WEBSITE_RUN_FROM_PACKAGE if exists
+        run: |
+          az functionapp config appsettings delete \
+            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
+            --name ${{ steps.get_function_app.outputs.function_app_name }} \
+            --setting-names WEBSITE_RUN_FROM_PACKAGE || true
+      
       - name: Get deployment credentials
         id: get_credentials
         run: |
