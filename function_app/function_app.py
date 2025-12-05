@@ -344,31 +344,55 @@ def pdf_to_docx_http(req: func.HttpRequest) -> func.HttpResponse:
         "blob_name": "uploads/pdf/uuid.pdf"
     }
     """
+    request_id = str(uuid4())[:8]
     logger.info("=" * 80)
     logger.info("🎉 HTTP TRIGGER - PDF TO DOCX CONVERSION")
+    logger.info(f"   Request ID: {request_id}")
+    logger.info(f"   Timestamp: {datetime.now(timezone.utc).isoformat()}")
+    logger.info(f"   Method: {req.method}")
+    logger.info(f"   URL: {req.url}")
+    logger.info("=" * 80)
     
     try:
         # Parse request body
-        req_body = req.get_json()
+        logger.info("📥 Step 1: Parsing request body...")
+        try:
+            req_body = req.get_json()
+            logger.info(f"   Request body: {req_body}")
+        except Exception as parse_error:
+            logger.error(f"❌ Failed to parse JSON: {parse_error}")
+            return func.HttpResponse(
+                json.dumps({"error": f"Invalid JSON: {str(parse_error)}"}),
+                status_code=400,
+                mimetype="application/json"
+            )
+        
         execution_id = req_body.get("execution_id")
         blob_name = req_body.get("blob_name")
         
+        logger.info(f"   Execution ID: {execution_id}")
+        logger.info(f"   Blob name: {blob_name}")
+        
         if not execution_id or not blob_name:
+            logger.error("❌ Missing required parameters")
             return func.HttpResponse(
                 json.dumps({"error": "Missing execution_id or blob_name"}),
                 status_code=400,
                 mimetype="application/json"
             )
         
-        logger.info(f"🆔 Execution ID: {execution_id}")
-        logger.info(f"📄 Blob name: {blob_name}")
+        logger.info("✅ Request validation passed")
         
         # Get blob service client
+        logger.info("📦 Step 2: Initializing blob storage client...")
         blob_service = get_blob_service_client()
+        logger.info("✅ Blob service client initialized")
         
         # Extract container and blob path
+        logger.info(f"🔍 Step 3: Parsing blob name: {blob_name}")
         parts = blob_name.split("/", 1)
         if len(parts) != 2:
+            logger.error(f"❌ Invalid blob_name format: {blob_name}")
             return func.HttpResponse(
                 json.dumps({"error": "Invalid blob_name format. Expected: container/path"}),
                 status_code=400,
@@ -376,71 +400,132 @@ def pdf_to_docx_http(req: func.HttpRequest) -> func.HttpResponse:
             )
         
         container_name, blob_path = parts
+        logger.info(f"   Container: {container_name}")
+        logger.info(f"   Blob path: {blob_path}")
+        
+        logger.info("📦 Getting blob client...")
         blob_client = blob_service.get_blob_client(container=container_name, blob=blob_path)
+        logger.info("✅ Blob client obtained")
         
         # Step 1: Update database status to 'processing'
-        logger.info("⏳ Step 1: Updating database status to 'processing'...")
-        update_database_status(execution_id, "processing")
+        logger.info("=" * 80)
+        logger.info("💾 Step 4: Updating database status to 'processing'...")
+        logger.info(f"   Execution ID: {execution_id}")
+        try:
+            update_database_status(execution_id, "processing")
+            logger.info("✅ Database status updated to 'processing'")
+        except Exception as db_error:
+            logger.error(f"⚠️  Database update failed (continuing anyway): {db_error}")
         
         # Step 2: Download PDF from blob storage
-        logger.info("📖 Step 2: Downloading PDF from blob storage...")
+        logger.info("=" * 80)
+        logger.info("📖 Step 5: Downloading PDF from blob storage...")
+        logger.info(f"   Container: {container_name}")
+        logger.info(f"   Blob: {blob_path}")
+        download_start = datetime.now(timezone.utc)
         pdf_content = blob_client.download_blob().readall()
-        logger.info(f"✅ Downloaded {len(pdf_content):,} bytes")
+        download_duration = (datetime.now(timezone.utc) - download_start).total_seconds()
+        logger.info(f"✅ Downloaded {len(pdf_content):,} bytes in {download_duration:.2f}s")
+        logger.info(f"   Download speed: {len(pdf_content) / download_duration / 1024:.2f} KB/s")
         
         # Step 3: Convert PDF to DOCX
-        logger.info("🔄 Step 3: Converting PDF to DOCX...")
+        logger.info("=" * 80)
+        logger.info("🔄 Step 6: Converting PDF to DOCX...")
         start_time = datetime.now(timezone.utc)
         
         # Save PDF to temp file
+        logger.info("💾 Creating temporary PDF file...")
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_pdf:
             temp_pdf.write(pdf_content)
             temp_pdf_path = temp_pdf.name
+        logger.info(f"   Temp PDF path: {temp_pdf_path}")
+        logger.info(f"   File size: {os.path.getsize(temp_pdf_path):,} bytes")
         
         temp_docx_path = temp_pdf_path.replace(".pdf", ".docx")
+        logger.info(f"   Target DOCX path: {temp_docx_path}")
         
         try:
             # Convert using pdf2docx
+            logger.info("🔄 Initializing pdf2docx Converter...")
             cv = Converter(temp_pdf_path)
+            logger.info("   Converter initialized")
+            logger.info("   Starting conversion (all pages)...")
             cv.convert(temp_docx_path, start=0, end=None)
+            logger.info("   Conversion completed")
             cv.close()
+            logger.info("   Converter closed")
             
             conversion_time = (datetime.now(timezone.utc) - start_time).total_seconds()
-            logger.info(f"✅ Conversion completed in {conversion_time:.2f}s")
+            docx_size = os.path.getsize(temp_docx_path)
+            logger.info(f"✅ PDF to DOCX conversion completed successfully")
+            logger.info(f"   Duration: {conversion_time:.2f}s")
+            logger.info(f"   Input size: {len(pdf_content):,} bytes")
+            logger.info(f"   Output size: {docx_size:,} bytes")
+            logger.info(f"   Compression ratio: {(docx_size / len(pdf_content) * 100):.1f}%")
             
             # Step 4: Upload DOCX to processed container
-            logger.info("📤 Step 4: Uploading DOCX to blob storage...")
+            logger.info("=" * 80)
+            logger.info("📤 Step 7: Uploading DOCX to blob storage...")
+            logger.info("   Reading DOCX file from disk...")
             with open(temp_docx_path, "rb") as docx_file:
                 docx_content = docx_file.read()
+            logger.info(f"   Read {len(docx_content):,} bytes")
             
             output_blob_name = f"docx/{execution_id}.docx"
+            logger.info(f"   Target blob: processed/{output_blob_name}")
+            
+            logger.info("   Getting output blob client...")
             output_blob_client = blob_service.get_blob_client(
                 container="processed",
                 blob=output_blob_name
             )
+            logger.info("   Output blob client obtained")
             
             # Get original filename from blob metadata if available
+            logger.info("   Retrieving original filename from source blob metadata...")
             try:
                 source_blob_client = blob_service.get_blob_client(container=container_name, blob=blob_path)
                 blob_props = source_blob_client.get_blob_properties()
                 original_filename = blob_props.metadata.get("original_filename", "document.pdf") if blob_props.metadata else "document.pdf"
-            except:
+                logger.info(f"   Original filename: {original_filename}")
+            except Exception as meta_error:
                 original_filename = "document.pdf"
+                logger.warning(f"   Could not retrieve metadata: {meta_error}. Using default: {original_filename}")
             
+            logger.info("   Uploading DOCX to processed container...")
+            upload_start = datetime.now(timezone.utc)
             output_blob_client.upload_blob(docx_content, overwrite=True)
-            logger.info(f"✅ Uploaded to: processed/{output_blob_name}")
+            upload_duration = (datetime.now(timezone.utc) - upload_start).total_seconds()
+            logger.info(f"✅ DOCX uploaded successfully")
+            logger.info(f"   Blob: processed/{output_blob_name}")
+            logger.info(f"   Size: {len(docx_content):,} bytes")
+            logger.info(f"   Duration: {upload_duration:.2f}s")
+            logger.info(f"   Upload speed: {len(docx_content) / upload_duration / 1024:.2f} KB/s")
             
             # Step 5: Update database with success
-            logger.info("💾 Step 5: Updating database with results...")
+            logger.info("=" * 80)
+            logger.info("💾 Step 8: Updating database with completion status...")
             output_filename = Path(original_filename).stem + ".docx"
-            update_database_status(
-                execution_id=execution_id,
-                status="completed",
-                output_file=output_blob_name,
-                output_filename=output_filename,
-                output_size=len(docx_content)
-            )
+            logger.info(f"   Output filename: {output_filename}")
+            logger.info(f"   Output size: {len(docx_content):,} bytes")
+            try:
+                update_database_status(
+                    execution_id=execution_id,
+                    status="completed",
+                    output_file=output_blob_name,
+                    output_filename=output_filename,
+                    output_size=len(docx_content)
+                )
+                logger.info("✅ Database updated with completion status")
+            except Exception as db_error:
+                logger.error(f"❌ Database update failed: {db_error}")
             
-            logger.info("🎉 PDF to DOCX conversion completed successfully!")
+            logger.info("=" * 80)
+            logger.info("🎉 PDF TO DOCX CONVERSION COMPLETED SUCCESSFULLY!")
+            logger.info(f"   Execution ID: {execution_id}")
+            logger.info(f"   Total time: {(datetime.now(timezone.utc) - start_time).total_seconds():.2f}s")
+            logger.info(f"   Input: {len(pdf_content):,} bytes (PDF)")
+            logger.info(f"   Output: {len(docx_content):,} bytes (DOCX)")
             logger.info("=" * 80)
             
             return func.HttpResponse(
