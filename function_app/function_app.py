@@ -1,6 +1,6 @@
 """
-Simplified Azure Function for PDF to DOCX conversion.
-Based on the working simple test, with conversion logic added.
+Azure Function for PDF to DOCX conversion using HTTP trigger.
+Flex Consumption plan with HTTP-triggered conversions for reliability.
 """
 
 import logging
