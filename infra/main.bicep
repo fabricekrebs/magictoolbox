@@ -145,6 +145,20 @@ module functionApp './modules/function-app.bicep' = {
   }
 }
 
+// Update storage account network rules to allow Function App access for deployments
+// This must be done after Function App creation since it needs the Function App resource ID
+module storageNetworkRulesUpdate './modules/storage-network-rules.bicep' = {
+  name: 'storage-network-rules-update'
+  params: {
+    storageAccountName: storage.outputs.storageAccountName
+    location: location
+    tags: tags
+    containerAppsSubnetId: network.outputs.containerAppsSubnetId
+    functionAppsSubnetId: network.outputs.functionAppsSubnetId
+    functionAppResourceId: functionApp.outputs.functionAppId
+  }
+}
+
 // Azure Container Apps Environment and App (with VNet integration)
 module containerApps './modules/container-apps.bicep' = {
   name: 'container-apps-deployment'

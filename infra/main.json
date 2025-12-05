@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "9622480862593622462"
+      "templateHash": "9410225664302337125"
     }
   },
   "parameters": {
@@ -705,7 +705,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "1446065557995925633"
+              "templateHash": "13222151540537876993"
             }
           },
           "parameters": {
@@ -723,6 +723,10 @@
               "defaultValue": ""
             },
             "functionAppsSubnetId": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "functionAppResourceId": {
               "type": "string",
               "defaultValue": ""
             }
@@ -765,7 +769,8 @@
                   "bypass": "AzureServices",
                   "defaultAction": "Deny",
                   "ipRules": [],
-                  "virtualNetworkRules": "[union(if(not(equals(parameters('containerAppsSubnetId'), '')), createArray(createObject('id', parameters('containerAppsSubnetId'), 'action', 'Allow')), createArray()), if(not(equals(parameters('functionAppsSubnetId'), '')), createArray(createObject('id', parameters('functionAppsSubnetId'), 'action', 'Allow')), createArray()))]"
+                  "virtualNetworkRules": "[union(if(not(equals(parameters('containerAppsSubnetId'), '')), createArray(createObject('id', parameters('containerAppsSubnetId'), 'action', 'Allow')), createArray()), if(not(equals(parameters('functionAppsSubnetId'), '')), createArray(createObject('id', parameters('functionAppsSubnetId'), 'action', 'Allow')), createArray()))]",
+                  "resourceAccessRules": "[if(not(equals(parameters('functionAppResourceId'), '')), createArray(createObject('tenantId', subscription().tenantId, 'resourceId', parameters('functionAppResourceId'))), createArray())]"
                 }
               }
             },
@@ -842,7 +847,7 @@
             {
               "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
               "apiVersion": "2023-01-01",
-              "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'deploymentpackage')]",
+              "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'deployments')]",
               "properties": {
                 "publicAccess": "None"
               },
@@ -1383,6 +1388,133 @@
         "[resourceId('Microsoft.Resources/deployments', 'keyvault-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'monitoring-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'postgresql-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'storage-deployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "storage-network-rules-update",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "storageAccountName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage-deployment'), '2025-04-01').outputs.storageAccountName.value]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "containerAppsSubnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'network-deployment'), '2025-04-01').outputs.containerAppsSubnetId.value]"
+          },
+          "functionAppsSubnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'network-deployment'), '2025-04-01').outputs.functionAppsSubnetId.value]"
+          },
+          "functionAppResourceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'function-app-deployment'), '2025-04-01').outputs.functionAppId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "11557692952486690667"
+            }
+          },
+          "parameters": {
+            "storageAccountName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            },
+            "containerAppsSubnetId": {
+              "type": "string"
+            },
+            "functionAppsSubnetId": {
+              "type": "string"
+            },
+            "functionAppResourceId": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-01-01",
+              "name": "[parameters('storageAccountName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "kind": "StorageV2",
+              "properties": {
+                "accessTier": "Hot",
+                "allowBlobPublicAccess": false,
+                "allowSharedKeyAccess": true,
+                "minimumTlsVersion": "TLS1_2",
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                  "services": {
+                    "blob": {
+                      "enabled": true,
+                      "keyType": "Account"
+                    },
+                    "file": {
+                      "enabled": true,
+                      "keyType": "Account"
+                    }
+                  },
+                  "keySource": "Microsoft.Storage"
+                },
+                "networkAcls": {
+                  "bypass": "AzureServices",
+                  "defaultAction": "Deny",
+                  "ipRules": [],
+                  "virtualNetworkRules": [
+                    {
+                      "id": "[parameters('containerAppsSubnetId')]",
+                      "action": "Allow"
+                    },
+                    {
+                      "id": "[parameters('functionAppsSubnetId')]",
+                      "action": "Allow"
+                    }
+                  ],
+                  "resourceAccessRules": [
+                    {
+                      "tenantId": "[subscription().tenantId]",
+                      "resourceId": "[parameters('functionAppResourceId')]"
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "storageAccountId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'function-app-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'network-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'storage-deployment')]"
       ]
     },
