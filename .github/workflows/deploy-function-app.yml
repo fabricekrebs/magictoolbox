@@ -53,51 +53,14 @@ jobs:
           echo "resource_group=${{ secrets.RESOURCE_GROUP_DEV }}" >> $GITHUB_OUTPUT
           echo "📦 Deploying to Function App: $FUNC_APP_NAME"
       
-      - name: Create deployment package
+      - name: Install Azure Functions Core Tools
+        run: |
+          npm install -g azure-functions-core-tools@4 --unsafe-perm true
+      
+      - name: Deploy using func azure functionapp publish
         run: |
           cd function_app
-          zip -r ../function_app.zip . -x "*.pyc" -x "__pycache__/*" -x "local.settings.json" -x ".python_packages/*"
-      
-      - name: Remove WEBSITE_RUN_FROM_PACKAGE if exists
-        run: |
-          az functionapp config appsettings delete \
-            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
-            --name ${{ steps.get_function_app.outputs.function_app_name }} \
-            --setting-names WEBSITE_RUN_FROM_PACKAGE || true
-      
-      - name: Get deployment credentials
-        id: get_credentials
-        run: |
-          CREDS=$(az functionapp deployment list-publishing-credentials \
-            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
-            --name ${{ steps.get_function_app.outputs.function_app_name }} \
-            --query '{username:publishingUserName, password:publishingPassword}' -o json)
-          echo "username=$(echo $CREDS | jq -r '.username')" >> $GITHUB_OUTPUT
-          echo "::add-mask::$(echo $CREDS | jq -r '.password')"
-          echo "password=$(echo $CREDS | jq -r '.password')" >> $GITHUB_OUTPUT
-      
-      - name: Deploy via Kudu ZIP API
-        run: |
-          curl -X POST \
-            "https://${{ steps.get_function_app.outputs.function_app_name }}.scm.azurewebsites.net/api/zipdeploy?isAsync=false" \
-            -u "${{ steps.get_credentials.outputs.username }}:${{ steps.get_credentials.outputs.password }}" \
-            -H "Content-Type: application/octet-stream" \
-            --data-binary @function_app.zip \
-            --max-time 600 \
-            -v
-      
-      - name: Sync triggers
-        continue-on-error: true
-        run: |
-          echo "📝 Syncing function triggers..."
-          az rest --method post \
-            --uri "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/${{ steps.get_function_app.outputs.resource_group }}/providers/Microsoft.Web/sites/${{ steps.get_function_app.outputs.function_app_name }}/host/default/sync?api-version=2022-03-01" || \
-          echo "⚠️ Sync triggers failed - functions should still work. Restarting app..."
-          
-          # Restart the app if sync failed
-          az functionapp restart \
-            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
-            --name ${{ steps.get_function_app.outputs.function_app_name }}
+          func azure functionapp publish ${{ steps.get_function_app.outputs.function_app_name }} --python
       
       - name: Verify functions are deployed
         run: |
