@@ -1,5 +1,5 @@
 // Azure Function App for PDF to DOCX conversion
-// This module deploys a consumption-based Function App with blob trigger
+// This module deploys a Flex Consumption Function App with HTTP trigger
 
 param location string
 param namingPrefix string
@@ -25,16 +25,16 @@ param keyVaultName string
 
 // Function App names
 var functionAppName = 'func-${namingPrefix}-${uniqueString(resourceGroup().id)}'
-var appServicePlanName = 'plan-consumption-${namingPrefix}-${uniqueString(resourceGroup().id)}'
+var appServicePlanName = 'plan-flexconsumption-${namingPrefix}-${uniqueString(resourceGroup().id)}'
 
-// App Service Plan (Consumption Y1 for blob trigger support)
+// App Service Plan (Flex Consumption for reliable HTTP triggers)
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: appServicePlanName
   location: location
   tags: tags
   sku: {
-    name: 'Y1'  // Consumption plan
-    tier: 'Dynamic'
+    name: 'FC1'  // Flex Consumption plan
+    tier: 'FlexConsumption'
   }
   properties: {
     reserved: true  // Linux
@@ -54,6 +54,25 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
   properties: {
     serverFarmId: appServicePlan.id
     reserved: true  // Linux
+    functionAppConfig: {
+      deployment: {
+        storage: {
+          type: 'blobContainer'
+          value: 'https://${storageAccountName}.blob.${environment().suffixes.storage}/deployments'
+          authentication: {
+            type: 'SystemAssignedIdentity'
+          }
+        }
+      }
+      scaleAndConcurrency: {
+        maximumInstanceCount: 100
+        instanceMemoryMB: 2048
+      }
+      runtime: {
+        name: 'python'
+        version: '3.11'
+      }
+    }
     siteConfig: {
       appSettings: [
         // Identity-based storage connection (no shared key needed)

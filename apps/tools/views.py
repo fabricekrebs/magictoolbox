@@ -135,7 +135,7 @@ def delete_conversion(request, execution_id):
                     blob_service = BlobServiceClient.from_connection_string(connection_string)
                 else:
                     # Production Azure
-                    storage_account_name = getattr(settings, "AZURE_ACCOUNT_NAME", None)
+                    storage_account_name = getattr(settings, "AZURE_STORAGE_ACCOUNT_NAME", None)
                     if storage_account_name:
                         account_url = f"https://{storage_account_name}.blob.core.windows.net"
                         credential = DefaultAzureCredential()
@@ -241,7 +241,7 @@ def delete_all_conversions(request):
             blob_service = BlobServiceClient.from_connection_string(connection_string)
         else:
             # Production Azure
-            storage_account_name = getattr(settings, "AZURE_ACCOUNT_NAME", None)
+            storage_account_name = getattr(settings, "AZURE_STORAGE_ACCOUNT_NAME", None)
             if storage_account_name:
                 account_url = f"https://{storage_account_name}.blob.core.windows.net"
                 credential = DefaultAzureCredential()
@@ -911,7 +911,7 @@ class ToolExecutionViewSet(viewsets.ReadOnlyModelViewSet):
                 blob_service = BlobServiceClient.from_connection_string(connection_string)
             else:
                 # Production with Azure Managed Identity
-                storage_account_name = getattr(settings, "AZURE_ACCOUNT_NAME", None)
+                storage_account_name = getattr(settings, "AZURE_STORAGE_ACCOUNT_NAME", None)
                 if not storage_account_name:
                     return Response(
                         {"error": "Storage account not configured"},

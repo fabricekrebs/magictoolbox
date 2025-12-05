@@ -170,10 +170,10 @@ class PdfDocxConverter(BaseTool):
                 blob_service = BlobServiceClient.from_connection_string(connection_string)
             else:
                 # Production with Azure Managed Identity
-                storage_account_name = getattr(settings, "AZURE_ACCOUNT_NAME", None)
+                storage_account_name = getattr(settings, "AZURE_STORAGE_ACCOUNT_NAME", None)
                 if not storage_account_name:
                     raise ToolExecutionError(
-                        "AZURE_ACCOUNT_NAME not configured for production environment"
+                        "AZURE_STORAGE_ACCOUNT_NAME not configured for production environment"
                     )
 
                 self.logger.info(

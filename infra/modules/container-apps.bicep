@@ -293,7 +293,7 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: functionAppUrl
             }
             {
-              name: 'AZURE_ACCOUNT_NAME'
+              name: 'AZURE_STORAGE_ACCOUNT_NAME'
               value: storageAccountName
             }
           ]
