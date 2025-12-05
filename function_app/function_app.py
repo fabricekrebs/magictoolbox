@@ -11,6 +11,8 @@ from uuid import uuid4
 import azure.functions as func
 from azure.storage.blob import BlobServiceClient
 from azure.identity import DefaultAzureCredential
+import psycopg2
+from psycopg2 import sql
 
 # Initialize Function App
 app = func.FunctionApp()
@@ -34,6 +36,21 @@ def get_blob_service_client() -> BlobServiceClient:
     
     credential = DefaultAzureCredential()
     return BlobServiceClient(account_url=account_url, credential=credential)
+
+
+def get_db_connection():
+    """Get PostgreSQL database connection."""
+    db_config = {
+        'host': os.environ.get('DB_HOST'),
+        'database': os.environ.get('DB_NAME'),
+        'user': os.environ.get('DB_USER'),
+        'password': os.environ.get('DB_PASSWORD'),
+        'port': os.environ.get('DB_PORT', '5432'),
+        'sslmode': 'require'
+    }
+    
+    logger.info(f"Connecting to database: {db_config['host']}/{db_config['database']}")
+    return psycopg2.connect(**db_config)
 
 
 @app.route(route="storage/test", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
@@ -101,6 +118,66 @@ def test_storage(req: func.HttpRequest) -> func.HttpResponse:
         results["overall_status"] = "failed"
         results["error"] = str(e)
         logger.error(f"Storage test failed: {e}")
+    
+    status_code = 200 if results.get("overall_status") in ["success", "partial"] else 500
+    
+    return func.HttpResponse(
+        body=json.dumps(results, indent=2),
+        mimetype="application/json",
+        status_code=status_code
+    )
+
+
+@app.route(route="database/test", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
+def test_database(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Test database connection and operations.
+    """
+    logger.info("Database test endpoint called")
+    
+    results = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "connect": {"success": False, "error": None},
+        "query": {"success": False, "error": None, "row_count": 0}
+    }
+    
+    conn = None
+    try:
+        # Test 1: Connect
+        try:
+            conn = get_db_connection()
+            results["connect"]["success"] = True
+            logger.info("Successfully connected to database")
+        except Exception as e:
+            results["connect"]["error"] = str(e)
+            logger.error(f"Connection failed: {e}")
+            
+        # Test 2: Query (only if connection succeeded)
+        if results["connect"]["success"] and conn:
+            try:
+                with conn.cursor() as cursor:
+                    # Simple query to check if we can read from the database
+                    cursor.execute("SELECT COUNT(*) FROM django_migrations;")
+                    count = cursor.fetchone()[0]
+                    results["query"]["success"] = True
+                    results["query"]["row_count"] = count
+                    logger.info(f"Successfully queried database: {count} migrations found")
+            except Exception as e:
+                results["query"]["error"] = str(e)
+                logger.error(f"Query failed: {e}")
+        
+        results["overall_status"] = "success" if all([
+            results["connect"]["success"],
+            results["query"]["success"]
+        ]) else "partial"
+        
+    except Exception as e:
+        results["overall_status"] = "failed"
+        results["error"] = str(e)
+        logger.error(f"Database test failed: {e}")
+    finally:
+        if conn:
+            conn.close()
     
     status_code = 200 if results.get("overall_status") in ["success", "partial"] else 500
     
