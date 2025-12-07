@@ -18,8 +18,8 @@ param postgresqlAdminUser string
 param applicationInsightsConnectionString string
 param applicationInsightsInstrumentationKey string
 
-// VNet integration (not supported in Consumption plan Y1)
-// param functionAppsSubnetId string
+// VNet integration (supported in Flex Consumption plan)
+param functionAppsSubnetId string
 
 // Key Vault (for secret references)
 param keyVaultName string
@@ -169,8 +169,8 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
       }
     }
     httpsOnly: true
-    // Note: Consumption plan (Y1) does not support VNet integration
-    // virtualNetworkSubnetId: functionAppsSubnetId
+    virtualNetworkSubnetId: functionAppsSubnetId
+    publicNetworkAccess: 'Enabled' // Required initially, can be set to 'Disabled' after private endpoint is created
   }
 }
 

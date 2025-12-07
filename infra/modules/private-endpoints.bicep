@@ -10,6 +10,7 @@ param postgresServerId string
 param redisId string
 param storageAccountId string
 param keyVaultId string
+param functionAppId string = ''
 
 // Location abbreviation for naming
 var locationAbbr = location == 'westeurope' ? 'westeurope' : location == 'northeurope' ? 'northeurope' : location == 'eastus' ? 'eastus' : location == 'eastus2' ? 'eastus2' : location
@@ -83,6 +84,25 @@ resource keyVaultPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' =
 resource keyVaultPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
   parent: keyVaultPrivateDnsZone
   name: 'vnet-link-keyvault'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: vnetId
+    }
+  }
+}
+
+// Function App Private DNS Zone
+resource functionAppPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (!empty(functionAppId)) {
+  name: 'privatelink.azurewebsites.net'
+  location: 'global'
+  tags: tags
+}
+
+resource functionAppPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (!empty(functionAppId)) {
+  parent: functionAppPrivateDnsZone
+  name: 'vnet-link-functionapp'
   location: 'global'
   properties: {
     registrationEnabled: false
@@ -246,8 +266,47 @@ resource keyVaultPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/private
   }
 }
 
+// Function App Private Endpoint (only if functionAppId is provided)
+resource functionAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = if (!empty(functionAppId)) {
+  name: 'pe-${locationAbbr}-${namingPrefix}-func-01'
+  location: location
+  tags: tags
+  properties: {
+    subnet: {
+      id: privateEndpointsSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'functionapp-connection'
+        properties: {
+          privateLinkServiceId: functionAppId
+          groupIds: [
+            'sites'
+          ]
+        }
+      }
+    ]
+  }
+}
+
+resource functionAppPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-05-01' = if (!empty(functionAppId)) {
+  parent: functionAppPrivateEndpoint
+  name: 'default'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'privatelink-azurewebsites-net'
+        properties: {
+          privateDnsZoneId: functionAppPrivateDnsZone.id
+        }
+      }
+    ]
+  }
+}
+
 // Outputs
 output postgresPrivateEndpointId string = postgresPrivateEndpoint.id
+output functionAppPrivateEndpointId string = !empty(functionAppId) ? functionAppPrivateEndpoint.id : ''
 output redisPrivateEndpointId string = redisPrivateEndpoint.id
 output storageBlobPrivateEndpointId string = storageBlobPrivateEndpoint.id
 output keyVaultPrivateEndpointId string = keyVaultPrivateEndpoint.id

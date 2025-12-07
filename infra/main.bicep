@@ -143,6 +143,7 @@ module functionApp './modules/function-app.bicep' = {
     applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
     applicationInsightsInstrumentationKey: monitoring.outputs.applicationInsightsInstrumentationKey
     keyVaultName: keyVault.outputs.keyVaultName
+    functionAppsSubnetId: network.outputs.functionAppsSubnetId
   }
 }
 
@@ -202,6 +203,7 @@ module privateEndpoints './modules/private-endpoints.bicep' = {
     redisId: redis.outputs.redisId
     storageAccountId: storage.outputs.storageAccountId
     keyVaultId: keyVault.outputs.keyVaultId
+    functionAppId: functionApp.outputs.functionAppId
   }
   dependsOn: [
     containerApps // Deploy private endpoints after container apps to ensure connectivity
