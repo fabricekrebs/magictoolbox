@@ -246,7 +246,7 @@ def echo(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="pdf/convert", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
 def convert_pdf_to_docx(req: func.HttpRequest) -> func.HttpResponse:
     """
-    Convert PDF to DOCX format.
+    Simple PDF blob reader - Step 1.
     
     Expected JSON payload:
     {
@@ -255,16 +255,13 @@ def convert_pdf_to_docx(req: func.HttpRequest) -> func.HttpResponse:
     }
     
     Process:
-    1. Download PDF from blob storage
-    2. Convert to DOCX using pdf2docx
-    3. Upload DOCX to blob storage
-    4. Update database record with result
+    1. Read blob from storage
+    2. Return metadata
     """
     logger.info("=" * 100)
-    logger.info("🚀 PDF TO DOCX CONVERSION STARTED")
+    logger.info("🚀 PDF BLOB READER STARTED (SIMPLIFIED)")
     logger.info("=" * 100)
     
-    start_time = datetime.now(timezone.utc)
     execution_id = None
     blob_name = None
     
@@ -295,25 +292,6 @@ def convert_pdf_to_docx(req: func.HttpRequest) -> func.HttpResponse:
                 status_code=400
             )
         
-        # Update database: set status to processing
-        logger.info("-" * 100)
-        logger.info("💾 UPDATING DATABASE: Setting status to 'processing'")
-        try:
-            conn = get_db_connection()
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    "UPDATE tool_executions SET status = 'processing', started_at = %s WHERE id = %s",
-                    (start_time, execution_id)
-                )
-                conn.commit()
-                logger.info(f"✅ Database updated: status = 'processing'")
-        except Exception as db_error:
-            logger.error(f"❌ Database update failed: {db_error}")
-            logger.error(f"   This is non-fatal, continuing with conversion...")
-        finally:
-            if 'conn' in locals():
-                conn.close()
-        
         # Initialize blob service client
         logger.info("-" * 100)
         logger.info("🔐 INITIALIZING BLOB STORAGE CLIENT")
@@ -329,13 +307,13 @@ def convert_pdf_to_docx(req: func.HttpRequest) -> func.HttpResponse:
         blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
         logger.info("✅ Blob service client initialized")
         
-        # Download PDF from blob storage
+        # Read blob metadata
         logger.info("-" * 100)
-        logger.info(f"⬇️  DOWNLOADING PDF FROM BLOB STORAGE")
+        logger.info(f"📖 READING BLOB METADATA")
         logger.info(f"   Blob: {blob_name}")
         
         try:
-            # Remove 'uploads/' prefix if present (blob_name should be just the blob within container)
+            # Remove 'uploads/' prefix if present
             if blob_name.startswith('uploads/'):
                 actual_blob_name = blob_name.replace('uploads/', '', 1)
             else:
@@ -344,200 +322,51 @@ def convert_pdf_to_docx(req: func.HttpRequest) -> func.HttpResponse:
             logger.info(f"   Container: uploads")
             logger.info(f"   Blob path: {actual_blob_name}")
             
-            input_blob_client = blob_service_client.get_blob_client(
+            blob_client = blob_service_client.get_blob_client(
                 container="uploads",
                 blob=actual_blob_name
             )
             
             # Check if blob exists
-            if not input_blob_client.exists():
+            if not blob_client.exists():
                 logger.error(f"❌ Blob not found: uploads/{actual_blob_name}")
                 raise Exception(f"Blob not found: {blob_name}")
             
-            # Download blob
-            pdf_data = input_blob_client.download_blob().readall()
-            pdf_size = len(pdf_data)
-            logger.info(f"✅ PDF downloaded successfully")
-            logger.info(f"   Size: {pdf_size:,} bytes ({pdf_size / 1024 / 1024:.2f} MB)")
+            # Get blob properties
+            blob_properties = blob_client.get_blob_properties()
             
-            # Get metadata for conversion parameters
-            blob_properties = input_blob_client.get_blob_properties()
-            metadata = blob_properties.metadata
-            logger.info(f"   Metadata: {metadata}")
+            logger.info(f"✅ Blob found and accessible")
+            logger.info(f"   Size: {blob_properties.size:,} bytes ({blob_properties.size / 1024 / 1024:.2f} MB)")
+            logger.info(f"   Content Type: {blob_properties.content_settings.content_type}")
+            logger.info(f"   Created: {blob_properties.creation_time}")
+            logger.info(f"   Last Modified: {blob_properties.last_modified}")
+            logger.info(f"   Metadata: {blob_properties.metadata}")
             
-            original_filename = metadata.get('original_filename', 'document.pdf')
-            start_page = int(metadata.get('start_page', 0))
-            end_page_str = metadata.get('end_page', '')
-            end_page = int(end_page_str) if end_page_str else None
-            
-            logger.info(f"   Original filename: {original_filename}")
-            logger.info(f"   Conversion range: pages {start_page} to {end_page if end_page else 'end'}")
-            
-        except Exception as download_error:
-            logger.error(f"❌ Failed to download PDF: {download_error}")
-            logger.error(f"   Error type: {type(download_error).__name__}")
+        except Exception as blob_error:
+            logger.error(f"❌ Failed to read blob: {blob_error}")
+            logger.error(f"   Error type: {type(blob_error).__name__}")
             raise
-        
-        # Convert PDF to DOCX
-        logger.info("-" * 100)
-        logger.info("🔄 CONVERTING PDF TO DOCX")
-        
-        import tempfile
-        from pathlib import Path
-        
-        try:
-            # Check if pdf2docx is available
-            try:
-                from pdf2docx import Converter
-                logger.info("✅ pdf2docx library loaded")
-            except ImportError:
-                logger.error("❌ pdf2docx library not installed")
-                raise ImportError("pdf2docx library not available")
-            
-            # Create temporary files
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
-                tmp_pdf.write(pdf_data)
-                temp_pdf_path = tmp_pdf.name
-                logger.info(f"   Temporary PDF: {temp_pdf_path}")
-            
-            # Generate output filename
-            output_filename = f"{Path(original_filename).stem}.docx"
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp_docx:
-                temp_docx_path = tmp_docx.name
-                logger.info(f"   Temporary DOCX: {temp_docx_path}")
-            
-            logger.info(f"   Starting conversion...")
-            logger.info(f"   Parameters: start={start_page}, end={end_page}")
-            
-            # Perform conversion
-            cv = Converter(temp_pdf_path)
-            cv.convert(temp_docx_path, start=start_page, end=end_page)
-            cv.close()
-            
-            # Get output file size
-            output_size = os.path.getsize(temp_docx_path)
-            logger.info(f"✅ Conversion completed successfully")
-            logger.info(f"   Output file: {output_filename}")
-            logger.info(f"   Output size: {output_size:,} bytes ({output_size / 1024 / 1024:.2f} MB)")
-            
-        except Exception as conversion_error:
-            logger.error(f"❌ PDF conversion failed: {conversion_error}")
-            logger.error(f"   Error type: {type(conversion_error).__name__}")
-            
-            # Cleanup temp files
-            if 'temp_pdf_path' in locals() and os.path.exists(temp_pdf_path):
-                os.unlink(temp_pdf_path)
-            if 'temp_docx_path' in locals() and os.path.exists(temp_docx_path):
-                os.unlink(temp_docx_path)
-            
-            raise
-        
-        # Upload DOCX to blob storage
-        logger.info("-" * 100)
-        logger.info("⬆️  UPLOADING DOCX TO BLOB STORAGE")
-        
-        try:
-            output_blob_name = f"docx/{execution_id}.docx"
-            logger.info(f"   Container: processed")
-            logger.info(f"   Blob: {output_blob_name}")
-            
-            output_blob_client = blob_service_client.get_blob_client(
-                container="processed",
-                blob=output_blob_name
-            )
-            
-            with open(temp_docx_path, 'rb') as docx_file:
-                output_blob_client.upload_blob(
-                    docx_file,
-                    overwrite=True,
-                    metadata={
-                        'execution_id': execution_id,
-                        'original_filename': original_filename,
-                        'output_filename': output_filename,
-                        'converted_at': datetime.now(timezone.utc).isoformat()
-                    }
-                )
-            
-            logger.info(f"✅ DOCX uploaded successfully")
-            logger.info(f"   Blob path: processed/{output_blob_name}")
-            
-        except Exception as upload_error:
-            logger.error(f"❌ Failed to upload DOCX: {upload_error}")
-            logger.error(f"   Error type: {type(upload_error).__name__}")
-            
-            # Cleanup temp files
-            if os.path.exists(temp_pdf_path):
-                os.unlink(temp_pdf_path)
-            if os.path.exists(temp_docx_path):
-                os.unlink(temp_docx_path)
-            
-            raise
-        
-        # Cleanup temporary files
-        logger.info("-" * 100)
-        logger.info("🧹 CLEANING UP TEMPORARY FILES")
-        try:
-            os.unlink(temp_pdf_path)
-            os.unlink(temp_docx_path)
-            logger.info("✅ Temporary files cleaned up")
-        except Exception as cleanup_error:
-            logger.warning(f"⚠️  Cleanup warning: {cleanup_error}")
-        
-        # Update database: set status to completed
-        logger.info("-" * 100)
-        logger.info("💾 UPDATING DATABASE: Setting status to 'completed'")
-        
-        try:
-            end_time = datetime.now(timezone.utc)
-            duration = (end_time - start_time).total_seconds()
-            
-            conn = get_db_connection()
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
-                    UPDATE tool_executions 
-                    SET status = 'completed',
-                        completed_at = %s,
-                        duration_seconds = %s,
-                        output_filename = %s,
-                        output_size = %s,
-                        output_blob_path = %s
-                    WHERE id = %s
-                    """,
-                    (end_time, duration, output_filename, output_size, f"processed/{output_blob_name}", execution_id)
-                )
-                conn.commit()
-                
-                logger.info(f"✅ Database updated successfully")
-                logger.info(f"   Status: completed")
-                logger.info(f"   Duration: {duration:.2f} seconds")
-                logger.info(f"   Output filename: {output_filename}")
-                logger.info(f"   Output size: {output_size:,} bytes")
-                
-        except Exception as db_error:
-            logger.error(f"❌ Database update failed: {db_error}")
-            logger.error(f"   Error type: {type(db_error).__name__}")
-        finally:
-            if 'conn' in locals():
-                conn.close()
         
         # Success response
         logger.info("=" * 100)
-        logger.info("✅ PDF TO DOCX CONVERSION COMPLETED SUCCESSFULLY")
+        logger.info("✅ BLOB READ COMPLETED SUCCESSFULLY")
         logger.info(f"   Execution ID: {execution_id}")
-        logger.info(f"   Total duration: {duration:.2f} seconds")
         logger.info("=" * 100)
         
         return func.HttpResponse(
             body=json.dumps({
                 "status": "success",
                 "execution_id": execution_id,
-                "output_filename": output_filename,
-                "output_blob_path": f"processed/{output_blob_name}",
-                "duration_seconds": duration,
-                "input_size_bytes": pdf_size,
-                "output_size_bytes": output_size
-            }),
+                "blob_name": blob_name,
+                "blob_info": {
+                    "size_bytes": blob_properties.size,
+                    "size_mb": round(blob_properties.size / 1024 / 1024, 2),
+                    "content_type": blob_properties.content_settings.content_type,
+                    "created": blob_properties.creation_time.isoformat(),
+                    "last_modified": blob_properties.last_modified.isoformat(),
+                    "metadata": dict(blob_properties.metadata)
+                }
+            }, indent=2),
             mimetype="application/json",
             status_code=200
         )
@@ -545,42 +374,19 @@ def convert_pdf_to_docx(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         # Handle any errors
         logger.error("=" * 100)
-        logger.error("❌ PDF TO DOCX CONVERSION FAILED")
+        logger.error("❌ BLOB READ FAILED")
         logger.error(f"   Execution ID: {execution_id}")
         logger.error(f"   Error: {str(e)}")
         logger.error(f"   Error type: {type(e).__name__}")
         logger.error("=" * 100)
         logger.error("Full traceback:", exc_info=True)
         
-        # Update database: set status to failed
-        if execution_id:
-            try:
-                logger.info("💾 Updating database: Setting status to 'failed'")
-                conn = get_db_connection()
-                with conn.cursor() as cursor:
-                    cursor.execute(
-                        """
-                        UPDATE tool_executions 
-                        SET status = 'failed',
-                            error_message = %s,
-                            completed_at = %s
-                        WHERE id = %s
-                        """,
-                        (str(e), datetime.now(timezone.utc), execution_id)
-                    )
-                    conn.commit()
-                    logger.info("✅ Database updated with error status")
-            except Exception as db_error:
-                logger.error(f"❌ Failed to update database with error: {db_error}")
-            finally:
-                if 'conn' in locals():
-                    conn.close()
-        
         return func.HttpResponse(
             body=json.dumps({
                 "status": "error",
                 "error": str(e),
-                "execution_id": execution_id
+                "execution_id": execution_id,
+                "error_type": type(e).__name__
             }),
             mimetype="application/json",
             status_code=500
