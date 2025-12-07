@@ -157,7 +157,6 @@ module storageNetworkRulesUpdate './modules/storage-network-rules.bicep' = {
     tags: tags
     containerAppsSubnetId: network.outputs.containerAppsSubnetId
     functionAppsSubnetId: network.outputs.functionAppsSubnetId
-    functionAppResourceId: functionApp.outputs.functionAppId
   }
 }
 

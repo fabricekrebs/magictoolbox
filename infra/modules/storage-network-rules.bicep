@@ -1,12 +1,11 @@
-// Update Storage Account network rules to add Function App resource access
-// This module is deployed after Function App creation to grant deployment access
+// Update Storage Account network rules to allow subnet access for Container Apps and Function Apps
+// Function Apps use Managed Identity with RBAC roles for storage access (configured in rbac.bicep)
 
 param storageAccountName string
 param location string
 param tags object
 param containerAppsSubnetId string
 param functionAppsSubnetId string
-param functionAppResourceId string
 
 // Update network rules to add Function App resource access
 // We only update networkAcls to avoid modifying other properties
@@ -49,12 +48,6 @@ resource storageAccountUpdate 'Microsoft.Storage/storageAccounts@2023-01-01' = {
         {
           id: functionAppsSubnetId
           action: 'Allow'
-        }
-      ]
-      resourceAccessRules: [
-        {
-          tenantId: subscription().tenantId
-          resourceId: functionAppResourceId
         }
       ]
     }
