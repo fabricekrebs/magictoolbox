@@ -149,7 +149,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'DB_PASSWORD'
-          value: '@Microsoft.KeyVault(SecretUri=https://${keyVaultName}.vault.${environment().suffixes.keyvaultDns}/secrets/postgres-password/)'
+          value: '@Microsoft.KeyVault(SecretUri=https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets/postgres-password/)'
         }
         {
           name: 'DB_PORT'
