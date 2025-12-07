@@ -62,4 +62,5 @@ class ToolExecution(UUIDModel, TimeStampedModel):
         ]
 
     def __str__(self) -> str:
-        return f"{self.tool_name} - {self.status} - {self.user.email}"
+        user_email = self.user.email if self.user else "anonymous"
+        return f"{self.tool_name} - {self.status} - {user_email}"

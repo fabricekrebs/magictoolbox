@@ -1,0 +1,172 @@
+name: Deploy Azure Function App
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'function_app/**'
+      - '.github/workflows/deploy-function-app.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-function-dev:
+    name: Deploy Function App to Development
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
+    environment:
+      name: development
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_DEV }}
+      
+      - name: Get Function App name and Resource Group
+        id: get_function_app
+        run: |
+          FUNC_APP_NAME=$(az functionapp list \
+            --resource-group ${{ secrets.RESOURCE_GROUP_DEV }} \
+            --query "[?contains(name, 'func-')].name | [0]" -o tsv)
+          echo "function_app_name=$FUNC_APP_NAME" >> $GITHUB_OUTPUT
+          echo "resource_group=${{ secrets.RESOURCE_GROUP_DEV }}" >> $GITHUB_OUTPUT
+          echo "📦 Deploying to Function App: $FUNC_APP_NAME"
+      
+      - name: Install Azure Functions Core Tools
+        run: |
+          npm install -g azure-functions-core-tools@4 --unsafe-perm true
+      
+      - name: Deploy using func azure functionapp publish
+        run: |
+          cd function_app
+          func azure functionapp publish ${{ steps.get_function_app.outputs.function_app_name }} --python
+      
+      - name: Verify functions are deployed
+        run: |
+          echo "🔍 Verifying function deployment..."
+          sleep 15  # Wait for app to be ready
+          az functionapp function list \
+            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
+            --name ${{ steps.get_function_app.outputs.function_app_name }} \
+            -o table
+  
+  deploy-function-prod:
+    name: Deploy Function App to Production
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod')
+    environment:
+      name: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_PROD }}
+      
+      - name: Get Function App name and Resource Group
+        id: get_function_app
+        run: |
+          FUNC_APP_NAME=$(az functionapp list \
+            --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
+            --query "[?contains(name, 'func-')].name | [0]" -o tsv)
+          echo "function_app_name=$FUNC_APP_NAME" >> $GITHUB_OUTPUT
+          echo "resource_group=${{ secrets.RESOURCE_GROUP_PROD }}" >> $GITHUB_OUTPUT
+          echo "📦 Deploying to Function App: $FUNC_APP_NAME"
+      
+      - name: Create deployment package
+        run: |
+          cd function_app
+          zip -r ../function_app.zip . -x "*.pyc" -x "__pycache__/*" -x "local.settings.json" -x ".python_packages/*"
+      
+      - name: Temporarily enable storage public network access for deployment
+        run: |
+          echo "⚙️ Temporarily enabling public network access for deployment..."
+          az storage account update \
+            --name sawemagictoolboxprod01 \
+            --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
+            --public-network-access Enabled \
+            --default-action Allow
+          sleep 10  # Wait for propagation
+      
+      - name: Ensure deployments container exists
+        run: |
+          az storage container create \
+            --account-name sawemagictoolboxprod01 \
+            --name deployments \
+            --auth-mode login \
+            --only-show-errors || true
+      
+      - name: Upload package and deploy via run-from-package
+        run: |
+          TIMESTAMP=$(date +%s)
+          BLOB_NAME="deployments/function_app_${TIMESTAMP}.zip"
+          
+          # Upload using service principal auth
+          az storage blob upload \
+            --account-name sawemagictoolboxprod01 \
+            --container-name deployments \
+            --name ${BLOB_NAME} \
+            --file function_app.zip \
+            --auth-mode login \
+            --overwrite
+          
+          # Generate SAS URL (7 days validity - max for user delegation SAS)
+          EXPIRY=$(date -u -d '7 days' '+%Y-%m-%dT%H:%MZ')
+          BLOB_URL=$(az storage blob generate-sas \
+            --account-name sawemagictoolboxprod01 \
+            --container-name deployments \
+            --name ${BLOB_NAME} \
+            --permissions r \
+            --expiry ${EXPIRY} \
+            --auth-mode login \
+            --as-user \
+            --full-uri \
+            --https-only \
+            -o tsv)
+          
+          # Deploy by setting WEBSITE_RUN_FROM_PACKAGE
+          az functionapp config appsettings set \
+            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
+            --name ${{ steps.get_function_app.outputs.function_app_name }} \
+            --settings WEBSITE_RUN_FROM_PACKAGE="${BLOB_URL}"
+          
+          echo "✅ Deployed from: ${BLOB_NAME}"
+      
+      - name: Restore storage private network access
+        if: always()
+        run: |
+          echo "🔒 Restoring private network access..."
+          az storage account update \
+            --account-name sawemagictoolboxprod01 \
+            --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
+            --public-network-access Disabled \
+            --default-action Deny

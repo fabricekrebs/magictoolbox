@@ -53,11 +53,12 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 from azure.identity import DefaultAzureCredential
 
 DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
-AZURE_ACCOUNT_NAME = config("AZURE_STORAGE_ACCOUNT_NAME", default="")
+AZURE_STORAGE_ACCOUNT_NAME = config("AZURE_STORAGE_ACCOUNT_NAME", default="")
+AZURE_ACCOUNT_NAME = AZURE_STORAGE_ACCOUNT_NAME  # Alias for django-storages compatibility
 # Use Managed Identity instead of account key
 AZURE_TOKEN_CREDENTIAL = DefaultAzureCredential()
 AZURE_CONTAINER = config("AZURE_STORAGE_CONTAINER_UPLOADS", default="uploads")
-AZURE_CUSTOM_DOMAIN = f"{AZURE_ACCOUNT_NAME}.blob.core.windows.net"
+AZURE_CUSTOM_DOMAIN = f"{AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net"
 MEDIA_URL = f"https://{AZURE_CUSTOM_DOMAIN}/{AZURE_CONTAINER}/"
 
 # Azure Key Vault for secrets management
@@ -212,6 +213,12 @@ try:
         )
 except ImportError as e:
     logger.warning(f"Application Insights packages not installed: {e}. Telemetry disabled.")
+
+# Azure Functions Configuration
+# PDF conversion is handled via blob triggers - no HTTP endpoint needed
+USE_AZURE_FUNCTIONS_PDF_CONVERSION = config(
+    "USE_AZURE_FUNCTIONS_PDF_CONVERSION", default=False, cast=bool
+)
 
 # Email Configuration (configure based on your email service)
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

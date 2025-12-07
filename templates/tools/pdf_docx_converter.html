@@ -15,11 +15,22 @@
           <li class="breadcrumb-item active" aria-current="page">{{ tool.display_name }}</li>
         </ol>
       </nav>
-      <h1 class="display-5 fw-bold">
-        <i class="bi bi-file-earmark-word text-primary me-2"></i>
-        {{ tool.display_name }}
-      </h1>
-      <p class="lead text-muted">{{ tool.description }}</p>
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="display-5 fw-bold mb-2">
+            <i class="bi bi-file-earmark-word text-primary me-2"></i>
+            {{ tool.display_name }}
+          </h1>
+          <p class="lead text-muted mb-0">{{ tool.description }}</p>
+        </div>
+        {% if user.is_authenticated %}
+        <div>
+          <a href="{% url 'tools:my_conversions' %}" class="btn btn-outline-primary">
+            <i class="bi bi-clock-history me-2"></i>My Conversions
+          </a>
+        </div>
+        {% endif %}
+      </div>
     </div>
   </div>
 
@@ -35,15 +46,20 @@
         <div class="card-body">
           <form id="pdfConverterForm" enctype="multipart/form-data">
             <div class="mb-3">
-              <label for="pdfFile" class="form-label">
-                Select PDF Document
+              <label for="pdfFiles" class="form-label">
+                Select PDF Documents
               </label>
-              <input type="file" class="form-control" id="pdfFile" name="file" accept=".pdf,application/pdf" required>
+              <input type="file" class="form-control" id="pdfFiles" name="files" accept=".pdf,application/pdf" multiple required>
               <div class="form-text">
                 <i class="bi bi-info-circle me-1"></i>
-                Select a PDF document (max 100MB)
+                Select one or more PDF documents (max 100MB each)
               </div>
-              <div id="fileInfo" class="mt-2"></div>
+            </div>
+
+            <!-- File List -->
+            <div id="fileListSection" class="mb-3" style="display: none;">
+              <label class="form-label">Selected Files:</label>
+              <div id="fileList" class="list-group"></div>
             </div>
 
             <div class="card bg-light mb-3">
@@ -77,66 +93,51 @@
             </div>
           </form>
 
-          <!-- Progress Section -->
-          <div id="progressSection" class="mt-4" style="display: none;">
-            <div class="progress" style="height: 30px;">
-              <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
-                   role="progressbar" 
-                   id="progressBar"
-                   style="width: 0%">
-                <span id="progressText">0%</span>
-              </div>
-            </div>
-            <p class="text-center text-muted mt-2" id="progressMessage">Converting your PDF...</p>
-          </div>
-
-          <!-- Result Section -->
-          <div id="resultSection" class="mt-4" style="display: none;">
-            <div class="alert alert-success" role="alert">
-              <h5 class="alert-heading">
-                <i class="bi bi-check-circle me-2"></i>Conversion Successful!
-              </h5>
-              <p class="mb-0">Your PDF has been converted to DOCX successfully.</p>
-            </div>
-
-            <!-- Document Info -->
-            <div class="card mb-3">
-              <div class="card-header">
-                <h6 class="mb-0">Document Information</h6>
-              </div>
+          <!-- Conversion Status Section -->
+          <div id="statusSection" class="mt-4" style="display: none;">
+            <h5 class="mb-3">
+              <i class="bi bi-hourglass-split me-2"></i>Conversion Status
+            </h5>
+            <div id="conversionStatusList"></div>
+            
+            <!-- Overall Progress -->
+            <div class="card mt-3 bg-light">
               <div class="card-body">
-                <div class="row">
-                  <div class="col-md-6 mb-3">
-                    <h6 class="text-muted small mb-2">Original PDF</h6>
-                    <div class="d-flex align-items-center">
-                      <i class="bi bi-file-earmark-pdf text-danger fs-1 me-3"></i>
-                      <div>
-                        <div class="fw-bold" id="originalFileName"></div>
-                        <small class="text-muted" id="originalFileSize"></small>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="col-md-6 mb-3">
-                    <h6 class="text-muted small mb-2">Converted DOCX</h6>
-                    <div class="d-flex align-items-center">
-                      <i class="bi bi-file-earmark-word text-primary fs-1 me-3"></i>
-                      <div>
-                        <div class="fw-bold" id="convertedFileName"></div>
-                        <small class="text-muted" id="convertedFileSize"></small>
-                      </div>
-                    </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="fw-bold">Overall Progress</span>
+                  <span id="overallProgressText" class="text-muted">0 / 0 completed</span>
+                </div>
+                <div class="progress" style="height: 25px;">
+                  <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                       role="progressbar" 
+                       id="overallProgressBar"
+                       style="width: 0%">
+                    <span id="overallPercentage">0%</span>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            <!-- Download Button -->
-            <div class="d-grid gap-2">
-              <a href="#" id="downloadBtn" class="btn btn-success btn-lg" download>
-                <i class="bi bi-download me-2"></i>Download DOCX Document
-              </a>
+          <!-- Results Section -->
+          <div id="resultSection" class="mt-4" style="display: none;">
+            <div class="alert alert-success" role="alert">
+              <h5 class="alert-heading">
+                <i class="bi bi-check-circle me-2"></i>All Conversions Completed!
+              </h5>
+              <p class="mb-0" id="completionSummary"></p>
+            </div>
+
+            <!-- Completed Files List -->
+            <div id="completedFilesList"></div>
+            
+            <!-- Action Buttons -->
+            <div class="d-grid gap-2 mt-3">
+              <button type="button" class="btn btn-success btn-lg" id="downloadAllBtn">
+                <i class="bi bi-download me-2"></i>Download All DOCX Files
+              </button>
               <button type="button" class="btn btn-outline-primary" onclick="location.reload()">
-                <i class="bi bi-arrow-clockwise me-2"></i>Convert Another PDF
+                <i class="bi bi-arrow-clockwise me-2"></i>Convert More PDFs
               </button>
             </div>
           </div>
@@ -203,40 +204,57 @@
 
 {% block extra_js %}
 <script>
-// Show selected file info
-const fileInput = document.getElementById('pdfFile');
-const fileInfoDiv = document.getElementById('fileInfo');
+// Global state
+let executionData = {};  // { executionId: { filename, status, downloadUrl, ... } }
+let statusPollInterval = null;
+
+// Show selected files
+const fileInput = document.getElementById('pdfFiles');
+const fileListSection = document.getElementById('fileListSection');
+const fileList = document.getElementById('fileList');
 
 fileInput.addEventListener('change', function() {
-  const file = fileInput.files[0];
-  if (!file) {
-    fileInfoDiv.innerHTML = '';
+  const files = Array.from(fileInput.files);
+  
+  if (files.length === 0) {
+    fileListSection.style.display = 'none';
     return;
   }
 
-  fileInfoDiv.innerHTML = `
-    <div class="alert alert-info">
-      <i class="bi bi-file-earmark-pdf me-2"></i>
-      <strong>${file.name}</strong>
-      <span class="text-muted">(${MagicToolbox.formatFileSize(file.size)})</span>
-    </div>
-  `;
+  fileListSection.style.display = 'block';
+  fileList.innerHTML = '';
+  
+  files.forEach((file, index) => {
+    const fileItem = document.createElement('div');
+    fileItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+    fileItem.innerHTML = `
+      <div>
+        <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+        <strong>${file.name}</strong>
+      </div>
+      <span class="badge bg-secondary">${MagicToolbox.formatFileSize(file.size)}</span>
+    `;
+    fileList.appendChild(fileItem);
+  });
 });
 
 // Handle form submission
 document.getElementById('pdfConverterForm').addEventListener('submit', async function(e) {
   e.preventDefault();
   
-  const fileInput = document.getElementById('pdfFile');
-  const file = fileInput.files[0];
+  const files = Array.from(fileInput.files);
   
-  if (!file) {
-    MagicToolbox.showNotification('Please select a PDF file', 'error');
+  if (files.length === 0) {
+    MagicToolbox.showNotification('Please select at least one PDF file', 'error');
     return;
   }
 
   const formData = new FormData();
-  formData.append('file', file);
+  
+  // Add all files
+  files.forEach(file => {
+    formData.append('files[]', file);
+  });
   
   // Add page selection parameters if provided
   const startPage = document.getElementById('startPage').value;
@@ -250,85 +268,341 @@ document.getElementById('pdfConverterForm').addEventListener('submit', async fun
   }
   
   const convertBtn = document.getElementById('convertBtn');
-  const progressSection = document.getElementById('progressSection');
+  const statusSection = document.getElementById('statusSection');
   const resultSection = document.getElementById('resultSection');
-  const progressMessage = document.getElementById('progressMessage');
-  const progressBar = document.getElementById('progressBar');
-  const progressText = document.getElementById('progressText');
   
-  // Show progress
+  // Disable submit button
   convertBtn.disabled = true;
-  progressSection.style.display = 'block';
+  
+  // Show status section
+  statusSection.style.display = 'block';
   resultSection.style.display = 'none';
   
-  // Reset progress
-  progressBar.style.width = '0%';
-  progressText.textContent = '0%';
-  progressMessage.textContent = 'Converting your PDF...';
-  
   try {
-    // Simulate progress animation
-    let progress = 0;
-    const progressInterval = setInterval(() => {
-      progress += 10;
-      progressBar.style.width = Math.min(progress, 90) + '%';
-      progressText.textContent = Math.min(progress, 90) + '%';
-      
-      if (progress >= 90) {
-        clearInterval(progressInterval);
-      }
-    }, 200);
+    // Get CSRF token
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                      document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
     
-    // Call the API
+    // Call the API to upload files
     const response = await fetch('/api/v1/tools/pdf-docx-converter/convert/', {
       method: 'POST',
+      headers: {
+        'X-CSRFToken': csrftoken,
+      },
       body: formData,
     });
     
-    clearInterval(progressInterval);
-    
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || 'Conversion failed');
+      throw new Error(errorData.error || 'Upload failed');
     }
     
-    // Complete progress
-    progressBar.style.width = '100%';
-    progressText.textContent = '100%';
+    const data = await response.json();
     
-    // Get blob and show result
-    const blob = await response.blob();
-    const convertedDocUrl = URL.createObjectURL(blob);
+    // Initialize execution tracking
+    executionData = {};
     
-    // Update file information
-    const baseName = file.name.replace(/\.pdf$/i, '');
-    const convertedFilename = `${baseName}.docx`;
+    if (data.executions) {
+      // Multiple files
+      data.executions.forEach(exec => {
+        executionData[exec.executionId] = {
+          filename: exec.filename,
+          status: exec.status,
+          downloadUrl: null,
+        };
+      });
+    } else if (data.executionId) {
+      // Single file
+      executionData[data.executionId] = {
+        filename: data.filename,
+        status: data.status,
+        downloadUrl: null,
+      };
+    }
     
-    document.getElementById('originalFileName').textContent = file.name;
-    document.getElementById('originalFileSize').textContent = MagicToolbox.formatFileSize(file.size);
-    document.getElementById('convertedFileName').textContent = convertedFilename;
-    document.getElementById('convertedFileSize').textContent = MagicToolbox.formatFileSize(blob.size);
+    // Initialize status display
+    updateStatusDisplay();
     
-    // Set up download
-    const downloadBtn = document.getElementById('downloadBtn');
-    downloadBtn.href = convertedDocUrl;
-    downloadBtn.download = convertedFilename;
-    
-    // Show results
-    setTimeout(() => {
-      progressSection.style.display = 'none';
-      resultSection.style.display = 'block';
-      convertBtn.disabled = false;
-      
-      // Scroll to results
-      resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }, 500);
+    // Start polling for status updates
+    startStatusPolling();
     
   } catch (error) {
-    MagicToolbox.showNotification('Conversion failed: ' + error.message, 'error');
-    progressSection.style.display = 'none';
+    MagicToolbox.showNotification('Upload failed: ' + error.message, 'error');
+    statusSection.style.display = 'none';
     convertBtn.disabled = false;
   }
 });
+
+// Update status display
+function updateStatusDisplay() {
+  const statusList = document.getElementById('conversionStatusList');
+  statusList.innerHTML = '';
+  
+  const executionIds = Object.keys(executionData);
+  
+  executionIds.forEach(executionId => {
+    const exec = executionData[executionId];
+    const statusCard = createStatusCard(executionId, exec);
+    statusList.appendChild(statusCard);
+  });
+  
+  // Update overall progress
+  updateOverallProgress();
+}
+
+// Create status card for a file
+function createStatusCard(executionId, exec) {
+  const card = document.createElement('div');
+  card.className = 'card mb-2';
+  card.id = `status-${executionId}`;
+  
+  let statusBadge = '';
+  let progressBar = '';
+  let downloadButton = '';
+  
+  if (exec.status === 'pending') {
+    statusBadge = '<span class="badge bg-secondary">Pending</span>';
+    progressBar = `
+      <div class="progress mt-2" style="height: 20px;">
+        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+             style="width: 25%">Uploading...</div>
+      </div>
+    `;
+  } else if (exec.status === 'processing') {
+    statusBadge = '<span class="badge bg-primary">Processing</span>';
+    progressBar = `
+      <div class="progress mt-2" style="height: 20px;">
+        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+             style="width: 75%">Converting...</div>
+      </div>
+    `;
+  } else if (exec.status === 'completed') {
+    statusBadge = '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Completed</span>';
+    progressBar = `
+      <div class="progress mt-2" style="height: 20px;">
+        <div class="progress-bar bg-success" style="width: 100%">Done</div>
+      </div>
+    `;
+    if (exec.downloadUrl) {
+      const outputFilename = exec.outputFilename || exec.filename.replace(/\.pdf$/i, '.docx');
+      downloadButton = `
+        <a href="${exec.downloadUrl}" class="btn btn-sm btn-success mt-2" download="${outputFilename}">
+          <i class="bi bi-download me-1"></i>Download
+        </a>
+      `;
+    }
+  } else if (exec.status === 'failed') {
+    statusBadge = '<span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Failed</span>';
+    progressBar = `
+      <div class="alert alert-danger mt-2 mb-0">
+        ${exec.error || 'Conversion failed'}
+      </div>
+    `;
+  }
+  
+  card.innerHTML = `
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="flex-grow-1">
+          <h6 class="mb-1">
+            <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+            ${exec.filename}
+          </h6>
+          ${statusBadge}
+        </div>
+      </div>
+      ${progressBar}
+      ${downloadButton}
+    </div>
+  `;
+  
+  return card;
+}
+
+// Update overall progress
+function updateOverallProgress() {
+  const executionIds = Object.keys(executionData);
+  const totalFiles = executionIds.length;
+  const completedFiles = executionIds.filter(id => 
+    executionData[id].status === 'completed'
+  ).length;
+  const failedFiles = executionIds.filter(id => 
+    executionData[id].status === 'failed'
+  ).length;
+  
+  const percentage = totalFiles > 0 ? Math.round((completedFiles / totalFiles) * 100) : 0;
+  
+  document.getElementById('overallProgressText').textContent = 
+    `${completedFiles} / ${totalFiles} completed${failedFiles > 0 ? ` (${failedFiles} failed)` : ''}`;
+  document.getElementById('overallProgressBar').style.width = `${percentage}%`;
+  document.getElementById('overallPercentage').textContent = `${percentage}%`;
+  
+  // Check if all completed or failed
+  if (completedFiles + failedFiles === totalFiles) {
+    stopStatusPolling();
+    showResults(completedFiles, failedFiles);
+  }
+}
+
+// Start polling for status updates
+function startStatusPolling() {
+  // Poll every 2 seconds
+  statusPollInterval = setInterval(checkBatchStatus, 2000);
+  
+  // Initial check
+  checkBatchStatus();
+}
+
+// Stop polling
+function stopStatusPolling() {
+  if (statusPollInterval) {
+    clearInterval(statusPollInterval);
+    statusPollInterval = null;
+  }
+}
+
+// Check batch status
+async function checkBatchStatus() {
+  const executionIds = Object.keys(executionData);
+  
+  if (executionIds.length === 0) {
+    return;
+  }
+  
+  try {
+    // Get CSRF token
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                      document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+    
+    const response = await fetch('/api/v1/executions/batch-status/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrftoken,
+      },
+      body: JSON.stringify({ executionIds }),
+    });
+    
+    if (!response.ok) {
+      console.error('Failed to check status');
+      return;
+    }
+    
+    const data = await response.json();
+    
+    // Update execution data
+    data.executions.forEach(exec => {
+      if (executionData[exec.executionId]) {
+        executionData[exec.executionId].status = exec.status;
+        executionData[exec.executionId].outputFilename = exec.outputFilename;
+        executionData[exec.executionId].error = exec.error;
+        
+        if (exec.downloadUrl) {
+          executionData[exec.executionId].downloadUrl = exec.downloadUrl;
+        }
+      }
+    });
+    
+    // Update display
+    updateStatusDisplay();
+    
+  } catch (error) {
+    console.error('Error checking status:', error);
+  }
+}
+
+// Show results
+function showResults(completedFiles, failedFiles) {
+  const resultSection = document.getElementById('resultSection');
+  const completionSummary = document.getElementById('completionSummary');
+  const completedFilesList = document.getElementById('completedFilesList');
+  
+  // Update summary
+  if (failedFiles === 0) {
+    completionSummary.textContent = `Successfully converted ${completedFiles} PDF${completedFiles !== 1 ? 's' : ''} to DOCX format.`;
+  } else {
+    completionSummary.textContent = `Converted ${completedFiles} file${completedFiles !== 1 ? 's' : ''} successfully. ${failedFiles} file${failedFiles !== 1 ? 's' : ''} failed.`;
+  }
+  
+  // Build completed files list
+  completedFilesList.innerHTML = '';
+  
+  Object.keys(executionData).forEach(executionId => {
+    const exec = executionData[executionId];
+    
+    if (exec.status === 'completed' && exec.downloadUrl) {
+      const outputFilename = exec.outputFilename || exec.filename.replace(/\.pdf$/i, '.docx');
+      
+      const fileCard = document.createElement('div');
+      fileCard.className = 'card mb-2';
+      fileCard.innerHTML = `
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <i class="bi bi-file-earmark-word text-primary me-2"></i>
+              <strong>${outputFilename}</strong>
+            </div>
+            <a href="${exec.downloadUrl}" class="btn btn-sm btn-success" download="${outputFilename}">
+              <i class="bi bi-download me-1"></i>Download
+            </a>
+          </div>
+        </div>
+      `;
+      
+      completedFilesList.appendChild(fileCard);
+    }
+  });
+  
+  // Set up download all button
+  const downloadAllBtn = document.getElementById('downloadAllBtn');
+  if (completedFiles > 0) {
+    downloadAllBtn.style.display = 'block';
+    downloadAllBtn.onclick = downloadAllFiles;
+  } else {
+    downloadAllBtn.style.display = 'none';
+  }
+  
+  // Show results section
+  resultSection.style.display = 'block';
+  
+  // Re-enable convert button
+  document.getElementById('convertBtn').disabled = false;
+  
+  // Scroll to results
+  resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Download all completed files
+async function downloadAllFiles() {
+  const completedExecutions = Object.keys(executionData).filter(id => 
+    executionData[id].status === 'completed' && executionData[id].downloadUrl
+  );
+  
+  if (completedExecutions.length === 0) {
+    return;
+  }
+  
+  // Download each file with a small delay
+  for (let i = 0; i < completedExecutions.length; i++) {
+    const exec = executionData[completedExecutions[i]];
+    const outputFilename = exec.outputFilename || exec.filename.replace(/\.pdf$/i, '.docx');
+    
+    // Create temporary link and click it
+    const link = document.createElement('a');
+    link.href = exec.downloadUrl;
+    link.download = outputFilename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Small delay between downloads
+    if (i < completedExecutions.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
+  
+  MagicToolbox.showNotification(`Downloaded ${completedExecutions.length} file${completedExecutions.length !== 1 ? 's' : ''}`, 'success');
+}
 </script>
 {% endblock %}

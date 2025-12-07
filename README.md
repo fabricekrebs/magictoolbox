@@ -125,57 +125,67 @@ class MyTool(BaseTool):
 
 ## Deployment
 
-### Azure Container Apps
+### Azure Container Apps (Production-Ready)
 
-MagicToolbox is designed for deployment on Azure Container Apps with full infrastructure as code support.
+MagicToolbox is deployed on Azure Container Apps with a secure, production-grade infrastructure.
 
-**Quick Deploy:**
-- See [DEPLOYMENT.md](DEPLOYMENT.md) for complete deployment guide
-- Infrastructure templates in `infra/` using Azure Bicep
-- CI/CD via GitHub Actions (`.github/workflows/`)
-- **GitHub Secrets Setup**: [GITHUB_SECRETS_QUICK_REFERENCE.md](GITHUB_SECRETS_QUICK_REFERENCE.md) or run `./scripts/setup-github-secrets.sh`
+**Current Status (Dec 2, 2025)**: ✅ Production-ready with VNet integration, private endpoints, and validated end-to-end functionality.
+
+**Quick Start:**
+1. **Review Architecture**: [documentation/AZURE_DEPLOYMENT_README.md](documentation/AZURE_DEPLOYMENT_README.md)
+2. **Setup CI/CD Secrets**: [documentation/GITHUB_SECRETS_SETUP.md](documentation/GITHUB_SECRETS_SETUP.md) or run `./scripts/setup-github-secrets.sh`
+3. **Deploy Infrastructure**: Use Bicep templates in `infra/`
+4. **Verify Deployment**: [documentation/DEPLOYMENT_VERIFICATION.md](documentation/DEPLOYMENT_VERIFICATION.md)
+
+**Key Documentation:**
+- 📘 [AZURE_DEPLOYMENT_README.md](documentation/AZURE_DEPLOYMENT_README.md) - Architecture overview and quick start
+- 🔐 [VNET_AND_SECURITY.md](documentation/VNET_AND_SECURITY.md) - Network security and private endpoints
+- ✅ [DEPLOYMENT_VERIFICATION.md](documentation/DEPLOYMENT_VERIFICATION.md) - Complete verification checklist
+- 🔑 [GITHUB_SECRETS_SETUP.md](documentation/GITHUB_SECRETS_SETUP.md) - CI/CD secrets configuration
+- 📊 [INFRASTRUCTURE_CLEANUP_SUMMARY.md](documentation/INFRASTRUCTURE_CLEANUP_SUMMARY.md) - Current state
+
+**Infrastructure Highlights:**
+
+1. **Network Security**
+   - VNet integration for Container App and Function App
+   - Private endpoints for all backend services (Storage, Key Vault, PostgreSQL, Redis, ACR)
+   - All traffic routed through VNet with network isolation
+
+2. **Azure Services**
+   - Container Apps for web application hosting
+   - Function App (FlexConsumption) for PDF to DOCX conversion
+   - PostgreSQL Flexible Server with private endpoint
+   - Key Vault for secrets management (private endpoint only)
+   - Application Insights for monitoring and telemetry
+   - Azure Blob Storage for file processing
+
+3. **Security Features**
+   - Managed identity authentication (no keys/passwords)
+   - RBAC-based access control
+   - Key Vault secret references in application settings
+   - No public access to Key Vault or Storage (except Functions requirement)
 
 **Important Azure-Specific Configurations:**
 
-This repository includes comprehensive Azure integration following DevOps best practices:
+1. **Key Vault Integration** ([AZURE_KEYVAULT_APPINSIGHTS.md](documentation/AZURE_KEYVAULT_APPINSIGHTS.md))
+   - Managed identity with RBAC roles
+   - Secret references: `@Microsoft.KeyVault(SecretUri=...)`
+   - Automatic secret refresh
 
-1. **Azure Key Vault Integration** 
-   - Secure secret management with managed identity
-   - RBAC-based access control (no access policies)
-   - Automatic secret retrieval with fallback to environment variables
-   - See [documentation/AZURE_KEYVAULT_APPINSIGHTS.md](documentation/AZURE_KEYVAULT_APPINSIGHTS.md)
-
-2. **Application Insights Telemetry**
-   - Distributed tracing with OpenCensus
-   - Exception logging and performance metrics
-   - Custom sampling rates per environment
-   - Comprehensive observability and diagnostics
+2. **Application Insights** ([AZURE_KEYVAULT_APPINSIGHTS.md](documentation/AZURE_KEYVAULT_APPINSIGHTS.md))
+   - OpenCensus integration for distributed tracing
+   - Custom metrics and exception logging
+   - Performance monitoring
 
 3. **Health Check Middleware** (`apps/core/middleware.py`)
-   - Handles Azure internal health probe IPs (100.100.0.0/16)
-   - Bypasses ALLOWED_HOSTS validation for health endpoints
-   - Ensures Container App revisions show as "Healthy"
+   - Azure health probe IP handling (100.100.0.0/16)
+   - ALLOWED_HOSTS bypass for health endpoints
+   - Ensures "Healthy" revision status
 
-4. **SSL Termination** (`magictoolbox/settings/production.py`)
-   - `SECURE_SSL_REDIRECT = False` - Azure handles SSL at ingress
-   - `SECURE_PROXY_SSL_HEADER` configured for Azure proxy
-   - Prevents infinite redirect loops
-
-5. **Static Files with WhiteNoise**
-   - Serves CSS/JS efficiently from container with Brotli compression
-   - Azure Blob Storage used only for private user uploads
-   - Fixes "Public access not permitted" errors
-   - Includes Brotli compression and cache-busting
-
-**Troubleshooting:**
-- See [documentation/AZURE_CONTAINER_APPS_TROUBLESHOOTING.md](documentation/AZURE_CONTAINER_APPS_TROUBLESHOOTING.md) for detailed solutions
-- Common issues: Unhealthy revisions, redirect loops, static file loading
-
-**Documentation:**
-- [documentation/AZURE_NAMING_CONVENTION.md](documentation/AZURE_NAMING_CONVENTION.md) - Azure resource naming standards
-- [documentation/AZURE_DEPLOYMENT_README.md](documentation/AZURE_DEPLOYMENT_README.md) - Quick start guide
-- [documentation/DEPLOYMENT.md](documentation/DEPLOYMENT.md) - Complete deployment guide with all steps
-- [documentation/AZURE_CONTAINER_APPS_TROUBLESHOOTING.md](documentation/AZURE_CONTAINER_APPS_TROUBLESHOOTING.md) - Issue resolution guide
+4. **SSL/TLS Configuration** (`magictoolbox/settings/production.py`)
+   - SSL termination at Azure ingress
+   - `SECURE_SSL_REDIRECT = False` to prevent redirect loops
+   - Proxy headers configured for HTTPS detection
 
 ### Local Development
 

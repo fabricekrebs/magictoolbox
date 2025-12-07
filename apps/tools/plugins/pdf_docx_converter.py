@@ -2,13 +2,19 @@
 PDF to DOCX converter tool.
 
 Converts PDF documents to Microsoft Word DOCX format.
+
+Supports two processing modes:
+1. Synchronous (legacy): Converts immediately in Django process
+2. Asynchronous (Azure Functions): Uploads to blob storage for background processing
 """
 
 import os
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
+from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
 
 from apps.core.exceptions import ToolExecutionError
@@ -18,6 +24,13 @@ try:
     from pdf2docx import Converter
 except ImportError:
     Converter = None
+
+try:
+    from azure.identity import DefaultAzureCredential
+    from azure.storage.blob import BlobServiceClient
+except ImportError:
+    DefaultAzureCredential = None
+    BlobServiceClient = None
 
 
 class PdfDocxConverter(BaseTool):
@@ -41,6 +54,12 @@ class PdfDocxConverter(BaseTool):
     # File constraints
     allowed_input_types = [".pdf"]
     max_file_size = 100 * 1024 * 1024  # 100MB per file
+
+    # Processing mode configuration
+    @property
+    def use_azure_functions(self) -> bool:
+        """Check if Azure Functions mode is enabled via settings."""
+        return getattr(settings, "USE_AZURE_FUNCTIONS_PDF_CONVERSION", False)
 
     def validate(
         self, input_file: UploadedFile, parameters: Dict[str, Any]
@@ -90,7 +109,194 @@ class PdfDocxConverter(BaseTool):
 
     def process(self, input_file: UploadedFile, parameters: Dict[str, Any]) -> Tuple[str, str]:
         """
-        Convert PDF to DOCX format.
+        Convert PDF to DOCX format using Azure Functions.
+
+        Uploads PDF to blob storage and returns execution_id for async processing.
+
+        Returns:
+            Tuple of (execution_id, None) to signal async processing
+        """
+        return self._process_async(input_file, parameters)
+
+    def process_multiple(
+        self, input_files: list[UploadedFile], parameters: Dict[str, Any]
+    ) -> list[Tuple[str, str]]:
+        """
+        Process multiple PDF files for conversion.
+
+        Args:
+            input_files: List of uploaded PDF files
+            parameters: Conversion parameters (applied to all files)
+
+        Returns:
+            List of tuples (execution_id, original_filename) for each file
+        """
+        results = []
+        for input_file in input_files:
+            execution_id, _ = self._process_async(input_file, parameters)
+            results.append((execution_id, input_file.name))
+        return results
+
+    def _process_async(
+        self, input_file: UploadedFile, parameters: Dict[str, Any]
+    ) -> Tuple[str, str]:
+        """
+        Upload PDF to Azure Blob Storage for async processing by Azure Function.
+
+        Returns:
+            Tuple of (execution_id, None) to signal async processing
+        """
+        try:
+            from azure.identity import DefaultAzureCredential
+            from azure.storage.blob import BlobServiceClient
+        except ImportError:
+            raise ToolExecutionError(
+                "Azure SDK not installed. Install azure-storage-blob and azure-identity."
+            )
+
+        # Generate unique execution ID
+        execution_id = str(uuid.uuid4())
+
+        # Create blob name
+        blob_name = f"pdf/{execution_id}.pdf"
+        
+        self.logger.info("=" * 80)
+        self.logger.info("📤 STARTING PDF UPLOAD FOR ASYNC PROCESSING")
+        self.logger.info(f"   Execution ID: {execution_id}")
+        self.logger.info(f"   Original filename: {input_file.name}")
+        self.logger.info(f"   File size: {input_file.size:,} bytes")
+        self.logger.info(f"   Target blob: {blob_name}")
+        self.logger.info(f"   Parameters: {parameters}")
+        self.logger.info("=" * 80)
+
+        try:
+            # Detect environment and get appropriate blob service client
+            connection_string = getattr(settings, "AZURE_STORAGE_CONNECTION_STRING", None)
+
+            if connection_string and "127.0.0.1" in connection_string:
+                # Local development with Azurite
+                self.logger.info("🔧 Using local Azurite for blob storage")
+                self.logger.info(f"   Connection string: {connection_string[:50]}...")
+                blob_service = BlobServiceClient.from_connection_string(connection_string)
+                self.logger.info("✅ BlobServiceClient created successfully (Azurite)")
+            else:
+                # Production with Azure Managed Identity
+                storage_account_name = getattr(settings, "AZURE_STORAGE_ACCOUNT_NAME", None) or getattr(settings, "AZURE_ACCOUNT_NAME", None)
+                if not storage_account_name:
+                    self.logger.error("❌ Storage account name not configured")
+                    raise ToolExecutionError(
+                        "AZURE_STORAGE_ACCOUNT_NAME or AZURE_ACCOUNT_NAME not configured for production environment"
+                    )
+
+                self.logger.info(
+                    f"🔐 Using Azure Managed Identity for storage account: {storage_account_name}"
+                )
+                account_url = f"https://{storage_account_name}.blob.core.windows.net"
+                self.logger.info(f"   Storage URL: {account_url}")
+                self.logger.info("   Authenticating with DefaultAzureCredential...")
+                credential = DefaultAzureCredential()
+                blob_service = BlobServiceClient(account_url=account_url, credential=credential)
+                self.logger.info("✅ BlobServiceClient created successfully (Managed Identity)")
+
+            # Get blob client
+            self.logger.info(f"📦 Getting blob client for container: uploads, blob: {blob_name}")
+            blob_client = blob_service.get_blob_client(container="uploads", blob=blob_name)
+            self.logger.info("✅ Blob client obtained")
+
+            # Prepare metadata for Azure Function
+            metadata = {
+                "execution_id": execution_id,
+                "start_page": str(parameters.get("start_page", 0)),
+                "end_page": str(parameters.get("end_page", ""))
+                if parameters.get("end_page")
+                else "",
+                "original_filename": input_file.name,
+            }
+            self.logger.info(f"📋 Blob metadata prepared: {metadata}")
+
+            # Upload PDF to blob storage
+            self.logger.info(f"⬆️  Uploading PDF to blob storage: {blob_name}")
+            file_content = input_file.read()
+            self.logger.info(f"   Read {len(file_content):,} bytes from uploaded file")
+            
+            blob_client.upload_blob(file_content, metadata=metadata, overwrite=True)
+            
+            self.logger.info("✅ PDF uploaded successfully to Azure Blob Storage")
+            self.logger.info(f"   Blob name: {blob_name}")
+            self.logger.info(f"   Container: uploads")
+            self.logger.info(f"   Size: {len(file_content):,} bytes")
+            self.logger.info(f"   Execution ID: {execution_id}")
+
+            # Trigger Azure Function via HTTP (workaround for Flex Consumption blob trigger limitations)
+            self.logger.info("=" * 80)
+            self.logger.info("🚀 TRIGGERING AZURE FUNCTION FOR PDF CONVERSION")
+            try:
+                import requests
+                function_url = getattr(settings, "AZURE_FUNCTION_PDF_CONVERT_URL", None)
+                
+                if function_url:
+                    payload = {
+                        "execution_id": execution_id,
+                        "blob_name": f"uploads/{blob_name}"  # Full path: uploads/pdf/{uuid}.pdf
+                    }
+                    self.logger.info(f"   Function URL: {function_url}")
+                    self.logger.info(f"   Payload: {payload}")
+                    self.logger.info(f"   Timeout: 300 seconds")
+                    self.logger.info("   Sending POST request...")
+                    
+                    response = requests.post(function_url, json=payload, timeout=300)
+                    
+                    self.logger.info(f"📨 Response received from Azure Function")
+                    self.logger.info(f"   Status code: {response.status_code}")
+                    self.logger.info(f"   Response body: {response.text[:500]}")
+                    
+                    if response.status_code == 200:
+                        self.logger.info("✅ Azure Function triggered successfully")
+                        try:
+                            response_json = response.json()
+                            self.logger.info(f"   Response JSON: {response_json}")
+                        except:
+                            pass
+                    else:
+                        self.logger.warning(
+                            f"⚠️  Azure Function returned non-200 status: {response.status_code}"
+                        )
+                        self.logger.warning(f"   Response: {response.text}")
+                else:
+                    self.logger.warning(
+                        "⚠️  AZURE_FUNCTION_PDF_CONVERT_URL not configured. "
+                        "Relying on blob trigger (may not work with Flex Consumption)."
+                    )
+            except Exception as http_error:
+                self.logger.error(f"❌ Failed to trigger Azure Function via HTTP: {http_error}")
+                self.logger.error(f"   Error type: {type(http_error).__name__}")
+                self.logger.error(f"   Error details: {str(http_error)}")
+                # Don't fail the upload - the blob trigger might still work
+            
+            # Return execution ID to signal async processing
+            # The caller should create a ToolExecution record with this ID
+            self.logger.info("=" * 80)
+            self.logger.info("✅ ASYNC PDF UPLOAD AND TRIGGER COMPLETED")
+            self.logger.info(f"   Execution ID: {execution_id}")
+            self.logger.info(f"   Status: Pending async processing")
+            self.logger.info("=" * 80)
+            return execution_id, None
+
+        except Exception as e:
+            self.logger.error("=" * 80)
+            self.logger.error(f"❌ FAILED TO UPLOAD PDF TO BLOB STORAGE")
+            self.logger.error(f"   Execution ID: {execution_id}")
+            self.logger.error(f"   Error type: {type(e).__name__}")
+            self.logger.error(f"   Error message: {str(e)}")
+            self.logger.error("=" * 80)
+            self.logger.error(f"Full traceback:", exc_info=True)
+            raise ToolExecutionError(f"Failed to upload PDF for processing: {str(e)}")
+
+    def _process_sync(
+        self, input_file: UploadedFile, parameters: Dict[str, Any]
+    ) -> Tuple[str, str]:
+        """
+        Synchronous PDF to DOCX conversion (legacy mode).
 
         Returns:
             Tuple of (output_file_path, output_filename)

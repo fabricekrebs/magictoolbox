@@ -53,6 +53,11 @@ CORS_ALLOW_ALL_ORIGINS = True
 # Disable HTTPS redirect in development
 SECURE_SSL_REDIRECT = False
 
+# Enable Azure Functions for PDF conversion in development (if configured)
+# Set USE_AZURE_FUNCTIONS_PDF_CONVERSION=True in .env to enable
+# Also set AZURE_FUNCTION_PDF_CONVERT_URL to your local function app URL
+# Example: http://localhost:7071/api/convert/pdf-to-docx
+
 # Additional logging in development
 LOGGING["loggers"]["django.db.backends"] = {
     "handlers": ["console"],

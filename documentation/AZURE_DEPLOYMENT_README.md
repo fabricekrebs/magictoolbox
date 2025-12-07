@@ -1,5 +1,8 @@
 # Azure Container Apps Deployment - Setup Complete! 🎉
 
+**Last Updated:** December 2, 2025  
+**Status:** ✅ Fully operational with VNet integration, private endpoints, and Azure Functions
+
 This document provides a quick overview of the Azure deployment files created for MagicToolbox.
 
 ## 📁 Files Created
@@ -14,11 +17,15 @@ This document provides a quick overview of the Azure deployment files created fo
 - ✅ **infra/main.bicep** - Main orchestration template
 - ✅ **infra/modules/monitoring.bicep** - Log Analytics + Application Insights
 - ✅ **infra/modules/acr.bicep** - Azure Container Registry
-- ✅ **infra/modules/keyvault.bicep** - Azure Key Vault for secrets
+- ✅ **infra/modules/keyvault.bicep** - Azure Key Vault for secrets (private endpoint only)
 - ✅ **infra/modules/storage.bicep** - Azure Blob Storage (uploads, processed, static)
 - ✅ **infra/modules/redis.bicep** - Azure Cache for Redis
-- ✅ **infra/modules/postgresql.bicep** - PostgreSQL Flexible Server
-- ✅ **infra/modules/container-apps.bicep** - Container Apps Environment + App
+- ✅ **infra/modules/postgresql.bicep** - PostgreSQL Flexible Server (database: `magictoolbox`)
+- ✅ **infra/modules/network.bicep** - Virtual Network with subnets for Container Apps, Private Endpoints, and Function Apps
+- ✅ **infra/modules/container-apps.bicep** - Container Apps Environment + App with VNet integration
+- ✅ **infra/modules/function-app.bicep** - Azure Function App (FlexConsumption) for PDF to DOCX conversion
+- ✅ **infra/modules/private-endpoints.bicep** - Private endpoints for ACR, PostgreSQL, Redis, Storage, and Key Vault
+- ✅ **infra/modules/rbac.bicep** - Role assignments for managed identities (Storage, ACR, Key Vault access)
 - ✅ **infra/parameters.dev.json** - Development environment parameters
 - ✅ **infra/parameters.prod.json** - Production environment parameters
 
@@ -87,18 +94,31 @@ git push origin main
 
 ```
 Azure Resource Group
-├── Container Apps Environment
-│   └── Django App (auto-scaling)
-├── Azure Container Registry
-├── PostgreSQL Flexible Server
-├── Azure Cache for Redis
-├── Storage Account
-│   ├── uploads container
-│   ├── processed container
-│   └── static container
-├── Key Vault
+├── Virtual Network (10.0.0.0/16)
+│   ├── snet-container-apps (10.0.0.0/23) - For Container Apps
+│   ├── snet-private-endpoints (10.0.2.0/24) - For Private Endpoints
+│   └── snet-function-apps (10.0.3.0/24) - For Function App VNet integration
+├── Container Apps Environment (VNet integrated)
+│   └── Django App (auto-scaling with managed identity)
+├── Azure Function App (FlexConsumption, VNet integrated)
+│   └── PDF to DOCX Converter (HTTP trigger)
+├── Azure Container Registry (private endpoint)
+├── PostgreSQL Flexible Server (private endpoint, database: magictoolbox)
+├── Azure Cache for Redis (private endpoint)
+├── Storage Account (private endpoint, keyless access)
+│   ├── uploads container (PDF inputs)
+│   ├── processed container (DOCX outputs)
+│   ├── deploymentpackage container (Function App deployments)
+│   └── static container (Django static files)
+├── Key Vault (private endpoint only, RBAC for secrets)
 ├── Log Analytics Workspace
 └── Application Insights
+
+Network Flow:
+- Container App → Private Endpoints → ACR, PostgreSQL, Redis, Storage, Key Vault
+- Function App → VNet → Private Endpoints → PostgreSQL, Storage, Key Vault
+- External → HTTPS → Container App Ingress
+- External → HTTPS (with function key) → Function App HTTP trigger
 ```
 
 ## 🔧 Local Development

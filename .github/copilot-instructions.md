@@ -122,6 +122,13 @@ backend/
 
 ## Development Guidelines
 
+### Python Virtual Environment
+- **Always use `.venv` virtual environment** for all Python operations
+- Activate before running any Python commands: `source .venv/bin/activate`
+- Install dependencies inside `.venv`: `pip install -r requirements/development.txt`
+- Run Django commands with activated `.venv`: `python manage.py <command>`
+- Run tests with activated `.venv`: `pytest`
+
 ### Adding New Tools
 1. **Backend Django App**: Create a new Django app in `apps/tools/plugins/` for the tool
 2. **Tool Interface**: Tool class must inherit from `BaseTool` and implement: `validate()`, `process()`, `cleanup()`

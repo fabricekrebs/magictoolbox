@@ -146,10 +146,16 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Custom User Model
 AUTH_USER_MODEL = "authentication.User"
 
+# Authentication URLs
+LOGIN_URL = "/auth/login/"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
+
 # REST Framework Configuration
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",  # For web UI
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -253,6 +259,21 @@ CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 MAX_UPLOAD_SIZE = config("MAX_UPLOAD_SIZE", default=52428800, cast=int)  # 50MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE
 FILE_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE
+
+# Azure Functions Configuration for PDF Conversion
+USE_AZURE_FUNCTIONS_PDF_CONVERSION = config(
+    "USE_AZURE_FUNCTIONS_PDF_CONVERSION", default=False, cast=bool
+)
+AZURE_FUNCTION_PDF_CONVERT_URL = config(
+    "AZURE_FUNCTION_PDF_CONVERT_URL", 
+    default=""
+)
+
+# Azure Storage Configuration
+# For local development, use connection string to Azurite
+# For production, use AZURE_ACCOUNT_NAME with Managed Identity
+AZURE_STORAGE_CONNECTION_STRING = config("AZURE_STORAGE_CONNECTION_STRING", default="")
+AZURE_ACCOUNT_NAME = config("AZURE_ACCOUNT_NAME", default="")
 
 # Logging Configuration
 LOGGING = {

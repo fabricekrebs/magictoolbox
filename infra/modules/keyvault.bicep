@@ -14,6 +14,9 @@ var keyVaultName = 'kv${locationAbbr}${replace(namingPrefix, '-', '')}01'
 @description('Environment (dev, staging, prod)')
 param environment string = 'dev'
 
+@description('Subnet ID for Function Apps to access Key Vault')
+param functionAppsSubnetId string = ''
+
 resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' = {
   name: keyVaultName
   location: location
@@ -26,16 +29,21 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' = {
     enableSoftDelete: true
     softDeleteRetentionInDays: environment == 'prod' ? 90 : 7
     enableRbacAuthorization: true // Use RBAC for access control (best practice)
-    publicNetworkAccess: 'Disabled' // Use private endpoints only
+    publicNetworkAccess: 'Enabled' // Allow Azure services to access
     sku: {
       family: 'A'
       name: 'standard'
     }
     networkAcls: {
-      bypass: 'AzureServices'
-      defaultAction: 'Deny' // Use private endpoints only
+      bypass: 'AzureServices' // Allow trusted Azure services
+      defaultAction: 'Deny' // Deny all other access
       ipRules: []
-      virtualNetworkRules: []
+      virtualNetworkRules: !empty(functionAppsSubnetId) ? [
+        {
+          id: functionAppsSubnetId
+          ignoreMissingVnetServiceEndpoint: false
+        }
+      ] : []
     }
   }
 }

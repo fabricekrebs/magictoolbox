@@ -1,0 +1,341 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Conversions - MagicToolbox{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <!-- Page Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+          <li class="breadcrumb-item active" aria-current="page">My Conversions</li>
+        </ol>
+      </nav>
+      <h1 class="display-5 fw-bold">
+        <i class="bi bi-file-earmark-word text-primary me-2"></i>
+        My Conversions
+      </h1>
+      <p class="lead text-muted">View and download all your PDF to DOCX conversions</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-12">
+      {% if conversions %}
+        <!-- Conversions Table -->
+        <div class="card shadow-sm">
+          <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+              <i class="bi bi-list-ul me-2"></i>Conversion History
+              <span class="badge bg-light text-primary ms-2">{{ conversions|length }}</span>
+            </h5>
+            <button type="button" class="btn btn-sm btn-danger" id="deleteAllBtn">
+              <i class="bi bi-trash me-1"></i>Delete All
+            </button>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th scope="col">Status</th>
+                    <th scope="col">Original File</th>
+                    <th scope="col">Converted File</th>
+                    <th scope="col">Created</th>
+                    <th scope="col">Duration</th>
+                    <th scope="col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for conversion in conversions %}
+                  <tr>
+                    <td>
+                      {% if conversion.status == 'completed' %}
+                        <span class="badge bg-success">
+                          <i class="bi bi-check-circle me-1"></i>Completed
+                        </span>
+                      {% elif conversion.status == 'processing' %}
+                        <span class="badge bg-primary">
+                          <i class="bi bi-hourglass-split me-1"></i>Processing
+                        </span>
+                      {% elif conversion.status == 'pending' %}
+                        <span class="badge bg-secondary">
+                          <i class="bi bi-clock me-1"></i>Pending
+                        </span>
+                      {% elif conversion.status == 'failed' %}
+                        <span class="badge bg-danger">
+                          <i class="bi bi-x-circle me-1"></i>Failed
+                        </span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+                      <strong>{{ conversion.input_filename }}</strong>
+                      {% if conversion.input_size %}
+                        <br>
+                        <small class="text-muted">{{ conversion.input_size|filesizeformat }}</small>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if conversion.output_filename %}
+                        <i class="bi bi-file-earmark-word text-primary me-2"></i>
+                        {{ conversion.output_filename }}
+                        {% if conversion.output_size %}
+                          <br>
+                          <small class="text-muted">{{ conversion.output_size|filesizeformat }}</small>
+                        {% endif %}
+                      {% else %}
+                        <span class="text-muted">-</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <small>{{ conversion.created_at|date:"Y-m-d H:i" }}</small>
+                    </td>
+                    <td>
+                      {% if conversion.duration_seconds %}
+                        <small>{{ conversion.duration_seconds|floatformat:1 }}s</small>
+                      {% else %}
+                        <span class="text-muted">-</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <div class="btn-group" role="group">
+                        {% if conversion.status == 'completed' %}
+                          <a href="/api/v1/executions/{{ conversion.id }}/download/" 
+                             class="btn btn-sm btn-success"
+                             download="{{ conversion.output_filename }}">
+                            <i class="bi bi-download me-1"></i>Download
+                          </a>
+                        {% elif conversion.status == 'failed' %}
+                          <button type="button" 
+                                  class="btn btn-sm btn-outline-danger"
+                                  data-bs-toggle="tooltip"
+                                  data-bs-placement="top"
+                                  title="{{ conversion.error_message|truncatewords:20 }}">
+                            <i class="bi bi-exclamation-triangle me-1"></i>Error
+                          </button>
+                        {% else %}
+                          <button class="btn btn-sm btn-outline-secondary" disabled>
+                            <i class="bi bi-hourglass-split me-1"></i>Processing
+                          </button>
+                        {% endif %}
+                        <button type="button" 
+                                class="btn btn-sm btn-outline-danger delete-conversion"
+                                data-conversion-id="{{ conversion.id }}"
+                                data-filename="{{ conversion.input_filename }}">
+                          <i class="bi bi-trash me-1"></i>Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="row mt-4">
+          <div class="col-md-3">
+            <div class="card text-center">
+              <div class="card-body">
+                <h5 class="card-title text-muted">Total Conversions</h5>
+                <p class="display-6 fw-bold">{{ total_count }}</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card text-center">
+              <div class="card-body">
+                <h5 class="card-title text-success">Completed</h5>
+                <p class="display-6 fw-bold text-success">
+                  {{ completed_count }}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card text-center">
+              <div class="card-body">
+                <h5 class="card-title text-primary">Processing</h5>
+                <p class="display-6 fw-bold text-primary">
+                  {{ processing_count }}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card text-center">
+              <div class="card-body">
+                <h5 class="card-title text-danger">Failed</h5>
+                <p class="display-6 fw-bold text-danger">
+                  {{ failed_count }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      {% else %}
+        <!-- Empty State -->
+        <div class="card shadow-sm">
+          <div class="card-body text-center py-5">
+            <i class="bi bi-inbox display-1 text-muted mb-3"></i>
+            <h3 class="text-muted">No Conversions Yet</h3>
+            <p class="text-muted mb-4">
+              You haven't converted any PDF files to DOCX yet. Get started now!
+            </p>
+            <a href="{% url 'tools:tool_detail' 'pdf-docx-converter' %}" class="btn btn-primary btn-lg">
+              <i class="bi bi-file-earmark-word me-2"></i>Convert PDF to DOCX
+            </a>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Initialize Bootstrap tooltips
+document.addEventListener('DOMContentLoaded', function() {
+  var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+  var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+  });
+  
+  // Auto-refresh page every 30 seconds if there are pending/processing conversions
+  const hasPendingConversions = document.querySelector('.badge.bg-secondary, .badge.bg-primary');
+  if (hasPendingConversions) {
+    setTimeout(function() {
+      location.reload();
+    }, 30000); // 30 seconds
+  }
+  
+  // Handle delete conversion
+  document.querySelectorAll('.delete-conversion').forEach(function(button) {
+    button.addEventListener('click', function() {
+      const conversionId = this.getAttribute('data-conversion-id');
+      const filename = this.getAttribute('data-filename');
+      
+      if (confirm(`Are you sure you want to delete the conversion for "${filename}"?\n\nThis will permanently delete the converted file from storage.`)) {
+        deleteConversion(conversionId, this);
+      }
+    });
+  });
+  
+  // Handle delete all conversions
+  const deleteAllBtn = document.getElementById('deleteAllBtn');
+  if (deleteAllBtn) {
+    deleteAllBtn.addEventListener('click', function() {
+      const count = {{ total_count }};
+      if (count === 0) {
+        MagicToolbox.showNotification('No conversions to delete', 'info');
+        return;
+      }
+      
+      if (confirm(`Are you sure you want to delete ALL ${count} conversion(s)?\n\nThis will permanently delete all converted files from storage.\n\nThis action cannot be undone!`)) {
+        deleteAllConversions(this);
+      }
+    });
+  }
+});
+
+// Delete all conversions via AJAX
+function deleteAllConversions(buttonElement) {
+  // Get CSRF token
+  const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                    document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+  
+  // Disable button and show loading state
+  buttonElement.disabled = true;
+  buttonElement.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Deleting...';
+  
+  fetch('/tools/conversions/delete-all/', {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': csrftoken,
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      MagicToolbox.showNotification(data.message, 'success');
+      // Reload page to show empty state
+      setTimeout(function() {
+        location.reload();
+      }, 1000);
+    } else {
+      MagicToolbox.showNotification('Failed to delete: ' + data.error, 'error');
+      buttonElement.disabled = false;
+      buttonElement.innerHTML = '<i class="bi bi-trash me-1"></i>Delete All';
+    }
+  })
+  .catch(error => {
+    console.error('Delete all failed:', error);
+    MagicToolbox.showNotification('Failed to delete conversions', 'error');
+    buttonElement.disabled = false;
+    buttonElement.innerHTML = '<i class="bi bi-trash me-1"></i>Delete All';
+  });
+}
+
+// Delete conversion via AJAX
+function deleteConversion(conversionId, buttonElement) {
+  // Get CSRF token
+  const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                    document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+  
+  // Disable button and show loading state
+  const row = buttonElement.closest('tr');
+  buttonElement.disabled = true;
+  buttonElement.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Deleting...';
+  
+  fetch(`/tools/conversions/${conversionId}/delete/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': csrftoken,
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Fade out and remove the row
+      row.style.transition = 'opacity 0.5s';
+      row.style.opacity = '0';
+      setTimeout(function() {
+        row.remove();
+        
+        // Show success message
+        MagicToolbox.showNotification(data.message, 'success');
+        
+        // Reload page if no more rows
+        const tbody = document.querySelector('tbody');
+        if (tbody && tbody.children.length === 0) {
+          location.reload();
+        } else {
+          // Update counts by reloading
+          location.reload();
+        }
+      }, 500);
+    } else {
+      MagicToolbox.showNotification('Failed to delete: ' + data.error, 'error');
+      buttonElement.disabled = false;
+      buttonElement.innerHTML = '<i class="bi bi-trash me-1"></i>Delete';
+    }
+  })
+  .catch(error => {
+    console.error('Delete failed:', error);
+    MagicToolbox.showNotification('Failed to delete conversion', 'error');
+    buttonElement.disabled = false;
+    buttonElement.innerHTML = '<i class="bi bi-trash me-1"></i>Delete';
+  });
+}
+</script>
+{% endblock %}

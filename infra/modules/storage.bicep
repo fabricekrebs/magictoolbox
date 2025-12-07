@@ -2,6 +2,9 @@
 param location string
 param namingPrefix string
 param tags object
+param containerAppsSubnetId string = '' // Optional: Container Apps subnet for VNet rules
+param functionAppsSubnetId string = '' // Optional: Function Apps subnet for VNet rules
+param functionAppResourceId string = '' // Optional: Function App resource ID for deployment access
 
 // Location abbreviation for naming (shortened for storage 24 char limit)
 var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
@@ -39,9 +42,28 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
     }
     networkAcls: {
       bypass: 'AzureServices'
-      defaultAction: 'Deny' // Use private endpoints only
+      defaultAction: 'Deny' // Use private endpoints and VNet rules
       ipRules: []
-      virtualNetworkRules: []
+      virtualNetworkRules: union(
+        containerAppsSubnetId != '' ? [
+          {
+            id: containerAppsSubnetId
+            action: 'Allow'
+          }
+        ] : [],
+        functionAppsSubnetId != '' ? [
+          {
+            id: functionAppsSubnetId
+            action: 'Allow'
+          }
+        ] : []
+      )
+      resourceAccessRules: functionAppResourceId != '' ? [
+        {
+          tenantId: subscription().tenantId
+          resourceId: functionAppResourceId
+        }
+      ] : []
     }
   }
 }
@@ -105,6 +127,15 @@ resource staticContainer 'Microsoft.Storage/storageAccounts/blobServices/contain
   name: 'static'
   properties: {
     publicAccess: 'None' // Changed to None - use CDN or Container Apps for serving
+  }
+}
+
+// Container for Function App deployment packages (FlexConsumption requirement)
+resource deploymentsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'deployments'
+  properties: {
+    publicAccess: 'None'
   }
 }
 

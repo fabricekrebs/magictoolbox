@@ -1,5 +1,5 @@
 // Main orchestration template for MagicToolbox Azure infrastructure
-// Last updated: 2025-11-27
+// Last updated: 2025-12-02
 targetScope = 'resourceGroup'
 
 // Parameters
@@ -89,6 +89,7 @@ module keyVault './modules/keyvault.bicep' = {
     storageAccountKey: storage.outputs.storageAccountKey
     applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
     acrPassword: acr.outputs.acrPassword
+    functionAppsSubnetId: network.outputs.functionAppsSubnetId
   }
 }
 
@@ -99,6 +100,8 @@ module storage './modules/storage.bicep' = {
     location: location
     namingPrefix: namingPrefix
     tags: tags
+    containerAppsSubnetId: network.outputs.containerAppsSubnetId
+    functionAppsSubnetId: network.outputs.functionAppsSubnetId
   }
 }
 
@@ -122,6 +125,38 @@ module postgresql './modules/postgresql.bicep' = {
     administratorLogin: postgresAdminUsername
     administratorLoginPassword: postgresAdminPassword
     environment: environment
+  }
+}
+
+// Azure Function App for PDF to DOCX conversion (optional - deploy when USE_AZURE_FUNCTIONS_PDF_CONVERSION=true)
+module functionApp './modules/function-app.bicep' = {
+  name: 'function-app-deployment'
+  params: {
+    location: location
+    namingPrefix: namingPrefix
+    tags: tags
+    storageAccountName: storage.outputs.storageAccountName
+    logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
+    postgresqlServerName: postgresql.outputs.postgresServerName
+    postgresqlDatabaseName: postgresql.outputs.databaseName
+    postgresqlAdminUser: postgresAdminUsername
+    applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
+    applicationInsightsInstrumentationKey: monitoring.outputs.applicationInsightsInstrumentationKey
+    keyVaultName: keyVault.outputs.keyVaultName
+    functionAppsSubnetId: network.outputs.functionAppsSubnetId
+  }
+}
+
+// Update storage account network rules to allow Function App access for deployments
+// This must be done after Function App creation since it needs the Function App resource ID
+module storageNetworkRulesUpdate './modules/storage-network-rules.bicep' = {
+  name: 'storage-network-rules-update'
+  params: {
+    storageAccountName: storage.outputs.storageAccountName
+    location: location
+    tags: tags
+    containerAppsSubnetId: network.outputs.containerAppsSubnetId
+    functionAppsSubnetId: network.outputs.functionAppsSubnetId
   }
 }
 
@@ -150,6 +185,7 @@ module containerApps './modules/container-apps.bicep' = {
     postgresDatabase: postgresql.outputs.databaseName
     postgresAdminUsername: postgresAdminUsername
     containerAppsSubnetId: network.outputs.containerAppsSubnetId
+    functionAppUrl: 'https://${functionApp.outputs.functionAppHostName}/api/convert/pdf-to-docx'
   }
 }
 
@@ -166,6 +202,7 @@ module privateEndpoints './modules/private-endpoints.bicep' = {
     redisId: redis.outputs.redisId
     storageAccountId: storage.outputs.storageAccountId
     keyVaultId: keyVault.outputs.keyVaultId
+    functionAppId: functionApp.outputs.functionAppId
   }
   dependsOn: [
     containerApps // Deploy private endpoints after container apps to ensure connectivity
@@ -180,6 +217,7 @@ module rbac './modules/rbac.bicep' = {
     acrName: acr.outputs.acrName
     keyVaultName: keyVault.outputs.keyVaultName
     containerAppIdentityPrincipalId: containerApps.outputs.containerAppIdentityPrincipalId
+    functionAppIdentityPrincipalId: functionApp.outputs.functionAppPrincipalId
   }
 }
 
@@ -194,3 +232,4 @@ output postgresHost string = postgresql.outputs.fqdn
 output postgresDatabase string = postgresql.outputs.databaseName
 output logAnalyticsWorkspaceId string = monitoring.outputs.logAnalyticsWorkspaceId
 output applicationInsightsConnectionString string = monitoring.outputs.applicationInsightsConnectionString
+output functionAppName string = functionApp.outputs.functionAppName

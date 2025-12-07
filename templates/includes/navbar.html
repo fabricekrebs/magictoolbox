@@ -30,6 +30,9 @@
               <li><a class="dropdown-item" href="{% url 'authentication:profile' %}">
                 <i class="bi bi-person me-2"></i>Profile
               </a></li>
+              <li><a class="dropdown-item" href="{% url 'tools:my_conversions' %}">
+                <i class="bi bi-file-earmark-word me-2"></i>My Conversions
+              </a></li>
               <li><hr class="dropdown-divider"></li>
               <li>
                 <form method="post" action="{% url 'authentication:logout' %}" class="d-inline">

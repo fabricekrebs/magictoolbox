@@ -37,6 +37,9 @@ param postgresAdminUsername string
 @description('Subnet ID for Container Apps VNet integration')
 param containerAppsSubnetId string
 
+@description('Azure Function App URL for PDF conversion')
+param functionAppUrl string = ''
+
 // Location abbreviation for naming (Container Apps have 32 char limit)
 var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
 
@@ -218,6 +221,10 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: '5432'
             }
             {
+              name: 'DB_SSLMODE'
+              value: 'require'
+            }
+            {
               name: 'REDIS_HOST'
               value: redisHostName
             }
@@ -280,6 +287,18 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             {
               name: 'MAX_UPLOAD_SIZE'
               value: '52428800' // 50MB in bytes
+            }
+            {
+              name: 'USE_AZURE_FUNCTIONS_PDF_CONVERSION'
+              value: 'true'
+            }
+            {
+              name: 'AZURE_FUNCTION_PDF_CONVERT_URL'
+              value: functionAppUrl
+            }
+            {
+              name: 'AZURE_STORAGE_ACCOUNT_NAME'
+              value: storageAccountName
             }
           ]
           probes: [

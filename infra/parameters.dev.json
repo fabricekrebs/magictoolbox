@@ -12,7 +12,13 @@
       "value": "magictoolbox"
     },
     "postgresAdminUsername": {
-      "value": "mtbadmin"
+      "value": "magictoolbox"
+    },
+    "postgresAdminPassword": {
+      "value": "TestPassword123!"
+    },
+    "djangoSecretKey": {
+      "value": "dev-django-secret-key-for-testing-only-not-for-production-use-2025-magictoolbox-changeme"
     }
   }
 }

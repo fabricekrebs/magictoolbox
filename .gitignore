@@ -28,7 +28,7 @@ db.sqlite3-journal
 *.env
 
 # IDE
-.vscode/
+
 .idea/
 *.swp
 *.swo
@@ -59,3 +59,24 @@ celerybeat.pid
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# Azure Functions
+function_app/local.settings.json
+function_app/.python_packages/
+function_app/azurite/
+function_app/__azurite_db*__
+function_app/*.zip
+function_app/.venv/
+function_app/__pycache__/
+
+# Local Azurite storage emulator
+.azurite/
+
+# Local testing files
+*.pdf
+!tests/fixtures/*.pdf
+test_*.pdf
+LOCAL_TESTING_REPORT.md
+AZURE_FUNCTIONS_CORE_TOOLS_TESTING.md
+AZURE_FUNCTIONS_TESTING_SUMMARY.md
+LOCAL_ENVIRONMENT_SETUP.md
