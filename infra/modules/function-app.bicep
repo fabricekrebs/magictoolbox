@@ -155,6 +155,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'DB_PORT'
           value: '5432'
         }
+        {
+          name: 'DB_SSLMODE'
+          value: 'require'
+        }
       ]
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'

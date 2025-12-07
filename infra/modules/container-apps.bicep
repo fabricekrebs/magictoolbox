@@ -221,6 +221,10 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: '5432'
             }
             {
+              name: 'DB_SSLMODE'
+              value: 'require'
+            }
+            {
               name: 'REDIS_HOST'
               value: redisHostName
             }
