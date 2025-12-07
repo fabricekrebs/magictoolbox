@@ -494,6 +494,9 @@ class ToolViewSet(viewsets.ViewSet):
                             input_size=file_size,
                             parameters=parameters,
                             status="pending",
+                            azure_function_invoked=True,
+                            function_execution_id=execution_id,
+                            input_blob_path=f"uploads/pdf/{execution_id}.pdf",
                         )
                         executions.append(
                             {
@@ -529,7 +532,7 @@ class ToolViewSet(viewsets.ViewSet):
                 try:
                     execution_id, _ = tool_instance.process(file, parameters)
 
-                    # Create ToolExecution record
+                    # Create ToolExecution record with Azure Functions tracking
                     _execution = ToolExecution.objects.create(
                         id=execution_id,
                         user=request.user,
@@ -538,6 +541,9 @@ class ToolViewSet(viewsets.ViewSet):
                         input_size=file.size,
                         parameters=parameters,
                         status="pending",
+                        azure_function_invoked=True,
+                        function_execution_id=execution_id,
+                        input_blob_path=f"uploads/pdf/{execution_id}.pdf",
                     )
 
                     return Response(
@@ -610,7 +616,7 @@ class ToolViewSet(viewsets.ViewSet):
                     # Async processing - output_path is actually execution_id
                     execution_id = output_path
 
-                    # Create ToolExecution record for tracking
+                    # Create ToolExecution record for tracking with Azure Functions fields
                     _execution = ToolExecution.objects.create(
                         id=execution_id,
                         user=request.user,
@@ -619,6 +625,9 @@ class ToolViewSet(viewsets.ViewSet):
                         input_size=file.size,
                         parameters=parameters,
                         status="pending",
+                        azure_function_invoked=True,
+                        function_execution_id=execution_id,
+                        input_blob_path=f"uploads/pdf/{execution_id}.pdf",
                     )
 
                     # Return 202 Accepted with execution ID
