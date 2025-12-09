@@ -530,9 +530,12 @@ class ToolViewSet(viewsets.ViewSet):
                     return Response({"error": error_msg}, status=status.HTTP_400_BAD_REQUEST)
 
                 try:
-                    execution_id, _ = tool_instance.process(file, parameters)
-
-                    # Create ToolExecution record with Azure Functions tracking
+                    # Generate execution ID first
+                    import uuid
+                    execution_id = str(uuid.uuid4())
+                    
+                    # Create ToolExecution record BEFORE processing
+                    # This ensures it exists when the Azure Function response handler tries to update it
                     _execution = ToolExecution.objects.create(
                         id=execution_id,
                         user=request.user,
@@ -545,6 +548,9 @@ class ToolViewSet(viewsets.ViewSet):
                         function_execution_id=execution_id,
                         input_blob_path=f"uploads/pdf/{execution_id}.pdf",
                     )
+                    
+                    # Now process with the pre-created execution ID
+                    returned_execution_id, _ = tool_instance.process(file, parameters, execution_id=execution_id)
 
                     return Response(
                         {

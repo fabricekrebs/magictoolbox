@@ -107,16 +107,21 @@ class PdfDocxConverter(BaseTool):
 
         return True, None
 
-    def process(self, input_file: UploadedFile, parameters: Dict[str, Any]) -> Tuple[str, str]:
+    def process(self, input_file: UploadedFile, parameters: Dict[str, Any], execution_id: str = None) -> Tuple[str, str]:
         """
         Convert PDF to DOCX format using Azure Functions.
 
         Uploads PDF to blob storage and returns execution_id for async processing.
 
+        Args:
+            input_file: The PDF file to convert
+            parameters: Conversion parameters
+            execution_id: Optional pre-generated execution ID
+
         Returns:
             Tuple of (execution_id, None) to signal async processing
         """
-        return self._process_async(input_file, parameters)
+        return self._process_async(input_file, parameters, execution_id=execution_id)
 
     def process_multiple(
         self, input_files: list[UploadedFile], parameters: Dict[str, Any]
@@ -138,10 +143,15 @@ class PdfDocxConverter(BaseTool):
         return results
 
     def _process_async(
-        self, input_file: UploadedFile, parameters: Dict[str, Any]
+        self, input_file: UploadedFile, parameters: Dict[str, Any], execution_id: str = None
     ) -> Tuple[str, str]:
         """
         Upload PDF to Azure Blob Storage for async processing by Azure Function.
+
+        Args:
+            input_file: The PDF file to convert
+            parameters: Conversion parameters
+            execution_id: Optional pre-generated execution ID (if None, generates new one)
 
         Returns:
             Tuple of (execution_id, None) to signal async processing
@@ -154,8 +164,9 @@ class PdfDocxConverter(BaseTool):
                 "Azure SDK not installed. Install azure-storage-blob and azure-identity."
             )
 
-        # Generate unique execution ID
-        execution_id = str(uuid.uuid4())
+        # Use provided execution ID or generate new one
+        if execution_id is None:
+            execution_id = str(uuid.uuid4())
 
         # Create blob name
         blob_name = f"pdf/{execution_id}.pdf"
