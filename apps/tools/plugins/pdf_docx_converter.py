@@ -255,8 +255,35 @@ class PdfDocxConverter(BaseTool):
                         try:
                             response_json = response.json()
                             self.logger.info(f"   Response JSON: {response_json}")
-                        except:
-                            pass
+                            
+                            # IMPORTANT: Update the database immediately if Azure Function succeeded
+                            # This is a workaround because Azure Function may not have database access
+                            if response_json.get('status') == 'success':
+                                self.logger.info("=" * 80)
+                                self.logger.info("📝 UPDATING DATABASE FROM AZURE FUNCTION RESPONSE")
+                                from apps.tools.models import ToolExecution
+                                from django.utils import timezone
+                                
+                                try:
+                                    execution = ToolExecution.objects.get(id=execution_id)
+                                    execution.status = 'completed'
+                                    execution.output_blob_path = response_json.get('output_blob')
+                                    execution.output_size = response_json.get('output_size_bytes')
+                                    execution.completed_at = timezone.now()
+                                    execution.save(update_fields=['status', 'output_blob_path', 'output_size', 'completed_at', 'updated_at'])
+                                    
+                                    self.logger.info(f"✅ Database updated successfully")
+                                    self.logger.info(f"   Status: completed")
+                                    self.logger.info(f"   Output blob: {execution.output_blob_path}")
+                                    self.logger.info(f"   Output size: {execution.output_size:,} bytes")
+                                except ToolExecution.DoesNotExist:
+                                    self.logger.error(f"❌ ToolExecution not found: {execution_id}")
+                                except Exception as db_err:
+                                    self.logger.error(f"❌ Failed to update database: {db_err}")
+                                finally:
+                                    self.logger.info("=" * 80)
+                        except Exception as json_err:
+                            self.logger.warning(f"⚠️  Failed to parse JSON response: {json_err}")
                     else:
                         self.logger.warning(
                             f"⚠️  Azure Function returned non-200 status: {response.status_code}"
