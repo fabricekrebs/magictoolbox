@@ -31,11 +31,26 @@ logger = logging.getLogger(__name__)
 
 
 def get_blob_service_client() -> BlobServiceClient:
-    """Get BlobServiceClient using Managed Identity."""
+    """
+    Get BlobServiceClient using connection string or Managed Identity.
+    
+    Uses connection string for local development (Azurite), DefaultAzureCredential for Azure.
+    This matches the pattern used in Django and PDF converter.
+    """
+    connection_string = os.environ.get("AZURE_STORAGE_CONNECTION_STRING")
+    
+    # Check for local development (Azurite)
+    if connection_string and "127.0.0.1" in connection_string:
+        logger.info("🔧 Using local Azurite for blob storage")
+        return BlobServiceClient.from_connection_string(connection_string)
+    
+    # Production: Use Managed Identity / DefaultAzureCredential
     storage_account_name = os.environ.get("AZURE_STORAGE_ACCOUNT_NAME")
     if not storage_account_name:
+        logger.error("❌ Storage account name not configured")
         raise ValueError("AZURE_STORAGE_ACCOUNT_NAME not configured")
     
+    logger.info(f"🔐 Using Azure Managed Identity for storage account: {storage_account_name}")
     account_url = f"https://{storage_account_name}.blob.core.windows.net"
     credential = DefaultAzureCredential()
     return BlobServiceClient(account_url=account_url, credential=credential)
@@ -339,6 +354,382 @@ def convert_pdf_to_docx(req: func.HttpRequest) -> func.HttpResponse:
                 "error": str(e),
                 "execution_id": execution_id,
                 "error_type": type(e).__name__
+            }),
+            mimetype="application/json",
+            status_code=500
+        )
+
+
+@app.route(route="storage/list-blobs", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
+def list_blobs(req: func.HttpRequest) -> func.HttpResponse:
+    """List all blobs in uploads and processed containers."""
+    try:
+        logger.info("📂 Listing blobs in storage containers")
+        
+        blob_service = get_blob_service_client()
+        containers = ["uploads", "processed"]
+        
+        result = {}
+        
+        for container_name in containers:
+            logger.info(f"📁 Container: {container_name}")
+            try:
+                container_client = blob_service.get_container_client(container_name)
+                blobs = list(container_client.list_blobs())
+                
+                result[container_name] = []
+                for blob in blobs:
+                    result[container_name].append({
+                        "name": blob.name,
+                        "size": blob.size,
+                        "last_modified": blob.last_modified.isoformat() if blob.last_modified else None,
+                        "content_type": blob.content_settings.content_type if blob.content_settings else None
+                    })
+                
+                logger.info(f"   Found {len(blobs)} blobs")
+                
+            except Exception as e:
+                logger.error(f"   Error accessing container {container_name}: {e}")
+                result[container_name] = {"error": str(e)}
+        
+        return func.HttpResponse(
+            body=json.dumps(result, indent=2),
+            mimetype="application/json",
+            status_code=200
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Error listing blobs: {e}")
+        return func.HttpResponse(
+            body=json.dumps({"error": str(e)}),
+            mimetype="application/json",
+            status_code=500
+        )
+
+
+@app.route(route="video/rotate", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def rotate_video(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Rotate video from blob storage.
+    
+    Expected JSON payload:
+    {
+        "execution_id": "uuid",
+        "blob_name": "video-uploads/video/{uuid}.mp4",
+        "rotation": "90_cw|90_ccw|180"
+    }
+    """
+    import subprocess
+    
+    execution_id = None
+    temp_input_path = None
+    temp_output_path = None
+    
+    # Rotation configurations
+    ROTATION_ANGLES = {
+        "90_cw": {"transpose": "1", "name": "90° Clockwise"},
+        "90_ccw": {"transpose": "2", "name": "90° Counter-Clockwise"},
+        "180": {"transpose": "2,transpose=2", "name": "180°"},
+    }
+    
+    try:
+        logger.info("=" * 100)
+        logger.info("🎬 VIDEO ROTATION STARTED")
+        logger.info("=" * 100)
+        
+        # Parse request
+        try:
+            req_body = req.get_json()
+            execution_id = req_body.get('execution_id')
+            blob_name = req_body.get('blob_name')
+            rotation = req_body.get('rotation')
+            
+            logger.info(f"📋 Request Details:")
+            logger.info(f"   Execution ID: {execution_id}")
+            logger.info(f"   Blob Name: {blob_name}")
+            logger.info(f"   Rotation: {rotation}")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to parse request: {e}")
+            return func.HttpResponse(
+                body=json.dumps({"error": "Invalid JSON payload"}),
+                mimetype="application/json",
+                status_code=400
+            )
+        
+        if not all([execution_id, blob_name, rotation]):
+            return func.HttpResponse(
+                body=json.dumps({"error": "Missing required parameters"}),
+                mimetype="application/json",
+                status_code=400
+            )
+        
+        if rotation not in ROTATION_ANGLES:
+            return func.HttpResponse(
+                body=json.dumps({"error": f"Invalid rotation: {rotation}"}),
+                mimetype="application/json",
+                status_code=400
+            )
+        
+        rotation_config = ROTATION_ANGLES[rotation]
+        
+        # Update database: processing
+        try:
+            logger.info("📝 Updating database status: processing")
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """UPDATE tool_executions 
+                   SET status = %s, 
+                       started_at = NOW()
+                   WHERE id = %s""",
+                ('processing', execution_id)
+            )
+            conn.commit()
+            cursor.close()
+            conn.close()
+            logger.info("✅ Database updated: status = processing")
+        except Exception as db_error:
+            logger.warning(f"⚠️ Failed to update database: {db_error}")
+        
+        # Initialize blob service
+        logger.info("-" * 100)
+        logger.info("🔐 INITIALIZING BLOB STORAGE CLIENT")
+        blob_service = get_blob_service_client()
+        logger.info("✅ Blob service client initialized")
+        
+        # Download video from blob storage
+        logger.info("-" * 100)
+        logger.info(f"📥 DOWNLOADING VIDEO FROM BLOB STORAGE")
+        logger.info(f"   Blob: {blob_name}")
+        
+        try:
+            # Remove container prefix if present
+            if blob_name.startswith('video-uploads/'):
+                actual_blob_name = blob_name.replace('video-uploads/', '', 1)
+            else:
+                actual_blob_name = blob_name
+            
+            blob_client = blob_service.get_blob_client(
+                container="video-uploads",
+                blob=actual_blob_name
+            )
+            
+            if not blob_client.exists():
+                raise Exception(f"Blob not found: {blob_name}")
+            
+            # Get blob metadata
+            blob_properties = blob_client.get_blob_properties()
+            original_filename = blob_properties.metadata.get('original_filename', 'video.mp4')
+            video_size = blob_properties.size
+            
+            logger.info(f"   Original filename: {original_filename}")
+            logger.info(f"   Video size: {video_size:,} bytes ({video_size / 1024 / 1024:.2f} MB)")
+            
+            # Download to temp file
+            file_ext = Path(original_filename).suffix
+            with tempfile.NamedTemporaryFile(suffix=file_ext, delete=False) as temp_input:
+                temp_input_path = temp_input.name
+                blob_data = blob_client.download_blob()
+                temp_input.write(blob_data.readall())
+            
+            logger.info(f"✅ Video downloaded: {temp_input_path}")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to download video: {e}")
+            raise
+        
+        # Rotate video using FFmpeg
+        logger.info("-" * 100)
+        logger.info(f"🔄 ROTATING VIDEO: {rotation_config['name']}")
+        start_time = datetime.now(timezone.utc)
+        
+        try:
+            # Get FFmpeg executable path from imageio-ffmpeg
+            try:
+                from imageio_ffmpeg import get_ffmpeg_exe
+                ffmpeg_path = get_ffmpeg_exe()
+                logger.info(f"   Using FFmpeg from: {ffmpeg_path}")
+            except ImportError:
+                # Fallback to system ffmpeg
+                ffmpeg_path = "ffmpeg"
+                logger.warning("   imageio-ffmpeg not available, using system ffmpeg")
+            
+            # Create temp output file
+            with tempfile.NamedTemporaryFile(suffix=file_ext, delete=False) as temp_output:
+                temp_output_path = temp_output.name
+            
+            # Build FFmpeg command
+            cmd = [
+                ffmpeg_path,
+                "-i", temp_input_path,
+                "-vf", f"transpose={rotation_config['transpose']}",
+                "-c:a", "copy",  # Copy audio without re-encoding
+                "-c:v", "libx264",  # Re-encode video with H.264
+                "-preset", "fast",  # Fast encoding
+                "-crf", "23",  # Quality
+                "-y",  # Overwrite output
+                temp_output_path,
+            ]
+            
+            logger.info(f"   FFmpeg command: {' '.join(cmd)}")
+            
+            # Execute FFmpeg
+            result = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=600,  # 10 minute timeout
+            )
+            
+            if result.returncode != 0:
+                error_msg = result.stderr.decode("utf-8", errors="ignore")
+                logger.error(f"❌ FFmpeg error: {error_msg[:500]}")
+                raise Exception(f"FFmpeg failed: {error_msg[:200]}")
+            
+            # Verify output
+            if not os.path.exists(temp_output_path) or os.path.getsize(temp_output_path) == 0:
+                raise Exception("Output file was not created")
+            
+            output_size = os.path.getsize(temp_output_path)
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+            
+            logger.info(f"✅ Rotation completed in {duration:.2f}s")
+            logger.info(f"   Output size: {output_size:,} bytes ({output_size / 1024 / 1024:.2f} MB)")
+            
+        except subprocess.TimeoutExpired:
+            logger.error("❌ FFmpeg timeout (10 minutes)")
+            raise Exception("Video rotation timed out")
+        except Exception as e:
+            logger.error(f"❌ Rotation failed: {e}")
+            raise
+        
+        # Upload rotated video to blob storage
+        logger.info("-" * 100)
+        logger.info(f"📤 UPLOADING ROTATED VIDEO TO BLOB STORAGE")
+        
+        try:
+            # Generate output filename
+            input_stem = Path(original_filename).stem
+            output_filename = f"{input_stem}_rotated_{rotation}{file_ext}"
+            output_blob_name = f"video/{execution_id}{file_ext}"
+            
+            logger.info(f"   Container: video-processed")
+            logger.info(f"   Blob: {output_blob_name}")
+            logger.info(f"   Filename: {output_filename}")
+            
+            output_blob_client = blob_service.get_blob_client(
+                container="video-processed",
+                blob=output_blob_name
+            )
+            
+            # Upload with metadata
+            with open(temp_output_path, "rb") as video_file:
+                output_blob_client.upload_blob(
+                    video_file,
+                    overwrite=True,
+                    metadata={
+                        "execution_id": execution_id,
+                        "original_filename": original_filename,
+                        "output_filename": output_filename,
+                        "rotation": rotation,
+                        "source_blob": blob_name,
+                    }
+                )
+            
+            logger.info(f"✅ Rotated video uploaded successfully")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to upload rotated video: {e}")
+            raise
+        
+        # Update database: completed
+        try:
+            logger.info("📝 Updating database status: completed")
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """UPDATE tool_executions 
+                   SET status = %s,
+                       completed_at = NOW(),
+                       output_filename = %s,
+                       output_size = %s,
+                       output_blob_path = %s
+                   WHERE id = %s""",
+                ('completed', output_filename, output_size, f"video-processed/{output_blob_name}", execution_id)
+            )
+            conn.commit()
+            cursor.close()
+            conn.close()
+            logger.info("✅ Database updated: status = completed")
+        except Exception as db_error:
+            logger.warning(f"⚠️ Failed to update database: {db_error}")
+        
+        # Cleanup temp files
+        try:
+            if temp_input_path and os.path.exists(temp_input_path):
+                os.unlink(temp_input_path)
+            if temp_output_path and os.path.exists(temp_output_path):
+                os.unlink(temp_output_path)
+        except:
+            pass
+        
+        logger.info("=" * 100)
+        logger.info("✅ VIDEO ROTATION COMPLETED SUCCESSFULLY")
+        logger.info("=" * 100)
+        
+        return func.HttpResponse(
+            body=json.dumps({
+                "status": "success",
+                "execution_id": execution_id,
+                "output_filename": output_filename,
+                "output_size": output_size,
+                "duration_seconds": duration
+            }),
+            mimetype="application/json",
+            status_code=200
+        )
+        
+    except Exception as e:
+        logger.error("=" * 100)
+        logger.error("❌ VIDEO ROTATION FAILED")
+        logger.error(f"   Execution ID: {execution_id}")
+        logger.error(f"   Error: {str(e)}")
+        logger.error("=" * 100)
+        
+        # Update database: failed
+        if execution_id:
+            try:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    """UPDATE tool_executions 
+                       SET status = %s, 
+                           error_message = %s,
+                           updated_at = NOW()
+                       WHERE id = %s""",
+                    ('failed', str(e), execution_id)
+                )
+                conn.commit()
+                cursor.close()
+                conn.close()
+            except Exception as db_error:
+                logger.error(f"❌ Failed to update database: {db_error}")
+        
+        # Cleanup temp files
+        try:
+            if temp_input_path and os.path.exists(temp_input_path):
+                os.unlink(temp_input_path)
+            if temp_output_path and os.path.exists(temp_output_path):
+                os.unlink(temp_output_path)
+        except:
+            pass
+        
+        return func.HttpResponse(
+            body=json.dumps({
+                "status": "error",
+                "error": str(e),
+                "execution_id": execution_id
             }),
             mimetype="application/json",
             status_code=500

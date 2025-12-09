@@ -63,13 +63,14 @@ LABEL org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.title="MagicToolbox" \
       org.opencontainers.image.description="MagicToolbox Django Application"
 
-# Install runtime system dependencies only
+# Install runtime system dependencies including FFmpeg for video processing
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
     libgl1 \
     libglib2.0-0 \
     libgomp1 \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security

@@ -31,6 +31,17 @@ services:
       timeout: 3s
       retries: 5
   
+  # Azurite for local Azure Blob Storage emulation
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    container_name: magictoolbox-azurite
+    ports:
+      - "10000:10000"  # Blob service
+      - "10001:10001"  # Queue service
+      - "10002:10002"  # Table service
+    volumes:
+      - azurite_data:/data
+  
   # Optional: MinIO for local Azure Blob Storage emulation
   minio:
     image: minio/minio:latest
@@ -54,6 +65,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  azurite_data:
     driver: local
   minio_data:
     driver: local

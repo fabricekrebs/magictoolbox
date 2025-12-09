@@ -98,9 +98,17 @@ jobs:
           FUNC_APP_NAME=$(az functionapp list \
             --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
             --query "[?contains(name, 'func-')].name | [0]" -o tsv)
+          
+          # Get storage account name dynamically
+          STORAGE_ACCOUNT=$(az storage account list \
+            --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
+            --query "[0].name" -o tsv)
+          
           echo "function_app_name=$FUNC_APP_NAME" >> $GITHUB_OUTPUT
           echo "resource_group=${{ secrets.RESOURCE_GROUP_PROD }}" >> $GITHUB_OUTPUT
+          echo "storage_account=$STORAGE_ACCOUNT" >> $GITHUB_OUTPUT
           echo "📦 Deploying to Function App: $FUNC_APP_NAME"
+          echo "💾 Using Storage Account: $STORAGE_ACCOUNT"
       
       - name: Create deployment package
         run: |
@@ -111,7 +119,7 @@ jobs:
         run: |
           echo "⚙️ Temporarily enabling public network access for deployment..."
           az storage account update \
-            --name sawemagictoolboxprod01 \
+            --name ${{ steps.get_function_app.outputs.storage_account }} \
             --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
             --public-network-access Enabled \
             --default-action Allow
@@ -120,7 +128,7 @@ jobs:
       - name: Ensure deployments container exists
         run: |
           az storage container create \
-            --account-name sawemagictoolboxprod01 \
+            --account-name ${{ steps.get_function_app.outputs.storage_account }} \
             --name deployments \
             --auth-mode login \
             --only-show-errors || true
@@ -132,7 +140,7 @@ jobs:
           
           # Upload using service principal auth
           az storage blob upload \
-            --account-name sawemagictoolboxprod01 \
+            --account-name ${{ steps.get_function_app.outputs.storage_account }} \
             --container-name deployments \
             --name ${BLOB_NAME} \
             --file function_app.zip \
@@ -142,7 +150,7 @@ jobs:
           # Generate SAS URL (7 days validity - max for user delegation SAS)
           EXPIRY=$(date -u -d '7 days' '+%Y-%m-%dT%H:%MZ')
           BLOB_URL=$(az storage blob generate-sas \
-            --account-name sawemagictoolboxprod01 \
+            --account-name ${{ steps.get_function_app.outputs.storage_account }} \
             --container-name deployments \
             --name ${BLOB_NAME} \
             --permissions r \
@@ -166,7 +174,7 @@ jobs:
         run: |
           echo "🔒 Restoring private network access..."
           az storage account update \
-            --account-name sawemagictoolboxprod01 \
+            --name ${{ steps.get_function_app.outputs.storage_account }} \
             --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
             --public-network-access Disabled \
             --default-action Deny
