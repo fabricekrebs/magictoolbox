@@ -281,16 +281,36 @@ class PdfDocxConverter(BaseTool):
                                         
                                         try:
                                             execution = ToolExecution.objects.get(id=execution_id)
+                                            
+                                            # Extract output filename from blob path
+                                            # e.g., "processed/docx/uuid.docx" -> "uuid.docx"
+                                            output_blob = response_json.get('output_blob', '')
+                                            output_filename = output_blob.split('/')[-1] if output_blob else ''
+                                            
+                                            # Calculate duration in seconds
+                                            completed_at = timezone.now()
+                                            duration_seconds = None
+                                            if execution.created_at:
+                                                duration_seconds = (completed_at - execution.created_at).total_seconds()
+                                            
+                                            # Update all fields
                                             execution.status = 'completed'
-                                            execution.output_blob_path = response_json.get('output_blob')
+                                            execution.output_blob_path = output_blob
+                                            execution.output_filename = output_filename
                                             execution.output_size = response_json.get('output_size_bytes')
-                                            execution.completed_at = timezone.now()
-                                            execution.save(update_fields=['status', 'output_blob_path', 'output_size', 'completed_at', 'updated_at'])
+                                            execution.completed_at = completed_at
+                                            execution.duration_seconds = duration_seconds
+                                            execution.save(update_fields=[
+                                                'status', 'output_blob_path', 'output_filename', 
+                                                'output_size', 'completed_at', 'duration_seconds', 'updated_at'
+                                            ])
                                             
                                             self.logger.info(f"✅ Database updated successfully")
                                             self.logger.info(f"   Status: completed")
+                                            self.logger.info(f"   Output filename: {output_filename}")
                                             self.logger.info(f"   Output blob: {execution.output_blob_path}")
                                             self.logger.info(f"   Output size: {execution.output_size:,} bytes")
+                                            self.logger.info(f"   Duration: {duration_seconds:.2f} seconds" if duration_seconds else "   Duration: N/A")
                                         except ToolExecution.DoesNotExist:
                                             self.logger.error(f"❌ ToolExecution not found: {execution_id}")
                                         except Exception as db_err:
