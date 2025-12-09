@@ -53,12 +53,19 @@ class ToolExecution(UUIDModel, TimeStampedModel):
     input_size = models.BigIntegerField(default=0)
     output_size = models.BigIntegerField(default=0)
 
+    # Azure Functions async processing
+    azure_function_invoked = models.BooleanField(default=False, db_index=True)
+    function_execution_id = models.CharField(max_length=255, blank=True, db_index=True)
+    input_blob_path = models.CharField(max_length=500, blank=True)
+    output_blob_path = models.CharField(max_length=500, blank=True)
+
     class Meta:
         db_table = "tool_executions"
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["user", "-created_at"]),
             models.Index(fields=["tool_name", "status"]),
+            models.Index(fields=["function_execution_id"]),
         ]
 
     def __str__(self) -> str:

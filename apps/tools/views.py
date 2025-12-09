@@ -494,6 +494,9 @@ class ToolViewSet(viewsets.ViewSet):
                             input_size=file_size,
                             parameters=parameters,
                             status="pending",
+                            azure_function_invoked=True,
+                            function_execution_id=execution_id,
+                            input_blob_path=f"uploads/pdf/{execution_id}.pdf",
                         )
                         executions.append(
                             {
@@ -527,9 +530,12 @@ class ToolViewSet(viewsets.ViewSet):
                     return Response({"error": error_msg}, status=status.HTTP_400_BAD_REQUEST)
 
                 try:
-                    execution_id, _ = tool_instance.process(file, parameters)
-
-                    # Create ToolExecution record
+                    # Generate execution ID first
+                    import uuid
+                    execution_id = str(uuid.uuid4())
+                    
+                    # Create ToolExecution record BEFORE processing
+                    # This ensures it exists when the Azure Function response handler tries to update it
                     _execution = ToolExecution.objects.create(
                         id=execution_id,
                         user=request.user,
@@ -538,7 +544,13 @@ class ToolViewSet(viewsets.ViewSet):
                         input_size=file.size,
                         parameters=parameters,
                         status="pending",
+                        azure_function_invoked=True,
+                        function_execution_id=execution_id,
+                        input_blob_path=f"uploads/pdf/{execution_id}.pdf",
                     )
+                    
+                    # Now process with the pre-created execution ID
+                    returned_execution_id, _ = tool_instance.process(file, parameters, execution_id=execution_id)
 
                     return Response(
                         {
@@ -610,7 +622,7 @@ class ToolViewSet(viewsets.ViewSet):
                     # Async processing - output_path is actually execution_id
                     execution_id = output_path
 
-                    # Create ToolExecution record for tracking
+                    # Create ToolExecution record for tracking with Azure Functions fields
                     _execution = ToolExecution.objects.create(
                         id=execution_id,
                         user=request.user,
@@ -619,6 +631,9 @@ class ToolViewSet(viewsets.ViewSet):
                         input_size=file.size,
                         parameters=parameters,
                         status="pending",
+                        azure_function_invoked=True,
+                        function_execution_id=execution_id,
+                        input_blob_path=f"uploads/pdf/{execution_id}.pdf",
                     )
 
                     # Return 202 Accepted with execution ID
