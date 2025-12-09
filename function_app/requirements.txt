@@ -10,3 +10,7 @@ psycopg2-binary>=2.9.9,<3.0.0
 
 # PDF Conversion
 pdf2docx>=0.5.8,<1.0.0
+
+# Video Processing
+ffmpeg-python>=0.2.0,<1.0.0
+imageio-ffmpeg>=0.4.9,<1.0.0

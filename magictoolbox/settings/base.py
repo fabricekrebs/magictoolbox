@@ -268,11 +268,16 @@ AZURE_FUNCTION_PDF_CONVERT_URL = config(
     "AZURE_FUNCTION_PDF_CONVERT_URL", 
     default=""
 )
+AZURE_FUNCTION_VIDEO_ROTATE_URL = config(
+    "AZURE_FUNCTION_VIDEO_ROTATE_URL",
+    default=""
+)
 
 # Azure Storage Configuration
 # For local development, use connection string to Azurite
 # For production, use AZURE_ACCOUNT_NAME with Managed Identity
 AZURE_STORAGE_CONNECTION_STRING = config("AZURE_STORAGE_CONNECTION_STRING", default="")
+AZURE_STORAGE_ACCOUNT_NAME = config("AZURE_STORAGE_ACCOUNT_NAME", default="")
 AZURE_ACCOUNT_NAME = config("AZURE_ACCOUNT_NAME", default="")
 
 # Logging Configuration
