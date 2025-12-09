@@ -139,6 +139,24 @@ resource deploymentsContainer 'Microsoft.Storage/storageAccounts/blobServices/co
   }
 }
 
+// Container for video uploads (input files)
+resource videoUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'video-uploads'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+// Container for processed videos (output files)
+resource videoProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'video-processed'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
 // Outputs
 output storageAccountId string = storageAccount.id
 output storageAccountName string = storageAccount.name
