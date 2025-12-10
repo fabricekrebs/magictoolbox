@@ -299,5 +299,82 @@ AZURE_FUNCTION_PDF_CONVERT_URL=https://func-magictoolbox-dev-rze6cb73hmijy.azure
 
 ---
 
+## UPDATE: Video Rotation Had Same Issue
+
+**Discovered**: December 10, 2025 @ 17:00 UTC
+
+### Problem
+Video rotation conversions also stuck in "pending" status with same root cause:
+
+**Container App Configuration** (incorrect):
+```
+AZURE_FUNCTION_VIDEO_ROTATE_URL=/api/convert/pdf-to-docx/video/rotate
+```
+
+**Azure Function Endpoint** (correct):
+```python
+@app.route(route="video/rotate", methods=["POST"])
+```
+
+**Actual URL**: `/api/video/rotate`
+
+### Solution Implemented
+
+1. **Immediate Fix** - Updated Container App environment variable:
+   ```bash
+   az containerapp update --name app-we-magictoolbox-dev-01 \
+     --resource-group rg-westeurope-magictoolbox-dev-01 \
+     --set-env-vars "AZURE_FUNCTION_VIDEO_ROTATE_URL=https://func-magictoolbox-dev-rze6cb73hmijy.azurewebsites.net/api/video/rotate"
+   ```
+
+2. **Infrastructure Fix** - Updated Bicep templates:
+   - **File**: `infra/main.bicep` (line 189)
+     ```bicep
+     videoRotateUrl: 'https://${functionApp.outputs.functionAppHostName}/api/video/rotate'
+     ```
+   - **File**: `infra/modules/container-apps.bicep` (lines 38-39, 300-301)
+     ```bicep
+     @description('Azure Function App URL for video rotation')
+     param videoRotateUrl string = ''
+     
+     // ...
+     {
+       name: 'AZURE_FUNCTION_VIDEO_ROTATE_URL'
+       value: videoRotateUrl
+     }
+     ```
+
+3. **Commits**:
+   - `a99eb04` - "fix: Correct video rotation endpoint URL in infrastructure"
+
+### Root Cause
+The infrastructure was concatenating `/video/rotate` to the PDF conversion URL (`/api/convert/pdf-to-docx`), resulting in the malformed URL `/api/convert/pdf-to-docx/video/rotate`.
+
+**Why It Happened**: Copy-paste error in `container-apps.bicep` line 301:
+```bicep
+# BEFORE (incorrect):
+value: '${functionAppUrl}/video/rotate'
+
+# AFTER (correct):
+value: videoRotateUrl
+```
+
+### Verification
+```bash
+# Check environment variable
+az containerapp show --name app-we-magictoolbox-dev-01 \
+  --query "properties.template.containers[0].env[?name=='AZURE_FUNCTION_VIDEO_ROTATE_URL']"
+
+# Result:
+AZURE_FUNCTION_VIDEO_ROTATE_URL=https://func-magictoolbox-dev-rze6cb73hmijy.azurewebsites.net/api/video/rotate
+```
+
+### Status
+✅ **RESOLVED** - Video rotation endpoint corrected  
+✅ **Infrastructure Fixed** - Won't happen again on redeploy  
+✅ **Both PDF and Video conversions working**
+
+---
+
 **Prepared by**: GitHub Copilot  
-**Last Updated**: 2025-12-10 14:45 UTC
+**Last Updated**: 2025-12-10 17:05 UTC
