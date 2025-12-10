@@ -357,12 +357,129 @@ After setting up all secrets:
 5. **Enable Branch Protection**: Protect main and develop branches
 6. **Secret Scanning**: Enable GitHub secret scanning in repository settings
 
+## E2E Testing Secrets
+
+The End-to-End testing workflow (`.github/workflows/e2e-tests.yml`) requires additional secrets for Azure Storage and Functions access.
+
+### Required E2E Secrets (Per Environment)
+
+Add these to each environment (`dev`, `test`, `prod`):
+
+1. **`AZURE_STORAGE_ACCOUNT_NAME`**
+   - Storage account name (e.g., `sawemagictoolboxdev01`)
+   - Find with: `az storage account list --resource-group <rg-name> --query "[0].name" -o tsv`
+
+2. **`AZURE_STORAGE_CONNECTION_STRING`**
+   - Full connection string for storage account
+   - Get with:
+     ```bash
+     az storage account show-connection-string \
+       --name <storage-account-name> \
+       --resource-group <rg-name> \
+       --query connectionString -o tsv
+     ```
+
+3. **`AZURE_FUNCTIONS_URL`**
+   - Azure Functions app URL (e.g., `https://func-westeurope-magictoolbox-dev-01.azurewebsites.net`)
+   - Get with:
+     ```bash
+     az functionapp show \
+       --resource-group <rg-name> \
+       --name <function-app-name> \
+       --query defaultHostName -o tsv
+     ```
+
+4. **`APP_URL`**
+   - Deployed application URL (without https://)
+   - Get with:
+     ```bash
+     az containerapp show \
+       --resource-group <rg-name> \
+       --name <app-name> \
+       --query properties.configuration.ingress.fqdn -o tsv
+     ```
+
+5. **`DJANGO_SECRET_KEY`**
+   - Django secret key for the application
+   - Generate with: `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`
+
+6. **`AZURE_RESOURCE_GROUP`**
+   - Resource group name (e.g., `rg-westeurope-magictoolbox-dev-01`)
+
+### Service Principal Permissions for E2E Tests
+
+The service principal needs these additional roles for E2E testing:
+
+```bash
+SP_OBJECT_ID=$(az ad sp list --display-name "magictoolbox-github-actions-dev" --query "[0].id" -o tsv)
+SUBSCRIPTION_ID="<your-subscription-id>"
+RESOURCE_GROUP="rg-westeurope-magictoolbox-dev-01"
+STORAGE_ACCOUNT="sawemagictoolboxdev01"
+
+# Storage Blob Data Contributor (read/write blobs during tests)
+az role assignment create \
+  --assignee-object-id "$SP_OBJECT_ID" \
+  --assignee-principal-type ServicePrincipal \
+  --role "Storage Blob Data Contributor" \
+  --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Storage/storageAccounts/$STORAGE_ACCOUNT"
+
+# Storage Account Contributor (manage network rules during tests)
+az role assignment create \
+  --assignee-object-id "$SP_OBJECT_ID" \
+  --assignee-principal-type ServicePrincipal \
+  --role "Storage Account Contributor" \
+  --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Storage/storageAccounts/$STORAGE_ACCOUNT"
+```
+
+### Quick Setup Script for E2E Secrets
+
+```bash
+#!/bin/bash
+# Script to add E2E testing secrets to GitHub environment
+
+GITHUB_REPO="fabricekrebs/magictoolbox"
+ENVIRONMENT="dev"  # or test, prod
+RESOURCE_GROUP="rg-westeurope-magictoolbox-dev-01"
+STORAGE_ACCOUNT="sawemagictoolboxdev01"
+FUNCTION_APP="func-westeurope-magictoolbox-dev-01"
+CONTAINER_APP="ca-westeurope-magictoolbox-dev-01"
+
+# Get values from Azure
+STORAGE_CONNECTION=$(az storage account show-connection-string \
+  --name "$STORAGE_ACCOUNT" \
+  --resource-group "$RESOURCE_GROUP" \
+  --query connectionString -o tsv)
+
+FUNCTIONS_URL=$(az functionapp show \
+  --resource-group "$RESOURCE_GROUP" \
+  --name "$FUNCTION_APP" \
+  --query defaultHostName -o tsv)
+
+APP_URL=$(az containerapp show \
+  --resource-group "$RESOURCE_GROUP" \
+  --name "$CONTAINER_APP" \
+  --query properties.configuration.ingress.fqdn -o tsv)
+
+DJANGO_SECRET=$(python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())")
+
+# Add to GitHub environment
+gh secret set AZURE_STORAGE_ACCOUNT_NAME --body "$STORAGE_ACCOUNT" --env "$ENVIRONMENT" --repo "$GITHUB_REPO"
+gh secret set AZURE_STORAGE_CONNECTION_STRING --body "$STORAGE_CONNECTION" --env "$ENVIRONMENT" --repo "$GITHUB_REPO"
+gh secret set AZURE_FUNCTIONS_URL --body "https://$FUNCTIONS_URL" --env "$ENVIRONMENT" --repo "$GITHUB_REPO"
+gh secret set APP_URL --body "$APP_URL" --env "$ENVIRONMENT" --repo "$GITHUB_REPO"
+gh secret set DJANGO_SECRET_KEY --body "$DJANGO_SECRET" --env "$ENVIRONMENT" --repo "$GITHUB_REPO"
+gh secret set AZURE_RESOURCE_GROUP --body "$RESOURCE_GROUP" --env "$ENVIRONMENT" --repo "$GITHUB_REPO"
+
+echo "✅ E2E testing secrets added to $ENVIRONMENT environment"
+```
+
 ## Additional Resources
 
 - [GitHub Encrypted Secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
 - [GitHub Environments](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment)
 - [Azure Service Principals](https://docs.microsoft.com/en-us/cli/azure/create-an-azure-service-principal-azure-cli)
 - [GitHub Actions for Azure](https://github.com/Azure/actions)
+- [E2E Testing Guide](./E2E_TESTING_GUIDE.md) - Comprehensive guide for end-to-end testing
 
 ## Support
 
@@ -372,3 +489,4 @@ If you encounter issues:
 3. Verify Azure resources: `az resource list --resource-group <rg-name>`
 4. Test Azure CLI authentication: `az account show`
 5. Test GitHub CLI authentication: `gh auth status`
+6. For E2E test issues: See [E2E Testing Guide](./E2E_TESTING_GUIDE.md)
