@@ -3,8 +3,10 @@ Views for tool operations (both web UI and API endpoints).
 """
 
 import logging
+from pathlib import Path
 
 from django import forms
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
@@ -75,7 +77,7 @@ def tool_list(request):
 def tool_detail(request, tool_slug):
     """
     Display tool detail and processing interface.
-    Requires authentication.
+    Requires authentication. Handles both GET (display form) and POST (process file).
     """
     tool_instance = tool_registry.get_tool_instance(tool_slug)
     if not tool_instance:
@@ -90,7 +92,95 @@ def tool_detail(request, tool_slug):
             help_text=f"Maximum file size: {metadata.get('max_file_size', '50MB')}",
         )
 
-    form = ToolForm()
+    # Handle POST request - process the file
+    if request.method == "POST":
+        logger.info(f"POST request to {tool_slug}, FILES: {list(request.FILES.keys())}, POST: {list(request.POST.keys())}")
+        form = ToolForm(request.POST, request.FILES)
+        logger.info(f"Form valid: {form.is_valid()}, Has FILES: {bool(request.FILES)}")
+        if form.is_valid() or request.FILES:  # Allow processing even if form validation fails if we have files
+            try:
+                # Support both 'file' and 'input_file' for flexibility
+                uploaded_file = request.FILES.get('file') or request.FILES.get('input_file')
+                logger.info(f"Uploaded file: {uploaded_file.name if uploaded_file else 'None'}")
+                if not uploaded_file:
+                    raise ValueError("No file uploaded")
+                
+                # Extract parameters from POST data
+                parameters = {}
+                for key, value in request.POST.items():
+                    if key not in ['csrfmiddlewaretoken', 'file']:
+                        parameters[key] = value
+                
+                # Validate the file using the tool
+                is_valid, error_message = tool_instance.validate(uploaded_file, parameters)
+                if not is_valid:
+                    logger.warning(f"Validation failed for {tool_slug}: {error_message}")
+                    messages.error(request, error_message or 'Invalid file')
+                    context = {"tool": metadata, "form": form}
+                    template_name = f'tools/{tool_slug.replace("-", "_")}.html'
+                    try:
+                        return render(request, template_name, context)
+                    except Exception:
+                        return render(request, "tools/tool_detail.html", context)
+                
+                # Create ToolExecution record
+                import uuid
+                execution_id = str(uuid.uuid4())
+                
+                logger.info(f"Creating ToolExecution for {tool_slug}, user={request.user.username}, file={uploaded_file.name}")
+                
+                execution = ToolExecution.objects.create(
+                    id=execution_id,
+                    user=request.user,
+                    tool_name=tool_slug,
+                    input_filename=uploaded_file.name,
+                    input_size=uploaded_file.size,
+                    parameters=parameters,
+                    status="pending",
+                )
+                
+                logger.info(f"Created ToolExecution {execution_id} successfully")
+                
+                # Process the file
+                try:
+                    output_filename, output_path = tool_instance.process(
+                        uploaded_file, parameters, execution_id=execution_id
+                    )
+                    
+                    # Update execution status
+                    execution.status = "completed"
+                    execution.output_filename = output_filename
+                    execution.save()
+                    
+                    logger.info(f"File processed successfully for execution {execution_id}")
+                    messages.success(request, f"File processed successfully: {output_filename}")
+                    
+                    # Re-render the form with success message
+                    form = ToolForm()
+                    context = {"tool": metadata, "form": form, "execution": execution}
+                    template_name = f'tools/{tool_slug.replace("-", "_")}.html'
+                    try:
+                        return render(request, template_name, context)
+                    except Exception:
+                        return render(request, "tools/tool_detail.html", context)
+                    
+                except Exception as process_error:
+                    logger.error(f"Error processing file with {tool_slug}: {process_error}", exc_info=True)
+                    execution.status = "failed"
+                    execution.error_message = str(process_error)
+                    execution.save()
+                    messages.error(request, f"Error processing file: {str(process_error)}")
+                
+            except Exception as e:
+                logger.error(f"Error in tool_detail POST for {tool_slug}: {e}", exc_info=True)
+                messages.error(request, f"Error: {str(e)}")
+        else:
+            logger.warning(f"Invalid form submission for {tool_slug}")
+            messages.error(request, "Invalid form submission")
+    
+    # Handle GET request - display the form
+    else:
+        form = ToolForm()
 
     context = {
         "tool": metadata,
