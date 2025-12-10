@@ -186,6 +186,7 @@ module containerApps './modules/container-apps.bicep' = {
     postgresAdminUsername: postgresAdminUsername
     containerAppsSubnetId: network.outputs.containerAppsSubnetId
     functionAppUrl: 'https://${functionApp.outputs.functionAppHostName}/api/convert/pdf-to-docx'
+    videoRotateUrl: 'https://${functionApp.outputs.functionAppHostName}/api/video/rotate'
   }
 }
 

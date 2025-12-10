@@ -40,6 +40,9 @@ param containerAppsSubnetId string
 @description('Azure Function App URL for PDF conversion')
 param functionAppUrl string = ''
 
+@description('Azure Function App URL for video rotation')
+param videoRotateUrl string = ''
+
 // Location abbreviation for naming (Container Apps have 32 char limit)
 var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
 
@@ -298,7 +301,7 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             }
             {
               name: 'AZURE_FUNCTION_VIDEO_ROTATE_URL'
-              value: '${functionAppUrl}/video/rotate'
+              value: videoRotateUrl
             }
             {
               name: 'AZURE_STORAGE_ACCOUNT_NAME'
