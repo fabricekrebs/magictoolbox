@@ -79,7 +79,7 @@ def health_check(req: func.HttpRequest) -> func.HttpResponse:
     )
 
 
-@app.route(route="pdf/convert", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+@app.route(route="convert/pdf-to-docx", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
 def convert_pdf_to_docx(req: func.HttpRequest) -> func.HttpResponse:
     """
     Full PDF to DOCX conversion workflow with database tracking.
