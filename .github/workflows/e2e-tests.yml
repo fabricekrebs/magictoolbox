@@ -8,10 +8,10 @@ on:
         required: true
         type: choice
         options:
-          - dev
-          - test
-          - prod
-        default: 'dev'
+          - Development
+          - Staging
+          - Production
+        default: 'Development'
       skip_network_config:
         description: 'Skip network access configuration (if already public)'
         required: false
