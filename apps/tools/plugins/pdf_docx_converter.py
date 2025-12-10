@@ -26,9 +26,10 @@ except ImportError:
     Converter = None
 
 try:
-    from azure.identity import DefaultAzureCredential
+    from azure.identity import AzureCliCredential, DefaultAzureCredential
     from azure.storage.blob import BlobServiceClient
 except ImportError:
+    AzureCliCredential = None
     DefaultAzureCredential = None
     BlobServiceClient = None
 
@@ -199,15 +200,26 @@ class PdfDocxConverter(BaseTool):
                         "AZURE_STORAGE_ACCOUNT_NAME or AZURE_ACCOUNT_NAME not configured for production environment"
                     )
 
-                self.logger.info(
-                    f"🔐 Using Azure Managed Identity for storage account: {storage_account_name}"
-                )
                 account_url = f"https://{storage_account_name}.blob.core.windows.net"
                 self.logger.info(f"   Storage URL: {account_url}")
-                self.logger.info("   Authenticating with DefaultAzureCredential...")
-                credential = DefaultAzureCredential()
+                
+                # Use AzureCliCredential for local/testing, DefaultAzureCredential for production
+                # Check for explicit flag or if running in local development  
+                use_cli_auth = os.getenv("USE_AZURE_CLI_AUTH", "false").lower() == "true" or settings.DEBUG
+                
+                if use_cli_auth:
+                    self.logger.info(
+                        f"🔐 Using Azure CLI credential for storage account: {storage_account_name}"
+                    )
+                    credential = AzureCliCredential()
+                else:
+                    self.logger.info(
+                        f"🔐 Using Azure Managed Identity for storage account: {storage_account_name}"
+                    )
+                    credential = DefaultAzureCredential()
+                
                 blob_service = BlobServiceClient(account_url=account_url, credential=credential)
-                self.logger.info("✅ BlobServiceClient created successfully (Managed Identity)")
+                self.logger.info("✅ BlobServiceClient created successfully")
 
             # Get blob client
             self.logger.info(f"📦 Getting blob client for container: uploads, blob: {blob_name}")
