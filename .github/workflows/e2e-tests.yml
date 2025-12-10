@@ -111,7 +111,7 @@ jobs:
       
       - name: Run E2E tests
         env:
-          DJANGO_SETTINGS_MODULE: magictoolbox.settings.testing
+          DJANGO_SETTINGS_MODULE: magictoolbox.settings.development
           AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
           AZURE_INTEGRATION_TEST_ENABLED: true
         run: |
