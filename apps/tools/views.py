@@ -1140,8 +1140,9 @@ class ToolViewSet(viewsets.ViewSet):
             )
             
             # Trigger Azure Function
-            function_url = getattr(settings, 'AZURE_FUNCTION_VIDEO_ROTATE_URL', None)
-            if function_url:
+            base_url = getattr(settings, 'AZURE_FUNCTION_BASE_URL', None)
+            if base_url:
+                function_url = f"{base_url}/video/rotate"
                 try:
                     payload = {
                         "execution_id": execution_id,
