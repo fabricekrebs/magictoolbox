@@ -321,7 +321,7 @@ async function loadHistory() {
   historyList.innerHTML = '';
   
   try {
-    const response = await fetch(\`/api/v1/executions/?tool_name=\${TOOL_NAME}&limit=10\`);
+    const response = await fetch(`/api/v1/executions/?tool_name=${TOOL_NAME}&limit=10`);
     const data = await response.json();
     
     historyLoading.style.display = 'none';
@@ -341,39 +341,39 @@ async function loadHistory() {
       
       // Extract speed multiplier from parameters if available
       const speedMultiplier = item.parameters?.speed_multiplier || '';
-      const speedBadge = speedMultiplier ? \`<span class="badge bg-info ms-1">\${speedMultiplier}x</span>\` : '';
+      const speedBadge = speedMultiplier ? `<span class="badge bg-info ms-1">${speedMultiplier}x</span>` : '';
       
       const historyItem = document.createElement('div');
       historyItem.className = 'list-group-item list-group-item-action';
-      historyItem.innerHTML = \`
+      historyItem.innerHTML = `
         <div class="d-flex w-100 justify-content-between align-items-start">
           <div class="flex-grow-1 me-2" style="min-width: 0;">
             <div class="d-flex align-items-center mb-1">
-              <span class="badge \${statusClass} me-2">\${item.status}</span>
-              \${speedBadge}
-              <small class="text-muted ms-auto">\${formatTimeAgo(item.created_at)}</small>
+              <span class="badge ${statusClass} me-2">${item.status}</span>
+              ${speedBadge}
+              <small class="text-muted ms-auto">${formatTimeAgo(item.created_at)}</small>
             </div>
-            <p class="mb-1 text-truncate small" title="\${item.input_filename}">
-              <i class="bi bi-file-earmark me-1"></i>\${item.input_filename}
+            <p class="mb-1 text-truncate small" title="${item.input_filename}">
+              <i class="bi bi-file-earmark me-1"></i>${item.input_filename}
             </p>
-            \${item.output_filename ? \`
-              <p class="mb-0 text-truncate small text-success" title="\${item.output_filename}">
-                <i class="bi bi-arrow-right me-1"></i>\${item.output_filename}
+            ${item.output_filename ? `
+              <p class="mb-0 text-truncate small text-success" title="${item.output_filename}">
+                <i class="bi bi-arrow-right me-1"></i>${item.output_filename}
               </p>
-            \` : ''}
+            ` : ''}
           </div>
           <div class="btn-group btn-group-sm">
-            \${item.status === 'completed' ? \`
-              <a href="/api/v1/executions/\${item.id}/download/" class="btn btn-outline-success" title="Download">
+            ${item.status === 'completed' ? `
+              <a href="/api/v1/executions/${item.id}/download/" class="btn btn-outline-success" title="Download">
                 <i class="bi bi-download"></i>
               </a>
-            \` : ''}
-            <button type="button" class="btn btn-outline-danger" onclick="showDeleteModal('\${item.id}')" title="Delete">
+            ` : ''}
+            <button type="button" class="btn btn-outline-danger" onclick="showDeleteModal('${item.id}')" title="Delete">
               <i class="bi bi-trash"></i>
             </button>
           </div>
         </div>
-      \`;
+      `;
       historyList.appendChild(historyItem);
     });
   } catch (error) {
@@ -395,7 +395,7 @@ document.getElementById('confirmDeleteBtn').addEventListener('click', async func
   if (!deleteExecutionId) return;
   
   try {
-    const response = await fetch(\`/api/v1/executions/\${deleteExecutionId}/\`, {
+    const response = await fetch(`/api/v1/executions/${deleteExecutionId}/`, {
       method: 'DELETE',
       headers: {
         'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
@@ -417,7 +417,7 @@ async function checkStatus() {
   if (!currentExecutionId) return;
   
   try {
-    const response = await fetch(\`/api/v1/executions/\${currentExecutionId}/status/\`);
+    const response = await fetch(`/api/v1/executions/${currentExecutionId}/status/`);
     const data = await response.json();
     
     const statusMessage = document.getElementById('statusMessage');
@@ -445,7 +445,7 @@ async function checkStatus() {
         document.getElementById('resultSection').style.display = 'block';
         
         const downloadBtn = document.getElementById('downloadBtn');
-        downloadBtn.href = \`/api/v1/executions/\${currentExecutionId}/download/\`;
+        downloadBtn.href = `/api/v1/executions/${currentExecutionId}/download/`;
         
         loadHistory();
       }, 500);
@@ -502,7 +502,7 @@ document.getElementById('gpxSpeedForm').addEventListener('submit', async functio
   document.getElementById('statusDetail').textContent = 'Please wait...';
   
   try {
-    const response = await fetch(\`/api/v1/tools/\${TOOL_NAME}/process/\`, {
+    const response = await fetch(`/api/v1/tools/${TOOL_NAME}/process/`, {
       method: 'POST',
       body: formData,
       headers: {
