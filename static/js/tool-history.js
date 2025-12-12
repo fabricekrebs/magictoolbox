@@ -145,30 +145,33 @@ function renderHistoryItems(items, container) {
     const canDownload = item.status === 'completed';
     
     return `
-      <div class="border-bottom p-3 history-item" data-id="${item.id}">
+      <div class="border-bottom p-3 history-item" 
+           data-id="${item.id}"
+           data-input="${(item.input_filename || '').toLowerCase()}"
+           data-output="${(item.output_filename || '').toLowerCase()}">
         <!-- Status & Time -->
-        <div class="d-flex justify-content-between align-items-start mb-2">
-          ${statusBadge}
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>${statusBadge}</div>
           <small class="text-muted">${timeAgo}</small>
         </div>
         
-        <!-- Input Filename -->
-        <div class="mb-2">
-          <small class="text-muted d-block">Input:</small>
-          <div class="text-truncate" title="${item.input_filename || 'N/A'}">
-            <i class="bi bi-file-earmark me-1"></i>
-            <strong>${truncateFilename(item.input_filename, 25)}</strong>
-          </div>
+        <!-- Input Filename (inline) -->
+        <div class="mb-1">
+          <small class="text-muted">In:</small>
+          <span class="text-truncate d-inline-block" style="max-width: 70%;" title="${item.input_filename || 'N/A'}">
+            <i class="bi bi-file-earmark"></i>
+            <strong>${truncateFilename(item.input_filename, 20)}</strong>
+          </span>
         </div>
         
-        <!-- Output Filename -->
+        <!-- Output Filename (inline) -->
         ${item.output_filename ? `
           <div class="mb-2">
-            <small class="text-muted d-block">Output:</small>
-            <div class="text-truncate" title="${item.output_filename}">
-              <i class="bi bi-file-earmark-check me-1"></i>
-              ${truncateFilename(item.output_filename, 25)}
-            </div>
+            <small class="text-muted">Out:</small>
+            <span class="text-truncate d-inline-block" style="max-width: 70%;" title="${item.output_filename}">
+              <i class="bi bi-file-earmark-check"></i>
+              ${truncateFilename(item.output_filename, 20)}
+            </span>
           </div>
         ` : ''}
         
@@ -373,6 +376,51 @@ async function loadHistory(toolName, options = {}) {
   }
   
   await loadHistoryInternal(toolName, elements);
+  
+  // Initialize search filter after loading
+  initializeSearchFilter();
+}
+
+/**
+ * Initialize search filter for history items
+ */
+function initializeSearchFilter() {
+  const searchInput = document.getElementById('historySearchInput');
+  if (!searchInput) return;
+  
+  searchInput.addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase().trim();
+    const historyItems = document.querySelectorAll('.history-item');
+    
+    historyItems.forEach(item => {
+      const inputFilename = item.getAttribute('data-input') || '';
+      const outputFilename = item.getAttribute('data-output') || '';
+      
+      const matches = inputFilename.includes(searchTerm) || 
+                     outputFilename.includes(searchTerm);
+      
+      item.style.display = matches ? '' : 'none';
+    });
+    
+    // Show/hide empty state if all filtered out
+    const visibleItems = document.querySelectorAll('.history-item:not([style*="display: none"])');
+    const emptyState = document.getElementById('historyEmpty');
+    const container = document.getElementById('historyList');
+    
+    if (visibleItems.length === 0 && container && container.children.length > 0) {
+      if (emptyState) {
+        emptyState.innerHTML = `
+          <div class="text-center py-4">
+            <i class="bi bi-search text-muted d-block mb-2" style="font-size: 2rem;"></i>
+            <p class="text-muted mb-0">No results match "${e.target.value}"</p>
+          </div>
+        `;
+        emptyState.style.display = 'block';
+      }
+    } else {
+      if (emptyState) emptyState.style.display = 'none';
+    }
+  });
 }
 
 // ============================================================================

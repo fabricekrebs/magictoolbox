@@ -29,6 +29,24 @@
    ============================================================================ */
 
 .badge i {
+  font-size: 0.75rem;
+  margin-right: 0.25rem;
+}
+
+/* ============================================================================
+   SEARCH FILTER
+   ============================================================================ */
+
+.history-search {
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+  padding: 0.75rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.history-search .form-control {
   font-size: 0.875rem;
 }
 
@@ -143,4 +161,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.history-item .bi-file-earmark,
+.history-item .bi-file-earmark-check {
+  font-size: 0.875rem;
+  vertical-align: baseline;
+}
+
+/* ============================================================================
+   ACTION BUTTONS - ICON ONLY
+   ============================================================================ */
+
+.history-item .btn i {
+  font-size: 0.875rem;
 }
