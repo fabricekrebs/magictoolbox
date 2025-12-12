@@ -260,17 +260,18 @@ MAX_UPLOAD_SIZE = config("MAX_UPLOAD_SIZE", default=52428800, cast=int)  # 50MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE
 FILE_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE
 
-# Azure Functions Configuration for PDF Conversion
+# Azure Functions Configuration
+# Single base URL for all Azure Function endpoints
+AZURE_FUNCTION_BASE_URL = config(
+    "AZURE_FUNCTION_BASE_URL",
+    default=""
+)
+# Example: "https://func-magictoolbox-dev-xyz.azurewebsites.net/api"
+# Tools append their endpoint: f"{AZURE_FUNCTION_BASE_URL}/pdf/convert"
+
+# Optional: Enable/disable Azure Functions per tool
 USE_AZURE_FUNCTIONS_PDF_CONVERSION = config(
     "USE_AZURE_FUNCTIONS_PDF_CONVERSION", default=False, cast=bool
-)
-AZURE_FUNCTION_PDF_CONVERT_URL = config(
-    "AZURE_FUNCTION_PDF_CONVERT_URL", 
-    default=""
-)
-AZURE_FUNCTION_VIDEO_ROTATE_URL = config(
-    "AZURE_FUNCTION_VIDEO_ROTATE_URL",
-    default=""
 )
 
 # Azure Storage Configuration

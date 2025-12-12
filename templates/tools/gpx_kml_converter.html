@@ -3,10 +3,15 @@
 
 {% block title %}GPX/KML Converter - MagicToolbox{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/tool-history.css' %}">
+{% endblock %}
+
 {% block content %}
-<div class="container py-4">
+<div class="container-fluid py-5">
+  <!-- Tool Header -->
   <div class="row mb-4">
-    <div class="col">
+    <div class="col-12">
       <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
           <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
@@ -14,21 +19,20 @@
           <li class="breadcrumb-item active" aria-current="page">GPX/KML Converter</li>
         </ol>
       </nav>
-      
-      <h1 class="display-4 mb-3">
-        <i class="bi bi-geo-alt text-primary me-3"></i>
-        GPX/KML Converter
-      </h1>
-      <p class="lead text-muted">
-        Convert GPS files between GPX and KML formats. Preserves waypoints, tracks, and routes.
-      </p>
+      <div>
+        <h1 class="display-5 fw-bold mb-2">
+          <i class="bi bi-geo-alt text-primary me-2"></i>
+          GPX/KML Converter
+        </h1>
+        <p class="lead text-muted mb-0">Convert GPS files between GPX and KML formats. Preserves waypoints, tracks, and routes.</p>
+      </div>
     </div>
   </div>
 
   <div class="row">
-    <!-- Main Content -->
-    <div class="col-lg-8">
-      <div class="card shadow-sm mb-4">
+    <!-- Left Column: Upload & Status (8 columns) -->
+    <div class="col-lg-8 mb-4">
+      <div class="card shadow-sm">
         <div class="card-header bg-primary text-white">
           <h5 class="mb-0">
             <i class="bi bi-arrow-left-right me-2"></i>Convert GPS File
@@ -39,31 +43,28 @@
             {% csrf_token %}
             
             <div class="mb-3">
-              <label for="gpsFile" class="form-label">
-                Select GPS File(s)
-                <span class="badge bg-info">GPX or KML</span>
-                <span class="badge bg-success">Bulk supported!</span>
-              </label>
-              <input type="file" class="form-control" id="gpsFile" name="files[]" accept=".gpx,.kml" multiple required>
+              <label for="gpsFile" class="form-label">Select GPS File</label>
+              <input type="file" class="form-control" id="gpsFile" name="file" 
+                     accept=".gpx,.kml" required>
               <div class="form-text">
                 <i class="bi bi-info-circle me-1"></i>
-                Select one or multiple files (max 50MB per file). Supports GPX 1.1 and KML 2.2 formats.
+                Supported formats: GPX, KML (max 10MB)
               </div>
-              <div id="fileList" class="mt-2"></div>
             </div>
-
+            
             <div class="mb-3">
               <label for="conversionType" class="form-label">Conversion Direction</label>
-              <select class="form-select" id="conversionType" name="conversion_type" required>
-                <option value="">Auto-detect from file</option>
-                <option value="gpx_to_kml">GPX → KML</option>
-                <option value="kml_to_gpx">KML → GPX</option>
+              <select class="form-select" id="conversionType" name="conversion_type">
+                <option value="">Auto-detect from file extension</option>
+                <option value="gpx_to_kml">GPX → KML (Convert to Google Earth format)</option>
+                <option value="kml_to_gpx">KML → GPX (Convert to GPS exchange format)</option>
               </select>
               <div class="form-text">
-                Leave as "Auto-detect" to automatically determine conversion based on file type.
+                <i class="bi bi-magic me-1"></i>
+                Leave on auto-detect to let us choose based on your file
               </div>
             </div>
-
+            
             <div class="d-grid gap-2">
               <button type="submit" class="btn btn-primary btn-lg" id="convertBtn">
                 <i class="bi bi-arrow-left-right me-2"></i>Convert File
@@ -71,51 +72,45 @@
             </div>
           </form>
 
-          <!-- Progress Section -->
-          <div id="progressSection" class="mt-4" style="display: none;">
-            <div class="progress" style="height: 30px;">
-              <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
-                   role="progressbar" 
-                   id="progressBar"
-                   style="width: 0%">
-                <span id="progressText">0%</span>
-              </div>
-            </div>
-            <p class="text-center text-muted mt-2" id="progressMessage">Converting your GPS file...</p>
-          </div>
-
-          <!-- Result Section (Single File) -->
-          <div id="resultSection" class="mt-4" style="display: none;">
-            <div class="alert alert-success" role="alert">
-              <h5 class="alert-heading">
-                <i class="bi bi-check-circle me-2"></i>Conversion Successful!
-              </h5>
-              <p class="mb-0">Your GPS file has been converted successfully.</p>
-            </div>
-
-            <!-- File Information -->
-            <div class="card mb-3">
-              <div class="card-header">
-                <h6 class="mb-0">Conversion Details</h6>
-              </div>
-              <div class="card-body">
-                <div class="row">
-                  <div class="col-md-6">
-                    <h6 class="text-muted mb-2">Original File</h6>
-                    <p class="mb-1" id="originalFileName"></p>
-                    <small class="text-muted" id="originalFileInfo"></small>
+          <!-- Conversion Status Section -->
+          <div id="statusSection" class="mt-4" style="display: none;">
+            <h5 class="mb-3">
+              <i class="bi bi-hourglass-split me-2"></i>Conversion Status
+            </h5>
+            <div id="conversionStatusList">
+              <div class="alert alert-info">
+                <div class="d-flex align-items-center">
+                  <div class="spinner-border spinner-border-sm me-3" role="status">
+                    <span class="visually-hidden">Processing...</span>
                   </div>
-                  <div class="col-md-6">
-                    <h6 class="text-muted mb-2">Converted File</h6>
-                    <p class="mb-1" id="convertedFileName"></p>
-                    <small class="text-muted" id="convertedFileInfo"></small>
+                  <div>
+                    <strong id="statusMessage">Uploading file...</strong>
+                    <br><small class="text-muted" id="statusDetail">Please wait while we process your GPS file</small>
                   </div>
                 </div>
               </div>
+              <div class="progress" style="height: 25px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                     role="progressbar" 
+                     id="progressBar"
+                     style="width: 0%">
+                  <span id="progressText">0%</span>
+                </div>
+              </div>
             </div>
+          </div>
 
-            <!-- Download Button -->
-            <div class="d-grid gap-2">
+          <!-- Results Section -->
+          <div id="resultSection" class="mt-4" style="display: none;">
+            <div class="alert alert-success" role="alert">
+              <h5 class="alert-heading">
+                <i class="bi bi-check-circle me-2"></i>Conversion Completed!
+              </h5>
+              <p class="mb-0" id="completionSummary">Your GPS file has been converted successfully.</p>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="d-grid gap-2 mt-3">
               <a href="#" id="downloadBtn" class="btn btn-success btn-lg" download>
                 <i class="bi bi-download me-2"></i>Download Converted File
               </a>
@@ -124,113 +119,110 @@
               </button>
             </div>
           </div>
-
-          <!-- Bulk Result Section -->
-          <div id="bulkResultSection" class="mt-4" style="display: none;">
-            <div class="alert alert-success" role="alert">
-              <h5 class="alert-heading">
-                <i class="bi bi-check-circle me-2"></i>Bulk Conversion Complete!
-              </h5>
-              <p class="mb-0">Successfully converted <span id="successCount">0</span> file(s).</p>
-            </div>
-
-            <!-- Conversion Results Table -->
-            <div class="card mb-3">
-              <div class="card-header">
-                <h6 class="mb-0">Conversion Results</h6>
-              </div>
-              <div class="card-body">
-                <div class="table-responsive">
-                  <table class="table table-sm">
-                    <thead>
-                      <tr>
-                        <th>Original File</th>
-                        <th>Status</th>
-                        <th>Converted File</th>
-                        <th>Size</th>
-                      </tr>
-                    </thead>
-                    <tbody id="bulkResultsTable">
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            <!-- Download Buttons -->
-            <div class="d-grid gap-2">
-              <a href="#" id="downloadZipBtn" class="btn btn-success btn-lg" download>
-                <i class="bi bi-file-earmark-zip me-2"></i>Download All as ZIP
-              </a>
-              <button type="button" class="btn btn-outline-primary" onclick="location.reload()">
-                <i class="bi bi-arrow-clockwise me-2"></i>Convert More Files
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>
 
-    <!-- Tool Information -->
+    <!-- Right Column: History Sidebar (4 columns) -->
     <div class="col-lg-4">
-      <div class="card shadow-sm mb-3">
-        <div class="card-header bg-light">
-          <h6 class="mb-0">
-            <i class="bi bi-info-circle me-2"></i>Supported Formats
-          </h6>
-        </div>
-        <div class="card-body">
-          <div class="mb-3">
-            <h6 class="text-primary">
-              <i class="bi bi-filetype-xml me-1"></i>GPX (GPS Exchange Format)
+      <div class="history-sidebar">
+        <div class="card shadow-sm">
+          <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+              <i class="bi bi-clock-history me-2"></i>Conversion History
             </h6>
-            <p class="small text-muted mb-0">
-              XML-based format for GPS data. Widely supported by GPS devices and mapping applications.
-            </p>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="refreshHistoryBtn" title="Refresh history">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
           </div>
-          <div>
-            <h6 class="text-primary">
-              <i class="bi bi-geo-alt-fill me-1"></i>KML (Keyhole Markup Language)
+          
+          <!-- Search Filter -->
+          <div class="history-search">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text">
+                <i class="bi bi-search"></i>
+              </span>
+              <input type="text" 
+                     class="form-control" 
+                     id="historySearchInput" 
+                     placeholder="Search by filename..."
+                     aria-label="Search history">
+            </div>
+          </div>
+          
+          <div class="card-body p-0">
+            <!-- Loading state -->
+            <div id="historyLoading" class="text-center py-4" style="display: none;">
+              <div class="spinner-border spinner-border-sm text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <p class="text-muted small mt-2 mb-0">Loading history...</p>
+            </div>
+            
+            <!-- Empty state -->
+            <div id="historyEmpty" class="text-center py-4" style="display: none;">
+              <i class="bi bi-inbox text-muted" style="font-size: 2rem;"></i>
+              <p class="text-muted small mt-2 mb-0">No conversion history yet</p>
+            </div>
+            
+            <!-- History list -->
+            <div id="historyList" class="list-group list-group-flush"></div>
+          </div>
+        </div>
+        
+        <!-- Tool Information -->
+        <div class="card shadow-sm mt-3">
+          <div class="card-header bg-light">
+            <h6 class="mb-0">
+              <i class="bi bi-info-circle me-2"></i>Format Information
             </h6>
-            <p class="small text-muted mb-0">
-              Google Earth format for geographic data. Used for visualization and sharing.
-            </p>
+          </div>
+          <div class="card-body">
+            <div class="mb-2">
+              <span class="badge bg-primary me-2">GPX</span>
+              <small class="text-muted">GPS Exchange Format - Universal GPS data format</small>
+            </div>
+            <div>
+              <span class="badge bg-success me-2">KML</span>
+              <small class="text-muted">Keyhole Markup Language - Google Earth format</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm mt-3">
+          <div class="card-header bg-light">
+            <h6 class="mb-0">
+              <i class="bi bi-lightbulb me-2"></i>Usage Tips
+            </h6>
+          </div>
+          <div class="card-body">
+            <ul class="small mb-0">
+              <li>GPX is best for fitness devices and GPS receivers</li>
+              <li>KML works best with Google Earth and Maps</li>
+              <li>Both formats preserve waypoints, tracks, and routes</li>
+              <li>Auto-detect will choose the correct conversion direction</li>
+            </ul>
           </div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
 
-      <div class="card shadow-sm mb-3">
-        <div class="card-header bg-light">
-          <h6 class="mb-0">
-            <i class="bi bi-list-check me-2"></i>Preserved Data
-          </h6>
-        </div>
-        <div class="card-body">
-          <ul class="small mb-0">
-            <li><i class="bi bi-check-circle text-success me-1"></i>Waypoints with names & descriptions</li>
-            <li><i class="bi bi-check-circle text-success me-1"></i>GPS tracks with elevation data</li>
-            <li><i class="bi bi-check-circle text-success me-1"></i>Routes with multiple points</li>
-            <li><i class="bi bi-check-circle text-success me-1"></i>Coordinates (latitude, longitude, elevation)</li>
-            <li><i class="bi bi-check-circle text-success me-1"></i>Metadata (names, descriptions)</li>
-          </ul>
-        </div>
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-
-      <div class="card shadow-sm">
-        <div class="card-header bg-light">
-          <h6 class="mb-0">
-            <i class="bi bi-lightbulb me-2"></i>Usage Tips
-          </h6>
-        </div>
-        <div class="card-body">
-          <ul class="small mb-0">
-            <li>Use GPX for GPS devices and fitness apps</li>
-            <li>Use KML for Google Earth and Google Maps</li>
-            <li>Conversion preserves all waypoints and tracks</li>
-            <li>Auto-detect determines format from file extension</li>
-            <li>Both formats support full coordinate precision</li>
-          </ul>
-        </div>
+      <div class="modal-body">
+        Are you sure you want to delete this conversion from history?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
       </div>
     </div>
   </div>
@@ -239,373 +231,286 @@
 
 {% block extra_js %}
 <script>
-// Show file information when selected
-const fileInput = document.getElementById('gpsFile');
-const fileListDiv = document.getElementById('fileList');
-const conversionTypeSelect = document.getElementById('conversionType');
+const TOOL_NAME = 'gpx-kml-converter';
+let currentExecutionId = null;
+let statusPollInterval = null;
+let deleteExecutionId = null;
 
-fileInput.addEventListener('change', function() {
-  const files = Array.from(fileInput.files);
-  if (files.length === 0) {
-    fileListDiv.innerHTML = '';
-    return;
-  }
+// Format file size helper
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 
-  let html = '<div class="list-group">';
-  let totalSize = 0;
-  let suggestedConversion = '';
+// Format time ago helper
+function formatTimeAgo(dateString) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now - date) / 1000);
   
-  files.forEach((file, index) => {
-    const fileExt = file.name.split('.').pop().toLowerCase();
-    let fileType = 'Unknown';
-    let icon = 'file-earmark-text';
+  if (seconds < 60) return 'Just now';
+  if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+  if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+  return Math.floor(seconds / 86400) + 'd ago';
+}
+
+// Load history
+async function loadHistory() {
+  const historyLoading = document.getElementById('historyLoading');
+  const historyEmpty = document.getElementById('historyEmpty');
+  const historyList = document.getElementById('historyList');
+  
+  historyLoading.style.display = 'block';
+  historyEmpty.style.display = 'none';
+  historyList.innerHTML = '';
+  
+  try {
+    const response = await fetch(`/api/v1/executions/?tool_name=${TOOL_NAME}&limit=10`);
+    const data = await response.json();
     
-    if (fileExt === 'gpx') {
-      fileType = 'GPX';
-      icon = 'geo-alt';
-      if (!suggestedConversion) suggestedConversion = 'gpx_to_kml';
-    } else if (fileExt === 'kml') {
-      fileType = 'KML';
-      icon = 'pin-map';
-      if (!suggestedConversion) suggestedConversion = 'kml_to_gpx';
+    historyLoading.style.display = 'none';
+    
+    if (!data.results || data.results.length === 0) {
+      historyEmpty.style.display = 'block';
+      return;
     }
     
-    totalSize += file.size;
-    
-    html += `
-      <div class="list-group-item">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <i class="bi bi-${icon} me-2 text-primary"></i>
-            <strong>${file.name}</strong>
-            <span class="badge bg-secondary ms-2">${fileType}</span>
+    data.results.forEach(item => {
+      const statusClass = {
+        'completed': 'bg-success',
+        'processing': 'bg-primary',
+        'pending': 'bg-warning',
+        'failed': 'bg-danger'
+      }[item.status] || 'bg-secondary';
+      
+      const historyItem = document.createElement('div');
+      historyItem.className = 'list-group-item list-group-item-action';
+      historyItem.innerHTML = `
+        <div class="d-flex w-100 justify-content-between align-items-start">
+          <div class="flex-grow-1 me-2" style="min-width: 0;">
+            <div class="d-flex align-items-center mb-1">
+              <span class="badge ${statusClass} me-2">${item.status}</span>
+              <small class="text-muted">${formatTimeAgo(item.created_at)}</small>
+            </div>
+            <p class="mb-1 text-truncate small" title="${item.input_filename}">
+              <i class="bi bi-file-earmark me-1"></i>${item.input_filename}
+            </p>
+            ${item.output_filename ? `
+              <p class="mb-0 text-truncate small text-success" title="${item.output_filename}">
+                <i class="bi bi-arrow-right me-1"></i>${item.output_filename}
+              </p>
+            ` : ''}
           </div>
-          <small class="text-muted">${MagicToolbox.formatFileSize(file.size)}</small>
+          <div class="btn-group btn-group-sm">
+            ${item.status === 'completed' ? `
+              <a href="/api/v1/executions/${item.id}/download/" class="btn btn-outline-success" title="Download">
+                <i class="bi bi-download"></i>
+              </a>
+            ` : ''}
+            <button type="button" class="btn btn-outline-danger" onclick="showDeleteModal('${item.id}')" title="Delete">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
         </div>
-      </div>
-    `;
-  });
-  
-  html += '</div>';
-  
-  if (files.length > 1) {
-    html += `
-      <div class="alert alert-info mt-2 mb-0">
-        <i class="bi bi-info-circle me-1"></i>
-        <strong>${files.length} files selected</strong> (Total size: ${MagicToolbox.formatFileSize(totalSize)})
-      </div>
-    `;
+      `;
+      historyList.appendChild(historyItem);
+    });
+  } catch (error) {
+    console.error('Failed to load history:', error);
+    historyLoading.style.display = 'none';
+    historyEmpty.style.display = 'block';
   }
-  
-  fileListDiv.innerHTML = html;
+}
 
-  // Auto-select conversion type if set to auto-detect
-  if (conversionTypeSelect.value === '' && suggestedConversion) {
-    conversionTypeSelect.value = suggestedConversion;
+// Show delete modal
+function showDeleteModal(executionId) {
+  deleteExecutionId = executionId;
+  const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+  modal.show();
+}
+
+// Confirm delete
+document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
+  if (!deleteExecutionId) return;
+  
+  try {
+    const response = await fetch(`/api/v1/executions/${deleteExecutionId}/`, {
+      method: 'DELETE',
+      headers: {
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+      }
+    });
+    
+    if (response.ok) {
+      const modal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+      modal.hide();
+      loadHistory();
+    }
+  } catch (error) {
+    console.error('Failed to delete:', error);
   }
 });
+
+// Check status
+async function checkStatus() {
+  if (!currentExecutionId) return;
+  
+  try {
+    const response = await fetch(`/api/v1/executions/${currentExecutionId}/status/`);
+    const data = await response.json();
+    
+    const statusMessage = document.getElementById('statusMessage');
+    const statusDetail = document.getElementById('statusDetail');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    
+    if (data.status === 'processing') {
+      if (statusMessage) statusMessage.textContent = 'Converting GPS file...';
+      if (statusDetail) statusDetail.textContent = 'Azure Functions is processing your file';
+      if (progressBar) progressBar.style.width = '60%';
+      if (progressText) progressText.textContent = '60%';
+    } else if (data.status === 'completed') {
+      clearInterval(statusPollInterval);
+      statusPollInterval = null;
+      
+      if (progressBar) {
+        progressBar.style.width = '100%';
+        progressBar.classList.remove('progress-bar-animated');
+        progressBar.classList.add('bg-success');
+      }
+      if (progressText) progressText.textContent = '100%';
+      
+      // Show results
+      setTimeout(() => {
+        const statusSection = document.getElementById('statusSection');
+        const resultSection = document.getElementById('resultSection');
+        if (statusSection) statusSection.style.display = 'none';
+        if (resultSection) resultSection.style.display = 'block';
+        
+        const downloadBtn = document.getElementById('downloadBtn');
+        if (downloadBtn) downloadBtn.href = `/api/v1/executions/${currentExecutionId}/download/`;
+        
+        loadHistory();
+      }, 500);
+      
+    } else if (data.status === 'failed') {
+      clearInterval(statusPollInterval);
+      statusPollInterval = null;
+      
+      if (statusMessage) statusMessage.textContent = 'Conversion failed';
+      if (statusDetail) statusDetail.textContent = data.error_message || 'An error occurred during conversion';
+      if (progressBar) {
+        progressBar.classList.remove('bg-primary', 'progress-bar-animated');
+        progressBar.classList.add('bg-danger');
+      }
+      
+      const convertBtn = document.getElementById('convertBtn');
+      if (convertBtn) convertBtn.disabled = false;
+      loadHistory();
+    }
+  } catch (error) {
+    console.error('Status check failed:', error);
+  }
+}
 
 // Handle form submission
 document.getElementById('gpxKmlConverterForm').addEventListener('submit', async function(e) {
   e.preventDefault();
   
   const fileInput = document.getElementById('gpsFile');
-  const files = Array.from(fileInput.files);
+  const file = fileInput.files[0];
   
-  if (files.length === 0) {
-    MagicToolbox.showNotification('Please select at least one GPS file', 'error');
+  if (!file) {
+    alert('Please select a GPS file');
     return;
   }
 
-  const convertBtn = document.getElementById('convertBtn');
-  const progressSection = document.getElementById('progressSection');
-  const resultSection = document.getElementById('resultSection');
-  const bulkResultSection = document.getElementById('bulkResultSection');
-  const progressBar = document.getElementById('progressBar');
-  const progressText = document.getElementById('progressText');
-  const progressMessage = document.getElementById('progressMessage');
-  
-  // Show progress
-  convertBtn.disabled = true;
-  progressSection.style.display = 'block';
-  resultSection.style.display = 'none';
-  bulkResultSection.style.display = 'none';
-  
-  // Determine if bulk mode (multiple files)
-  const isBulk = files.length > 1;
-  
-  if (isBulk) {
-    progressMessage.textContent = `Converting ${files.length} files...`;
-  } else {
-    progressMessage.textContent = 'Converting your GPS file...';
-  }
-  
-  try {
-    console.log('Starting conversion, isBulk:', isBulk, 'fileCount:', files.length);
-    if (isBulk) {
-      // Bulk conversion: convert each file sequentially
-      await handleBulkConversion(files, progressBar, progressText);
-    } else {
-      // Single file conversion
-      await handleSingleConversion(files[0], progressBar, progressText, this);
-    }
-  } catch (error) {
-    console.error('Conversion error:', error);
-    console.error('Error stack:', error.stack);
-    MagicToolbox.showNotification(error.message || 'Conversion failed', 'error');
-    progressSection.style.display = 'none';
-  } finally {
-    convertBtn.disabled = false;
-  }
-});
-
-// Handle single file conversion
-async function handleSingleConversion(file, progressBar, progressText, form) {
-  const progressSection = document.getElementById('progressSection');
-  const resultSection = document.getElementById('resultSection');
-  
-  let progress = 0;
-  const progressInterval = setInterval(() => {
-    progress += 15;
-    progressBar.style.width = Math.min(progress, 90) + '%';
-    progressText.textContent = Math.min(progress, 90) + '%';
-    
-    if (progress >= 90) {
-      clearInterval(progressInterval);
-    }
-  }, 150);
-  
-  const formData = new FormData(form);
-  // Replace files[] with single file parameter
-  formData.delete('files[]');
+  const formData = new FormData();
   formData.append('file', file);
   
+  const conversionType = document.getElementById('conversionType').value;
+  if (conversionType) {
+    formData.append('conversion_type', conversionType);
+  }
+  
+  const convertBtn = document.getElementById('convertBtn');
+  const statusSection = document.getElementById('statusSection');
+  const resultSection = document.getElementById('resultSection');
+  const progressBar = document.getElementById('progressBar');
+  
+  // Show status section
+  convertBtn.disabled = true;
+  statusSection.style.display = 'block';
+  resultSection.style.display = 'none';
+  
+  // Reset progress
+  progressBar.style.width = '10%';
+  progressBar.classList.remove('bg-success', 'bg-danger');
+  progressBar.classList.add('bg-primary', 'progress-bar-animated', 'progress-bar-striped');
+  
+  const progressText = document.getElementById('progressText');
+  const statusMessage = document.getElementById('statusMessage');
+  const statusDetail = document.getElementById('statusDetail');
+  
+  if (progressText) progressText.textContent = '10%';
+  if (statusMessage) statusMessage.textContent = 'Uploading file...';
+  if (statusDetail) statusDetail.textContent = 'Please wait...';
+  
   try {
-    const response = await fetch('/api/v1/tools/gpx-kml-converter/convert/', {
+    const response = await fetch(`/api/v1/tools/${TOOL_NAME}/convert/`, {
       method: 'POST',
       body: formData,
       headers: {
-        'X-CSRFToken': '{{ csrf_token }}'
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
       }
     });
     
-    clearInterval(progressInterval);
-    
     if (!response.ok) {
-      let errorMsg = 'Conversion failed';
-      try {
-        const errorData = await response.json();
-        errorMsg = errorData.error || errorMsg;
-      } catch (e) {
-        const errorText = await response.text();
-        console.error('Error response:', errorText);
-        errorMsg = `Server error: ${response.status} ${response.statusText}`;
-      }
-      throw new Error(errorMsg);
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Upload failed');
     }
     
-    // Check content type to make sure we got a file, not HTML
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('text/html')) {
-      console.error('Received HTML instead of file');
-      throw new Error('Server returned an error page instead of the converted file');
-    }
+    const data = await response.json();
+    currentExecutionId = data.executionId;
     
-    // Complete progress
-    progressBar.style.width = '100%';
-    progressText.textContent = '100%';
+    // Update progress
+    progressBar.style.width = '30%';
+    const progressText2 = document.getElementById('progressText');
+    const statusMessage2 = document.getElementById('statusMessage');
+    const statusDetail2 = document.getElementById('statusDetail');
     
-    // Get the converted file
-    const blob = await response.blob();
-    const convertedFileUrl = URL.createObjectURL(blob);
+    if (progressText2) progressText2.textContent = '30%';
+    if (statusMessage2) statusMessage2.textContent = 'Processing...';
+    if (statusDetail2) statusDetail2.textContent = 'File uploaded, waiting for conversion';
     
-    // Get filename from Content-Disposition header or generate one
-    const contentDisposition = response.headers.get('Content-Disposition');
-    let convertedFilename = 'converted_file';
-    if (contentDisposition) {
-      const matches = /filename="([^"]+)"/.exec(contentDisposition);
-      if (matches) {
-        convertedFilename = matches[1];
-      }
-    } else {
-      // Generate filename based on conversion
-      const fileExt = file.name.split('.').pop().toLowerCase();
-      const baseName = file.name.replace(/\.[^/.]+$/, '');
-      convertedFilename = fileExt === 'gpx' ? `${baseName}.kml` : `${baseName}.gpx`;
-    }
+    // Start polling for status
+    statusPollInterval = setInterval(checkStatus, 2000);
     
-    // Show file information
-    document.getElementById('originalFileName').textContent = file.name;
-    document.getElementById('originalFileInfo').textContent = 
-      `${file.name.split('.').pop().toUpperCase()} | ${MagicToolbox.formatFileSize(file.size)}`;
-    
-    document.getElementById('convertedFileName').textContent = convertedFilename;
-    document.getElementById('convertedFileInfo').textContent = 
-      `${convertedFilename.split('.').pop().toUpperCase()} | ${MagicToolbox.formatFileSize(blob.size)}`;
-    
-    // Set up download
-    const downloadBtn = document.getElementById('downloadBtn');
-    downloadBtn.href = convertedFileUrl;
-    downloadBtn.download = convertedFilename;
-    
-    // Show results
-    setTimeout(() => {
-      progressSection.style.display = 'none';
-      resultSection.style.display = 'block';
-      MagicToolbox.showNotification('Conversion successful!', 'success');
-    }, 500);
   } catch (error) {
-    throw error;
+    alert('Error: ' + error.message);
+    convertBtn.disabled = false;
+    statusSection.style.display = 'none';
   }
-}
+});
 
-// Handle bulk conversion
-async function handleBulkConversion(files, progressBar, progressText) {
-  console.log('handleBulkConversion started with', files.length, 'files');
-  const progressSection = document.getElementById('progressSection');
-  const bulkResultSection = document.getElementById('bulkResultSection');
-  const conversionType = document.getElementById('conversionType').value;
+// Refresh history button
+document.getElementById('refreshHistoryBtn').addEventListener('click', loadHistory);
+
+// History search
+document.getElementById('historySearchInput').addEventListener('input', function(e) {
+  const searchTerm = e.target.value.toLowerCase();
+  const items = document.querySelectorAll('#historyList .list-group-item');
   
-  const results = [];
-  const convertedBlobs = [];
-  let successCount = 0;
-  
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    const percent = Math.round(((i + 1) / files.length) * 100);
-    
-    progressBar.style.width = percent + '%';
-    progressText.textContent = `${percent}% (${i + 1}/${files.length})`;
-    
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      if (conversionType) formData.append('conversion_type', conversionType);
-      
-      const response = await fetch('/api/v1/tools/gpx-kml-converter/convert/', {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'X-CSRFToken': '{{ csrf_token }}'
-        }
-      });
-      
-      if (response.ok) {
-        const blob = await response.blob();
-        const contentDisposition = response.headers.get('Content-Disposition');
-        let filename = '';
-        if (contentDisposition) {
-          const matches = /filename="([^"]+)"/.exec(contentDisposition);
-          if (matches) filename = matches[1];
-        } else {
-          const fileExt = file.name.split('.').pop().toLowerCase();
-          const baseName = file.name.replace(/\.[^/.]+$/, '');
-          filename = fileExt === 'gpx' ? `${baseName}.kml` : `${baseName}.gpx`;
-        }
-        
-        convertedBlobs.push({ blob, filename });
-        results.push({
-          originalName: file.name,
-          convertedName: filename,
-          size: blob.size,
-          status: 'success'
-        });
-        successCount++;
-      } else {
-        results.push({
-          originalName: file.name,
-          status: 'error',
-          error: 'Conversion failed'
-        });
-      }
-    } catch (error) {
-      results.push({
-        originalName: file.name,
-        status: 'error',
-        error: error.message
-      });
-    }
-  }
-  
-  // Display results
-  const tableBody = document.getElementById('bulkResultsTable');
-  if (!tableBody) {
-    console.error('bulkResultsTable element not found');
-    throw new Error('Results table not found in DOM');
-  }
-  
-  tableBody.innerHTML = '';
-  
-  results.forEach(result => {
-    const row = document.createElement('tr');
-    if (result.status === 'success') {
-      row.innerHTML = `
-        <td>${result.originalName}</td>
-        <td><span class="badge bg-success">Success</span></td>
-        <td>${result.convertedName}</td>
-        <td>${MagicToolbox.formatFileSize(result.size)}</td>
-      `;
-    } else {
-      row.innerHTML = `
-        <td>${result.originalName}</td>
-        <td><span class="badge bg-danger">Failed</span></td>
-        <td colspan="2"><small class="text-danger">${result.error}</small></td>
-      `;
-    }
-    tableBody.appendChild(row);
+  items.forEach(item => {
+    const text = item.textContent.toLowerCase();
+    item.style.display = text.includes(searchTerm) ? '' : 'none';
   });
-  
-  const successCountEl = document.getElementById('successCount');
-  if (successCountEl) {
-    successCountEl.textContent = successCount;
-  } else {
-    console.error('successCount element not found');
-  }
-  
-  console.log('Creating ZIP with', successCount, 'successful conversions');
-  
-  // Create ZIP file
-  if (successCount > 0) {
-    const JSZip = window.JSZip;
-    console.log('JSZip available:', !!JSZip);
-    if (JSZip) {
-      try {
-        const zip = new JSZip();
-        convertedBlobs.forEach(({ blob, filename }) => {
-          console.log('Adding to ZIP:', filename, blob.size);
-          zip.file(filename, blob);
-        });
-        
-        console.log('Generating ZIP blob...');
-        const zipBlob = await zip.generateAsync({ type: 'blob' });
-        console.log('ZIP created:', zipBlob.size, 'bytes');
-        const zipUrl = URL.createObjectURL(zipBlob);
-        
-        const downloadZipBtn = document.getElementById('downloadZipBtn');
-        if (downloadZipBtn) {
-          downloadZipBtn.href = zipUrl;
-          downloadZipBtn.download = 'converted_gps_files.zip';
-          console.log('ZIP download button set up');
-        } else {
-          console.error('downloadZipBtn element not found');
-        }
-      } catch (zipError) {
-        console.error('Error creating ZIP:', zipError);
-        throw zipError;
-      }
-    } else {
-      console.error('JSZip library not loaded');
-    }
-  }
-  
-  console.log('Showing bulk results section');
-  // Show results
-  setTimeout(() => {
-    progressSection.style.display = 'none';
-    bulkResultSection.style.display = 'block';
-    MagicToolbox.showNotification(`Converted ${successCount} of ${files.length} files`, successCount > 0 ? 'success' : 'error');
-    console.log('Bulk results displayed');
-  }, 500);
-}
+});
+
+// Load history on page load
+document.addEventListener('DOMContentLoaded', loadHistory);
 </script>
 {% endblock %}

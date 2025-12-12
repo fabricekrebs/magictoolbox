@@ -591,8 +591,8 @@ class ToolViewSet(viewsets.ViewSet):
         if request.data.get("rotation"):
             parameters["rotation"] = request.data.get("rotation")
 
-        # Special handling for async tools (PDF converter, Video rotation)
-        if pk in ["pdf-docx-converter", "video-rotation"]:
+        # Special handling for async tools (PDF converter, Video rotation, Image converter, GPX tools)
+        if pk in ["pdf-docx-converter", "video-rotation", "image-format-converter", "gpx-kml-converter", "gpx-speed-modifier"]:
             # Handle single file upload for async processing
             if len(files) == 1:
                 file = files[0]
@@ -608,7 +608,15 @@ class ToolViewSet(viewsets.ViewSet):
                     execution_id = str(uuid.uuid4())
                     
                     # Create ToolExecution record BEFORE processing
-                    container_prefix = "uploads/pdf" if pk == "pdf-docx-converter" else "video-uploads/video"
+                    # Determine container prefix based on tool type
+                    container_prefixes = {
+                        "pdf-docx-converter": "uploads/pdf",
+                        "video-rotation": "video-uploads/video",
+                        "image-format-converter": "uploads/image",
+                        "gpx-kml-converter": "uploads/gpx",
+                        "gpx-speed-modifier": "uploads/gpx",
+                    }
+                    container_prefix = container_prefixes.get(pk, "uploads")
                     file_ext = Path(file.name).suffix
                     
                     _execution = ToolExecution.objects.create(
@@ -1140,8 +1148,9 @@ class ToolViewSet(viewsets.ViewSet):
             )
             
             # Trigger Azure Function
-            function_url = getattr(settings, 'AZURE_FUNCTION_VIDEO_ROTATE_URL', None)
-            if function_url:
+            base_url = getattr(settings, 'AZURE_FUNCTION_BASE_URL', None)
+            if base_url:
+                function_url = f"{base_url}/video/rotate"
                 try:
                     payload = {
                         "execution_id": execution_id,
@@ -1172,15 +1181,17 @@ class ToolViewSet(viewsets.ViewSet):
             return Response({"error": f"Rotation failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class ToolExecutionViewSet(viewsets.ReadOnlyModelViewSet):
+class ToolExecutionViewSet(viewsets.ModelViewSet):
     """
     ViewSet for tool execution history.
 
-    Provides read-only access to execution records.
+    Provides read access to execution records and delete capability.
+    Only allows GET (list, retrieve) and DELETE operations.
     """
 
     permission_classes = [IsAuthenticated]  # Require authentication
     serializer_class = ToolExecutionSerializer
+    http_method_names = ['get', 'delete', 'head', 'options']  # Restrict to GET and DELETE only
 
     def get_queryset(self):
         """Return executions for the authenticated user only, with optional filtering."""
@@ -1196,6 +1207,93 @@ class ToolExecutionViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(status=status)
         
         return queryset.order_by('-created_at')
+    
+    def destroy(self, request, *args, **kwargs):
+        """
+        Delete execution record and associated blob files.
+        
+        DELETE /api/v1/executions/{id}/
+        
+        Returns:
+            204 No Content on success
+            404 Not Found if execution doesn't exist
+            403 Forbidden if user doesn't own the execution
+        """
+        try:
+            execution = self.get_object()  # Automatically filters by user via get_queryset
+            
+            # Delete associated blob files from storage
+            from azure.storage.blob import BlobServiceClient
+            from azure.identity import DefaultAzureCredential
+            from django.conf import settings
+            import logging
+            
+            logger = logging.getLogger(__name__)
+            
+            try:
+                # Get blob service client
+                connection_string = getattr(settings, 'AZURE_STORAGE_CONNECTION_STRING', None)
+                
+                if connection_string and "127.0.0.1" in connection_string:
+                    # Local development with Azurite
+                    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+                    logger.info("🔧 Using Azurite for blob deletion")
+                else:
+                    # Production with Managed Identity
+                    storage_account_name = getattr(settings, 'AZURE_STORAGE_ACCOUNT_NAME', None)
+                    if storage_account_name:
+                        account_url = f"https://{storage_account_name}.blob.core.windows.net"
+                        credential = DefaultAzureCredential()
+                        blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
+                        logger.info("🔐 Using Managed Identity for blob deletion")
+                    else:
+                        logger.warning("⚠️ No storage configuration found, skipping blob deletion")
+                        blob_service_client = None
+                
+                if blob_service_client:
+                    # Delete input blob if exists
+                    if execution.input_blob_path:
+                        try:
+                            container_name = execution.input_blob_path.split('/')[0]
+                            blob_name = '/'.join(execution.input_blob_path.split('/')[1:])
+                            blob_client = blob_service_client.get_blob_client(
+                                container=container_name,
+                                blob=blob_name
+                            )
+                            blob_client.delete_blob()
+                            logger.info(f"✅ Deleted input blob: {execution.input_blob_path}")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Failed to delete input blob: {e}")
+                    
+                    # Delete output blob if exists
+                    if execution.output_blob_path:
+                        try:
+                            container_name = execution.output_blob_path.split('/')[0]
+                            blob_name = '/'.join(execution.output_blob_path.split('/')[1:])
+                            blob_client = blob_service_client.get_blob_client(
+                                container=container_name,
+                                blob=blob_name
+                            )
+                            blob_client.delete_blob()
+                            logger.info(f"✅ Deleted output blob: {execution.output_blob_path}")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Failed to delete output blob: {e}")
+            
+            except Exception as e:
+                logger.error(f"❌ Error during blob deletion: {e}")
+                # Continue with database deletion even if blob deletion fails
+            
+            # Delete the database record
+            execution.delete()
+            logger.info(f"✅ Deleted execution record: {execution.id}")
+            
+            return Response(status=status.HTTP_204_NO_CONTENT)
+            
+        except ToolExecution.DoesNotExist:
+            return Response(
+                {"error": "Execution not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
     def get_serializer_class(self):
         """Use simplified serializer for list view."""
@@ -1338,32 +1436,52 @@ class ToolExecutionViewSet(viewsets.ReadOnlyModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Determine container and blob name based on tool type
-            if execution.tool_name == "video-rotation":
-                container_name = "video-processed"
-                # Use output_blob_path if available
-                if execution.output_blob_path:
-                    blob_name = execution.output_blob_path
-                    # Remove container prefix if present
-                    if blob_name.startswith("video-processed/"):
-                        blob_name = blob_name[len("video-processed/"):]
-                elif execution.output_file and execution.output_file.name:
-                    blob_name = execution.output_file.name
-                    if blob_name.startswith("video-processed/"):
-                        blob_name = blob_name[len("video-processed/"):]
-                else:
-                    # Default to video/{execution_id}.mp4
-                    blob_name = f"video/{execution.id}.mp4"
-            else:
-                # PDF and other tools use 'processed' container
-                container_name = "processed"
-                if execution.output_file and execution.output_file.name:
-                    blob_name = execution.output_file.name
-                    if blob_name.startswith("processed/"):
-                        blob_name = blob_name[len("processed/"):]
-                else:
-                    blob_name = f"docx/{execution.id}.docx"
+            # Determine container and blob name from output_blob_path
+            container_name = "processed"  # Default container
+            blob_name = None
             
+            if execution.output_blob_path:
+                # Parse the output_blob_path which includes container/blob format
+                # Examples:
+                #   - processed/docx/{uuid}.docx
+                #   - processed/image/{uuid}.png
+                #   - processed/gpx/{uuid}.gpx
+                #   - video-processed/video/{uuid}.mp4
+                path_parts = execution.output_blob_path.split("/", 1)
+                if len(path_parts) == 2:
+                    container_name = path_parts[0]
+                    blob_name = path_parts[1]
+                else:
+                    blob_name = execution.output_blob_path
+                    
+                logger.info(f"Parsed output_blob_path: container={container_name}, blob={blob_name}")
+            elif execution.output_file and execution.output_file.name:
+                # Fallback to output_file field
+                blob_name = execution.output_file.name
+                # Remove container prefix if present
+                if blob_name.startswith("processed/"):
+                    blob_name = blob_name[len("processed/"):]
+                elif blob_name.startswith("video-processed/"):
+                    container_name = "video-processed"
+                    blob_name = blob_name[len("video-processed/"):]
+            else:
+                # Last resort: guess based on tool name
+                if execution.tool_name == "video-rotation":
+                    container_name = "video-processed"
+                    blob_name = f"video/{execution.id}.mp4"
+                elif execution.tool_name == "pdf-docx-converter":
+                    blob_name = f"docx/{execution.id}.docx"
+                elif execution.tool_name == "image-format-converter":
+                    blob_name = f"image/{execution.id}.png"  # Default extension
+                elif execution.tool_name in ["gpx-kml-converter", "gpx-speed-modifier"]:
+                    blob_name = f"gpx/{execution.id}.gpx"
+                else:
+                    return Response(
+                        {"error": "Cannot determine output file location"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
+            
+            logger.info(f"Download request - Tool: {execution.tool_name}")
             logger.info(f"Using container: {container_name}, blob: {blob_name}")
             logger.info(f"About to initialize blob service client...")
 
@@ -1401,22 +1519,55 @@ class ToolExecutionViewSet(viewsets.ReadOnlyModelViewSet):
 
             logger.info(f"✅ Downloaded {len(blob_data)} bytes for execution {execution.id}")
 
-            # Determine content type
-            if execution.tool_name == "video-rotation":
-                output_filename = execution.output_filename or "rotated_video.mp4"
-            else:
-                output_filename = execution.output_filename or "converted.docx"
+            # Determine output filename and content type
+            output_filename = execution.output_filename or "download"
+            
+            # Add default extension if no filename available
+            if not output_filename or output_filename == "download":
+                if execution.tool_name == "video-rotation":
+                    output_filename = "rotated_video.mp4"
+                elif execution.tool_name == "pdf-docx-converter":
+                    output_filename = "converted.docx"
+                elif execution.tool_name == "image-format-converter":
+                    output_filename = "converted.png"
+                elif execution.tool_name in ["gpx-kml-converter", "gpx-speed-modifier"]:
+                    output_filename = "track.gpx"
+                else:
+                    output_filename = "download.bin"
             
             file_ext = output_filename.split(".")[-1].lower()
             content_type_map = {
+                # Documents
                 "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 "pdf": "application/pdf",
                 "txt": "text/plain",
+                # Videos
                 "mp4": "video/mp4",
                 "avi": "video/x-msvideo",
                 "mov": "video/quicktime",
                 "mkv": "video/x-matroska",
                 "webm": "video/webm",
+                "flv": "video/x-flv",
+                "wmv": "video/x-ms-wmv",
+                "m4v": "video/x-m4v",
+                "mpg": "video/mpeg",
+                "mpeg": "video/mpeg",
+                "3gp": "video/3gpp",
+                # Images
+                "jpg": "image/jpeg",
+                "jpeg": "image/jpeg",
+                "png": "image/png",
+                "gif": "image/gif",
+                "webp": "image/webp",
+                "bmp": "image/bmp",
+                "tiff": "image/tiff",
+                "tif": "image/tiff",
+                "ico": "image/x-icon",
+                "svg": "image/svg+xml",
+                # GPS/Map formats
+                "gpx": "application/gpx+xml",
+                "kml": "application/vnd.google-earth.kml+xml",
+                "kmz": "application/vnd.google-earth.kmz",
             }
             content_type = content_type_map.get(file_ext, "application/octet-stream")
 

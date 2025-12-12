@@ -1,15 +1,16 @@
 """
-Example image format converter tool.
+Image format converter tool.
 
-This is a sample tool demonstrating the plugin system.
 Converts images between different formats (e.g., PNG to JPG, WEBP to PNG).
+Uses Azure Functions with Pillow for async image processing.
 """
 
 import os
-import tempfile
+import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
+from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
 
 from apps.core.exceptions import ToolExecutionError, ToolValidationError
@@ -20,12 +21,21 @@ try:
 except ImportError:
     Image = None
 
+try:
+    from azure.identity import AzureCliCredential, DefaultAzureCredential
+    from azure.storage.blob import BlobServiceClient
+except ImportError:
+    AzureCliCredential = None
+    DefaultAzureCredential = None
+    BlobServiceClient = None
+
 
 class ImageFormatConverter(BaseTool):
     """
     Convert images between different formats.
 
     Supports: JPG, PNG, WEBP, BMP, GIF, TIFF, ICO, TGA, PPM, PGM, PBM
+    Uses async processing via Azure Functions for scalability.
     """
 
     # Tool metadata
@@ -167,135 +177,219 @@ class ImageFormatConverter(BaseTool):
 
         return True, None
 
-    def process(self, input_file: UploadedFile, parameters: Dict[str, Any]) -> Tuple[str, str]:
+    def process(
+        self, input_file: UploadedFile, parameters: Dict[str, Any], execution_id: str = None
+    ) -> Tuple[str, Optional[str]]:
         """
-        Convert image to target format with optional resizing.
+        Upload image to Azure Blob Storage for async processing.
+
+        This method only uploads the file. The actual conversion is done by Azure Function.
+
+        Args:
+            input_file: Uploaded image file
+            parameters: Must contain 'output_format' key, optionally 'quality', 'width', 'height'
+            execution_id: Optional execution ID (generated if not provided)
 
         Returns:
-            Tuple of (output_file_path, output_filename)
+            Tuple of (execution_id, None) - None indicates async processing
+
+        Raises:
+            ToolExecutionError: If upload fails
         """
-        output_format = parameters["output_format"].lower()
+        output_format = parameters.get("output_format", "").lower()
         quality = int(parameters.get("quality", 85))
         resize_width = parameters.get("width")
         resize_height = parameters.get("height")
 
-        temp_input = None
-        temp_output = None
+        # Generate execution ID if not provided
+        if not execution_id:
+            execution_id = str(uuid.uuid4())
 
         try:
-            # Save uploaded file to temporary location
-            with tempfile.NamedTemporaryFile(
-                delete=False, suffix=Path(input_file.name).suffix
-            ) as tmp_in:
-                for chunk in input_file.chunks():
-                    tmp_in.write(chunk)
-                temp_input = tmp_in.name
+            self.logger.info("=" * 80)
+            self.logger.info("📤 STARTING IMAGE UPLOAD FOR ASYNC PROCESSING")
+            self.logger.info(f"   Execution ID: {execution_id}")
+            self.logger.info(f"   Original filename: {input_file.name}")
+            self.logger.info(f"   File size: {input_file.size:,} bytes")
+            self.logger.info(f"   Output format: {output_format}")
+            self.logger.info(f"   Quality: {quality}")
+            self.logger.info("=" * 80)
 
-            # Open image (with HEIC support)
-            try:
-                # Try to register HEIF opener for HEIC files
-                import pillow_heif
+            # Get blob service client
+            blob_service = self._get_blob_service_client()
 
-                pillow_heif.register_heif_opener()
-            except ImportError:
-                # HEIC support not available, will fall back to Pillow default
-                pass
-
-            with Image.open(temp_input) as img:
-                original_size = img.size
-                self.logger.info(f"Original image size: {original_size[0]}x{original_size[1]}")
-
-                # Handle resizing if requested
-                if resize_width or resize_height:
-                    if resize_width and resize_height:
-                        new_size = (int(resize_width), int(resize_height))
-                    elif resize_width:
-                        # Maintain aspect ratio based on width
-                        ratio = int(resize_width) / img.size[0]
-                        new_size = (int(resize_width), int(img.size[1] * ratio))
-                    else:
-                        # Maintain aspect ratio based on height
-                        ratio = int(resize_height) / img.size[1]
-                        new_size = (int(img.size[0] * ratio), int(resize_height))
-
-                    img = img.resize(new_size, Image.Resampling.LANCZOS)
-                    self.logger.info(f"Resized to: {new_size[0]}x{new_size[1]}")
-
-                # Handle transparency and color modes
-                pil_format = self.SUPPORTED_FORMATS[output_format]["format"]
-
-                # Convert RGBA to RGB for formats that don't support transparency
-                if pil_format in ["JPEG", "BMP", "PPM"] and img.mode in ("RGBA", "LA", "P"):
-                    # Create white background
-                    rgb_img = Image.new("RGB", img.size, (255, 255, 255))
-                    if img.mode == "P":
-                        img = img.convert("RGBA")
-                    if img.mode in ("RGBA", "LA"):
-                        rgb_img.paste(img, mask=img.split()[-1])
-                    else:
-                        rgb_img.paste(img)
-                    img = rgb_img
-                elif pil_format == "GIF" and img.mode not in ("P", "L"):
-                    # Convert to palette mode for GIF
-                    img = img.convert("P", palette=Image.Palette.ADAPTIVE)
-                elif pil_format == "PGM" and img.mode != "L":
-                    # Convert to grayscale for PGM
-                    img = img.convert("L")
-                elif pil_format == "PBM" and img.mode != "1":
-                    # Convert to 1-bit for PBM
-                    img = img.convert("1")
-
-                # Create output file
-                output_filename = f"{Path(input_file.name).stem}.{output_format}"
-                with tempfile.NamedTemporaryFile(
-                    delete=False, suffix=f".{output_format}"
-                ) as tmp_out:
-                    temp_output = tmp_out.name
-
-                # Save with format-specific options
-                save_kwargs = {"format": pil_format}
-
-                if pil_format == "JPEG":
-                    save_kwargs["quality"] = quality
-                    save_kwargs["optimize"] = True
-                elif pil_format == "PNG":
-                    save_kwargs["optimize"] = True
-                elif pil_format == "WEBP":
-                    save_kwargs["quality"] = quality
-                    save_kwargs["method"] = 6  # Better compression
-                elif pil_format == "TIFF":
-                    save_kwargs["compression"] = "tiff_deflate"
-
-                img.save(temp_output, **save_kwargs)
-
-            output_size = os.path.getsize(temp_output)
-            self.logger.info(
-                f"Successfully converted {input_file.name} to {output_format} ({output_size / 1024:.1f} KB)"
+            # Upload to image uploads container
+            file_ext = Path(input_file.name).suffix
+            blob_name = f"image/{execution_id}{file_ext}"
+            blob_client = blob_service.get_blob_client(
+                container="uploads",
+                blob=blob_name
             )
 
-            # Cleanup input temp file
-            if temp_input and os.path.exists(temp_input):
-                os.unlink(temp_input)
+            # Prepare metadata for Azure Function
+            metadata = {
+                "execution_id": execution_id,
+                "original_filename": input_file.name,
+                "output_format": output_format,
+                "quality": str(quality),
+                "file_size": str(input_file.size),
+            }
+            if resize_width:
+                metadata["width"] = str(resize_width)
+            if resize_height:
+                metadata["height"] = str(resize_height)
 
-            return temp_output, output_filename
+            self.logger.info(f"📋 Blob metadata prepared: {metadata}")
+
+            # Upload file
+            self.logger.info(f"⬆️  Uploading image to blob storage: {blob_name}")
+            file_content = input_file.read()
+            blob_client.upload_blob(
+                file_content,
+                overwrite=True,
+                metadata=metadata
+            )
+
+            self.logger.info("✅ Image uploaded successfully to Azure Blob Storage")
+            self.logger.info(f"   Blob name: {blob_name}")
+            self.logger.info(f"   Container: uploads")
+            self.logger.info(f"   Size: {len(file_content):,} bytes")
+
+            # Trigger Azure Function via HTTP (workaround for Flex Consumption blob trigger limitations)
+            self.logger.info("=" * 80)
+            self.logger.info("🚀 TRIGGERING AZURE FUNCTION FOR IMAGE CONVERSION")
+            try:
+                import requests
+                import threading
+                base_url = getattr(settings, "AZURE_FUNCTION_BASE_URL", None)
+                
+                if base_url:
+                    # Construct full URL by appending endpoint
+                    function_url = f"{base_url}/image/convert"
+                    payload = {
+                        "execution_id": execution_id,
+                        "blob_name": f"uploads/{blob_name}",  # Full path: uploads/image/{uuid}.ext
+                        "output_format": output_format,
+                        "quality": quality
+                    }
+                    # Add optional resize parameters if provided
+                    if resize_width:
+                        payload["width"] = resize_width
+                    if resize_height:
+                        payload["height"] = resize_height
+                    self.logger.info(f"   Function URL: {function_url}")
+                    self.logger.info(f"   Payload: {payload}")
+                    self.logger.info(f"   Sending async POST request...")
+                    
+                    # Use a background thread to avoid blocking the upload response
+                    def trigger_function_async():
+                        """Background thread to trigger Azure Function."""
+                        try:
+                            response = requests.post(function_url, json=payload, timeout=300)
+                            self.logger.info(f"📨 Response received from Azure Function")
+                            self.logger.info(f"   Status code: {response.status_code}")
+                            
+                            if response.status_code == 200:
+                                self.logger.info("✅ Azure Function triggered successfully")
+                            else:
+                                self.logger.warning(
+                                    f"⚠️  Azure Function returned non-200 status: {response.status_code}"
+                                )
+                        except Exception as e:
+                            self.logger.error(f"❌ Azure Function call failed in background: {e}")
+                    
+                    # Start background thread and return immediately
+                    thread = threading.Thread(target=trigger_function_async, daemon=True)
+                    thread.start()
+                    self.logger.info("✅ Azure Function trigger started in background thread")
+                else:
+                    self.logger.warning(
+                        "⚠️  AZURE_FUNCTION_BASE_URL not configured. "
+                        "Relying on blob trigger (may not work with Flex Consumption)."
+                    )
+            except Exception as http_error:
+                self.logger.error(f"❌ Failed to trigger Azure Function via HTTP: {http_error}")
+                # Don't fail the upload - the blob trigger might still work
+
+            # Return execution_id and None to indicate async processing
+            return execution_id, None
 
         except Exception as e:
-            self.logger.error(f"Image conversion failed: {e}", exc_info=True)
+            self.logger.error(f"❌ Failed to upload image: {e}")
+            raise ToolExecutionError(f"Image upload failed: {str(e)}")
 
-            # Cleanup on error
-            if temp_input and os.path.exists(temp_input):
-                os.unlink(temp_input)
-            if temp_output and os.path.exists(temp_output):
-                os.unlink(temp_output)
+    def _get_blob_service_client(self) -> BlobServiceClient:
+        """
+        Get Azure Blob Storage client.
 
-            raise ToolExecutionError(f"Image conversion failed: {str(e)}")
+        Uses connection string for local Azurite, DefaultAzureCredential for Azure.
+        This matches the pattern used in PDF converter.
+        """
+        connection_string = getattr(settings, "AZURE_STORAGE_CONNECTION_STRING", None)
+
+        # Check for local development (Azurite)
+        if connection_string and "127.0.0.1" in connection_string:
+            self.logger.info("🔧 Using local Azurite for blob storage")
+            return BlobServiceClient.from_connection_string(connection_string)
+
+        # Production: Use Managed Identity / DefaultAzureCredential
+        storage_account_name = getattr(settings, "AZURE_STORAGE_ACCOUNT_NAME", None) or getattr(
+            settings, "AZURE_ACCOUNT_NAME", None
+        )
+        if not storage_account_name:
+            self.logger.error("❌ Storage account name not configured")
+            raise ToolExecutionError(
+                "AZURE_STORAGE_ACCOUNT_NAME or AZURE_ACCOUNT_NAME not configured for production environment"
+            )
+
+        account_url = f"https://{storage_account_name}.blob.core.windows.net"
+
+        # Use AzureCliCredential for local/testing, DefaultAzureCredential for production
+        use_cli_auth = os.getenv("USE_AZURE_CLI_AUTH", "false").lower() == "true" or settings.DEBUG
+
+        if use_cli_auth:
+            self.logger.info(
+                f"🔐 Using Azure CLI credential for storage account: {storage_account_name}"
+            )
+            credential = AzureCliCredential()
+        else:
+            self.logger.info(
+                f"🔐 Using Azure Managed Identity for storage account: {storage_account_name}"
+            )
+            credential = DefaultAzureCredential()
+
+        return BlobServiceClient(account_url=account_url, credential=credential)
 
     def cleanup(self, *file_paths: str) -> None:
-        """Remove temporary files."""
+        """
+        Remove temporary files (not used in async mode).
+
+        Args:
+            *file_paths: Paths to files to remove
+        """
         for file_path in file_paths:
             try:
                 if file_path and os.path.exists(file_path):
                     os.unlink(file_path)
                     self.logger.debug(f"Cleaned up temporary file: {file_path}")
             except Exception as e:
-                self.logger.warning(f"Failed to cleanup file {file_path}: {e}")
+                self.logger.warning(f"Failed to cleanup {file_path}: {e}")
+
+    def get_metadata(self) -> Dict[str, Any]:
+        """
+        Get tool metadata including format options.
+
+        Returns:
+            Dictionary with tool information and format options
+        """
+        metadata = super().get_metadata()
+        metadata["formatOptions"] = [
+            {
+                "value": key,
+                "label": config["name"],
+                "description": config["description"],
+            }
+            for key, config in self.SUPPORTED_FORMATS.items()
+            if key not in ["jpeg", "tif"]  # Skip aliases
+        ]
+        return metadata

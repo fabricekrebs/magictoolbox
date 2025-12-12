@@ -520,8 +520,8 @@ def test_process_tool_success(authenticated_client):
     uploaded_file = SimpleUploadedFile("test.jpg", file_content, content_type="image/jpeg")
     
     response = authenticated_client.post(
-        "/api/v1/tools/process/",
-        {"file_data": uploaded_file, "tool_name": "image-converter"},
+        "/api/v1/tools/image-format-converter/convert/",
+        {"file_data": uploaded_file},
         format='multipart'
     )
     

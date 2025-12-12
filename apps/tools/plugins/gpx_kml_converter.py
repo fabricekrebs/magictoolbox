@@ -3,27 +3,38 @@ GPX to KML converter tool.
 
 Converts GPS exchange format files between GPX and KML formats.
 Supports bidirectional conversion with coordinate preservation.
+Uses Azure Functions for async processing.
 """
 
 import os
-import tempfile
+import uuid
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from xml.dom import minidom
 
+from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
 
 from apps.core.exceptions import ToolExecutionError, ToolValidationError
 from apps.tools.base import BaseTool
+
+try:
+    from azure.identity import AzureCliCredential, DefaultAzureCredential
+    from azure.storage.blob import BlobServiceClient
+except ImportError:
+    AzureCliCredential = None
+    DefaultAzureCredential = None
+    BlobServiceClient = None
 
 
 class GPXKMLConverter(BaseTool):
     """
     Convert GPS files between GPX and KML formats.
 
-    Supports: GPX <-> KML conversion with waypoints, tracks, and routes
+    Supports: GPX <-> KML conversion with waypoints, tracks, and routes.
+    Uses async processing via Azure Functions for scalability.
     """
 
     # Tool metadata
@@ -95,77 +106,174 @@ class GPXKMLConverter(BaseTool):
 
         return True, None
 
-    def process(self, input_file: UploadedFile, parameters: Dict[str, Any]) -> Tuple[str, str]:
+    def process(
+        self, input_file: UploadedFile, parameters: Dict[str, Any], execution_id: str = None
+    ) -> Tuple[str, Optional[str]]:
         """
-        Convert GPS file between GPX and KML formats.
+        Upload GPS file to Azure Blob Storage for async processing.
+
+        This method only uploads the file. The actual conversion is done by Azure Function.
+
+        Args:
+            input_file: Uploaded GPS file (GPX or KML)
+            parameters: Must contain 'conversion_type' key
+            execution_id: Optional execution ID (generated if not provided)
 
         Returns:
-            Tuple of (output_file_path, output_filename)
+            Tuple of (execution_id, None) - None indicates async processing
+
+        Raises:
+            ToolExecutionError: If upload fails
         """
         conversion_type = parameters["conversion_type"].lower()
         doc_name = parameters.get("name", Path(input_file.name).stem)
 
-        temp_input = None
-        temp_output = None
+        # Generate execution ID if not provided
+        if not execution_id:
+            execution_id = str(uuid.uuid4())
 
         try:
-            # Save uploaded file to temporary location
-            with tempfile.NamedTemporaryFile(
-                delete=False, suffix=Path(input_file.name).suffix
-            ) as tmp_in:
-                for chunk in input_file.chunks():
-                    tmp_in.write(chunk)
-                temp_input = tmp_in.name
+            self.logger.info("=" * 80)
+            self.logger.info("📤 STARTING GPS FILE UPLOAD FOR ASYNC PROCESSING")
+            self.logger.info(f"   Execution ID: {execution_id}")
+            self.logger.info(f"   Original filename: {input_file.name}")
+            self.logger.info(f"   File size: {input_file.size:,} bytes")
+            self.logger.info(f"   Conversion type: {conversion_type}")
+            self.logger.info("=" * 80)
 
-            # Parse input file
-            try:
-                tree = ET.parse(temp_input)
-                root = tree.getroot()
-            except ET.ParseError as e:
-                raise ToolExecutionError(f"Invalid XML file: {str(e)}")
+            # Get blob service client
+            blob_service = self._get_blob_service_client()
 
-            # Perform conversion
-            if conversion_type == "gpx_to_kml":
-                output_tree = self._gpx_to_kml(root, doc_name)
-                output_ext = ".kml"
-            elif conversion_type == "kml_to_gpx":
-                output_tree = self._kml_to_gpx(root, doc_name)
-                output_ext = ".gpx"
-            else:
-                raise ToolExecutionError(f"Unsupported conversion: {conversion_type}")
-
-            # Create output file - always use original filename with new extension
-            output_filename = f"{Path(input_file.name).stem}{output_ext}"
-            with tempfile.NamedTemporaryFile(
-                delete=False, suffix=output_ext, mode="w", encoding="utf-8"
-            ) as tmp_out:
-                temp_output = tmp_out.name
-                # Pretty print XML
-                xml_str = ET.tostring(output_tree, encoding="unicode")
-                dom = minidom.parseString(xml_str)
-                tmp_out.write(dom.toprettyxml(indent="  "))
-
-            output_size = os.path.getsize(temp_output)
-            self.logger.info(
-                f"Successfully converted {input_file.name} ({conversion_type}): {output_size / 1024:.1f} KB"
+            # Upload to gpx container
+            file_ext = Path(input_file.name).suffix
+            blob_name = f"gpx/{execution_id}{file_ext}"
+            blob_client = blob_service.get_blob_client(
+                container="uploads",
+                blob=blob_name
             )
 
-            # Cleanup input temp file
-            if temp_input and os.path.exists(temp_input):
-                os.unlink(temp_input)
+            # Prepare metadata for Azure Function
+            metadata = {
+                "execution_id": execution_id,
+                "original_filename": input_file.name,
+                "conversion_type": conversion_type,
+                "doc_name": doc_name,
+                "file_size": str(input_file.size),
+            }
 
-            return temp_output, output_filename
+            self.logger.info(f"📋 Blob metadata prepared: {metadata}")
+
+            # Upload file
+            self.logger.info(f"⬆️  Uploading GPS file to blob storage: {blob_name}")
+            file_content = input_file.read()
+            blob_client.upload_blob(
+                file_content,
+                overwrite=True,
+                metadata=metadata
+            )
+
+            self.logger.info("✅ GPS file uploaded successfully to Azure Blob Storage")
+            self.logger.info(f"   Blob name: {blob_name}")
+            self.logger.info(f"   Container: uploads")
+            self.logger.info(f"   Size: {len(file_content):,} bytes")
+
+            # Trigger Azure Function via HTTP (workaround for Flex Consumption blob trigger limitations)
+            self.logger.info("=" * 80)
+            self.logger.info("🚀 TRIGGERING AZURE FUNCTION FOR GPX CONVERSION")
+            try:
+                import requests
+                import threading
+                base_url = getattr(settings, "AZURE_FUNCTION_BASE_URL", None)
+                
+                if base_url:
+                    # Construct full URL by appending endpoint
+                    function_url = f"{base_url}/gpx/convert"
+                    payload = {
+                        "execution_id": execution_id,
+                        "blob_name": f"uploads/{blob_name}",  # Full path: uploads/gpx/{uuid}.gpx
+                        "conversion_type": conversion_type  # Add conversion type to payload
+                    }
+                    self.logger.info(f"   Function URL: {function_url}")
+                    self.logger.info(f"   Payload: {payload}")
+                    self.logger.info(f"   Sending async POST request...")
+                    
+                    # Use a background thread to avoid blocking the upload response
+                    def trigger_function_async():
+                        """Background thread to trigger Azure Function."""
+                        try:
+                            response = requests.post(function_url, json=payload, timeout=300)
+                            self.logger.info(f"📨 Response received from Azure Function")
+                            self.logger.info(f"   Status code: {response.status_code}")
+                            
+                            if response.status_code == 200:
+                                self.logger.info("✅ Azure Function triggered successfully")
+                            else:
+                                self.logger.warning(
+                                    f"⚠️  Azure Function returned non-200 status: {response.status_code}"
+                                )
+                        except Exception as e:
+                            self.logger.error(f"❌ Azure Function call failed in background: {e}")
+                    
+                    # Start background thread and return immediately
+                    thread = threading.Thread(target=trigger_function_async, daemon=True)
+                    thread.start()
+                    self.logger.info("✅ Azure Function trigger started in background thread")
+                else:
+                    self.logger.warning(
+                        "⚠️  AZURE_FUNCTION_BASE_URL not configured. "
+                        "Relying on blob trigger (may not work with Flex Consumption)."
+                    )
+            except Exception as http_error:
+                self.logger.error(f"❌ Failed to trigger Azure Function via HTTP: {http_error}")
+                # Don't fail the upload - the blob trigger might still work
+
+            # Return execution_id and None to indicate async processing
+            return execution_id, None
 
         except Exception as e:
-            self.logger.error(f"GPS conversion failed: {e}", exc_info=True)
+            self.logger.error(f"❌ Failed to upload GPS file: {e}")
+            raise ToolExecutionError(f"GPS file upload failed: {str(e)}")
 
-            # Cleanup on error
-            if temp_input and os.path.exists(temp_input):
-                os.unlink(temp_input)
-            if temp_output and os.path.exists(temp_output):
-                os.unlink(temp_output)
+    def _get_blob_service_client(self) -> BlobServiceClient:
+        """
+        Get Azure Blob Storage client.
 
-            raise ToolExecutionError(f"GPS conversion failed: {str(e)}")
+        Uses connection string for local Azurite, DefaultAzureCredential for Azure.
+        """
+        connection_string = getattr(settings, "AZURE_STORAGE_CONNECTION_STRING", None)
+
+        # Check for local development (Azurite)
+        if connection_string and "127.0.0.1" in connection_string:
+            self.logger.info("🔧 Using local Azurite for blob storage")
+            return BlobServiceClient.from_connection_string(connection_string)
+
+        # Production: Use Managed Identity / DefaultAzureCredential
+        storage_account_name = getattr(settings, "AZURE_STORAGE_ACCOUNT_NAME", None) or getattr(
+            settings, "AZURE_ACCOUNT_NAME", None
+        )
+        if not storage_account_name:
+            self.logger.error("❌ Storage account name not configured")
+            raise ToolExecutionError(
+                "AZURE_STORAGE_ACCOUNT_NAME or AZURE_ACCOUNT_NAME not configured for production environment"
+            )
+
+        account_url = f"https://{storage_account_name}.blob.core.windows.net"
+
+        # Use AzureCliCredential for local/testing, DefaultAzureCredential for production
+        use_cli_auth = os.getenv("USE_AZURE_CLI_AUTH", "false").lower() == "true" or settings.DEBUG
+
+        if use_cli_auth:
+            self.logger.info(
+                f"🔐 Using Azure CLI credential for storage account: {storage_account_name}"
+            )
+            credential = AzureCliCredential()
+        else:
+            self.logger.info(
+                f"🔐 Using Azure Managed Identity for storage account: {storage_account_name}"
+            )
+            credential = DefaultAzureCredential()
+
+        return BlobServiceClient(account_url=account_url, credential=credential)
 
     def _gpx_to_kml(self, gpx_root: ET.Element, doc_name: str) -> ET.Element:
         """Convert GPX to KML format."""
@@ -491,11 +599,35 @@ class GPXKMLConverter(BaseTool):
             ele_elem.text = ele
 
     def cleanup(self, *file_paths: str) -> None:
-        """Remove temporary files."""
+        """
+        Remove temporary files (not used in async mode).
+
+        Args:
+            *file_paths: Paths to files to remove
+        """
         for file_path in file_paths:
             try:
                 if file_path and os.path.exists(file_path):
                     os.unlink(file_path)
                     self.logger.debug(f"Cleaned up temporary file: {file_path}")
             except Exception as e:
-                self.logger.warning(f"Failed to cleanup file {file_path}: {e}")
+                self.logger.warning(f"Failed to cleanup {file_path}: {e}")
+
+    def get_metadata(self) -> Dict[str, Any]:
+        """
+        Get tool metadata including conversion options.
+
+        Returns:
+            Dictionary with tool information and conversion options
+        """
+        metadata = super().get_metadata()
+        metadata["conversionOptions"] = [
+            {
+                "value": key,
+                "label": config["name"],
+                "from": config["from"],
+                "to": config["to"],
+            }
+            for key, config in self.SUPPORTED_CONVERSIONS.items()
+        ]
+        return metadata

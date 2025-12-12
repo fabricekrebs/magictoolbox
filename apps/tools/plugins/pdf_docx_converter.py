@@ -255,9 +255,11 @@ class PdfDocxConverter(BaseTool):
             self.logger.info("🚀 TRIGGERING AZURE FUNCTION FOR PDF CONVERSION")
             try:
                 import requests
-                function_url = getattr(settings, "AZURE_FUNCTION_PDF_CONVERT_URL", None)
+                base_url = getattr(settings, "AZURE_FUNCTION_BASE_URL", None)
                 
-                if function_url:
+                if base_url:
+                    # Construct full URL by appending endpoint
+                    function_url = f"{base_url}/pdf/convert"
                     payload = {
                         "execution_id": execution_id,
                         "blob_name": f"uploads/{blob_name}"  # Full path: uploads/pdf/{uuid}.pdf
@@ -346,7 +348,7 @@ class PdfDocxConverter(BaseTool):
                     self.logger.info("   Upload will return immediately, conversion continues in background")
                 else:
                     self.logger.warning(
-                        "⚠️  AZURE_FUNCTION_PDF_CONVERT_URL not configured. "
+                        "⚠️  AZURE_FUNCTION_BASE_URL not configured. "
                         "Relying on blob trigger (may not work with Flex Consumption)."
                     )
             except Exception as http_error:

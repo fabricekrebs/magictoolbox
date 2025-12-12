@@ -1,0 +1,322 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Troubleshooting - MagicToolbox{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <!-- Page Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Troubleshooting</li>
+        </ol>
+      </nav>
+      <h1 class="display-5 fw-bold">
+        <i class="bi bi-tools text-primary me-2"></i>
+        Troubleshooting & Diagnostics
+      </h1>
+      <p class="lead text-muted">Diagnostic endpoints for monitoring and debugging Azure Functions.</p>
+    </div>
+  </div>
+
+  {% if not endpoints_available %}
+  <!-- Warning if Azure Function URL not configured -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="alert alert-warning" role="alert">
+        <h5 class="alert-heading">
+          <i class="bi bi-exclamation-triangle me-2"></i>Azure Function Not Configured
+        </h5>
+        <p class="mb-0">
+          The <code>AZURE_FUNCTION_BASE_URL</code> environment variable is not set.
+          These diagnostic endpoints will not be accessible until the Azure Function is deployed and configured.
+        </p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Django Health Endpoints -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-heart-pulse me-2"></i>Django Application Health
+          </h5>
+        </div>
+        <div class="card-body">
+          <p class="text-muted mb-3">Health check endpoints for the Django application (used by Azure Container Apps).</p>
+          
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Endpoint</th>
+                  <th>Description</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>/health/</code></td>
+                  <td>Basic health check - returns 200 OK if application is running</td>
+                  <td>
+                    <a href="{% url 'core:health' %}" class="btn btn-sm btn-outline-primary" target="_blank">
+                      <i class="bi bi-box-arrow-up-right me-1"></i>Test
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>/health/ready/</code></td>
+                  <td>Readiness check - verifies database and cache connectivity</td>
+                  <td>
+                    <a href="{% url 'core:readiness' %}" class="btn btn-sm btn-outline-primary" target="_blank">
+                      <i class="bi bi-box-arrow-up-right me-1"></i>Test
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Azure Function Diagnostic Endpoints -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-cloud-check me-2"></i>Azure Function Diagnostics
+          </h5>
+        </div>
+        <div class="card-body">
+          <p class="text-muted mb-3">
+            Diagnostic endpoints for the Azure Function app handling file processing tasks.
+            {% if azure_function_base_url %}
+            <br><strong>Base URL:</strong> <code>{{ azure_function_base_url }}</code>
+            {% endif %}
+          </p>
+          
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Endpoint</th>
+                  <th>Method</th>
+                  <th>Description</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>/health</code></td>
+                  <td><span class="badge bg-info">GET</span></td>
+                  <td>Azure Function health check - verifies function app is running</td>
+                  <td>
+                    {% if azure_function_base_url %}
+                    <a href="{{ azure_function_base_url }}/health" class="btn btn-sm btn-outline-success" target="_blank">
+                      <i class="bi bi-box-arrow-up-right me-1"></i>Test
+                    </a>
+                    {% else %}
+                    <button class="btn btn-sm btn-outline-secondary" disabled>Not Configured</button>
+                    {% endif %}
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>/storage/list-blobs</code></td>
+                  <td><span class="badge bg-info">GET</span></td>
+                  <td>List all blobs in uploads and processed containers</td>
+                  <td>
+                    {% if azure_function_base_url %}
+                    <a href="{{ azure_function_base_url }}/storage/list-blobs" class="btn btn-sm btn-outline-success" target="_blank">
+                      <i class="bi bi-box-arrow-up-right me-1"></i>Test
+                    </a>
+                    {% else %}
+                    <button class="btn btn-sm btn-outline-secondary" disabled>Not Configured</button>
+                    {% endif %}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Processing Endpoints Reference -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-arrow-repeat me-2"></i>Processing Endpoints (Reference)
+          </h5>
+        </div>
+        <div class="card-body">
+          <p class="text-muted mb-3">
+            These endpoints are used internally by the tools for file processing.
+            They require POST requests with specific payloads and are triggered automatically.
+          </p>
+          
+          <div class="table-responsive">
+            <table class="table table-sm table-hover">
+              <thead>
+                <tr>
+                  <th>Endpoint</th>
+                  <th>Method</th>
+                  <th>Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>/pdf/convert</code></td>
+                  <td><span class="badge bg-warning text-dark">POST</span></td>
+                  <td>Convert PDF to DOCX format</td>
+                </tr>
+                <tr>
+                  <td><code>/video/rotate</code></td>
+                  <td><span class="badge bg-warning text-dark">POST</span></td>
+                  <td>Rotate video files (90°, 180°)</td>
+                </tr>
+                <tr>
+                  <td><code>/image/convert</code></td>
+                  <td><span class="badge bg-warning text-dark">POST</span></td>
+                  <td>Convert images between formats</td>
+                </tr>
+                <tr>
+                  <td><code>/gpx/convert</code></td>
+                  <td><span class="badge bg-warning text-dark">POST</span></td>
+                  <td>Convert between GPX and KML formats</td>
+                </tr>
+                <tr>
+                  <td><code>/gpx/speed</code></td>
+                  <td><span class="badge bg-warning text-dark">POST</span></td>
+                  <td>Modify GPX track speed/timestamps</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tips & Notes -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm border-primary">
+        <div class="card-body">
+          <h5 class="card-title">
+            <i class="bi bi-lightbulb text-warning me-2"></i>Troubleshooting Tips
+          </h5>
+          <ul class="mb-0">
+            <li>If health checks fail, verify that Azure resources are deployed and running.</li>
+            <li>Check Azure Application Insights for detailed logs and error traces.</li>
+            <li>Use the <code>/storage/list-blobs</code> endpoint to verify files are being uploaded to blob storage.</li>
+            <li>Processing endpoints are triggered automatically by the tools - manual testing requires proper authentication and payloads.</li>
+            <li>If conversions are stuck in "pending" status, check Azure Function logs for processing errors.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if user.is_staff %}
+  <!-- Admin Actions -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm border-danger">
+        <div class="card-header bg-danger text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>Admin Actions (Destructive)
+          </h5>
+        </div>
+        <div class="card-body">
+          {% if stats %}
+          <div class="row mb-3">
+            <div class="col-md-12">
+              <h6 class="text-muted">Current System Status</h6>
+              <div class="row g-3">
+                <div class="col-md-2">
+                  <div class="text-center">
+                    <div class="display-6 text-primary">{{ stats.total_executions }}</div>
+                    <small class="text-muted">Total Executions</small>
+                  </div>
+                </div>
+                <div class="col-md-2">
+                  <div class="text-center">
+                    <div class="display-6 text-warning">{{ stats.pending_executions }}</div>
+                    <small class="text-muted">Pending</small>
+                  </div>
+                </div>
+                <div class="col-md-2">
+                  <div class="text-center">
+                    <div class="display-6 text-info">{{ stats.processing_executions }}</div>
+                    <small class="text-muted">Processing</small>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="text-center">
+                    <div class="display-6 text-success">{{ stats.completed_executions }}</div>
+                    <small class="text-muted">Completed</small>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="text-center">
+                    <div class="display-6 text-danger">{{ stats.failed_executions }}</div>
+                    <small class="text-muted">Failed</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="alert alert-danger" role="alert">
+            <h6 class="alert-heading">
+              <i class="bi bi-exclamation-octagon me-2"></i>Warning: Data Cleanup
+            </h6>
+            <p class="mb-2">
+              This action will <strong>permanently delete</strong>:
+            </p>
+            <ul class="mb-2">
+              <li>All blobs in <code>uploads</code>, <code>processed</code>, and <code>video-uploads</code> containers</li>
+              <li>All conversion records from the database</li>
+              <li>All user conversion history</li>
+            </ul>
+            <p class="mb-0 fw-bold text-danger">
+              ⚠️ This action cannot be undone!
+            </p>
+          </div>
+
+          <form method="post" action="{% url 'core:cleanup_all_data' %}" onsubmit="return confirm('Are you absolutely sure you want to delete ALL conversion data and files? This action cannot be undone!');">
+            {% csrf_token %}
+            <div class="d-grid">
+              <button type="submit" class="btn btn-danger btn-lg">
+                <i class="bi bi-trash3 me-2"></i>Delete All Conversion Data
+              </button>
+            </div>
+          </form>
+
+          <div class="mt-3">
+            <small class="text-muted">
+              <i class="bi bi-info-circle me-1"></i>
+              This feature is only available to staff/admin users. 
+              Use this to clean up test data or reset the system during development.
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
