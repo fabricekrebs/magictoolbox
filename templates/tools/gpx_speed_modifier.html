@@ -272,23 +272,6 @@ let currentExecutionId = null;
 let statusPollInterval = null;
 let deleteExecutionId = null;
 
-// Update speed value display and pace preview
-const speedSlider = document.getElementById('speedMultiplier');
-const speedValueDisplay = document.getElementById('speedValue');
-const newPaceDisplay = document.getElementById('newPace');
-
-speedSlider.addEventListener('input', function() {
-  const multiplier = parseFloat(this.value);
-  speedValueDisplay.textContent = multiplier.toFixed(1) + 'x';
-  
-  // Calculate new pace (assuming 6:00 min/km as reference)
-  const originalPaceSeconds = 6 * 60; // 6:00 in seconds
-  const newPaceSeconds = originalPaceSeconds / multiplier;
-  const newPaceMin = Math.floor(newPaceSeconds / 60);
-  const newPaceSec = Math.round(newPaceSeconds % 60);
-  newPaceDisplay.textContent = newPaceMin + ':' + String(newPaceSec).padStart(2, '0') + ' min/km';
-});
-
 // Format file size helper
 function formatFileSize(bytes) {
   if (bytes === 0) return '0 Bytes';
@@ -310,11 +293,75 @@ function formatTimeAgo(dateString) {
   return Math.floor(seconds / 86400) + 'd ago';
 }
 
+// Show delete modal
+function showDeleteModal(executionId) {
+  deleteExecutionId = executionId;
+  const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+  modal.show();
+}
+
+// Check status
+async function checkStatus() {
+  if (!currentExecutionId) return;
+  
+  try {
+    const response = await fetch(`/api/v1/executions/${currentExecutionId}/status/`);
+    const data = await response.json();
+    
+    const statusMessage = document.getElementById('statusMessage');
+    const statusDetail = document.getElementById('statusDetail');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    
+    if (data.status === 'processing') {
+      statusMessage.textContent = 'Modifying GPX timestamps...';
+      statusDetail.textContent = 'Azure Functions is processing your file';
+      progressBar.style.width = '60%';
+      progressText.textContent = '60%';
+    } else if (data.status === 'completed') {
+      clearInterval(statusPollInterval);
+      statusPollInterval = null;
+      
+      progressBar.style.width = '100%';
+      progressText.textContent = '100%';
+      progressBar.classList.remove('progress-bar-animated');
+      progressBar.classList.add('bg-success');
+      
+      // Show results
+      setTimeout(() => {
+        document.getElementById('statusSection').style.display = 'none';
+        document.getElementById('resultSection').style.display = 'block';
+        
+        const downloadBtn = document.getElementById('downloadBtn');
+        downloadBtn.href = `/api/v1/executions/${currentExecutionId}/download/`;
+        
+        loadHistory();
+      }, 500);
+      
+    } else if (data.status === 'failed') {
+      clearInterval(statusPollInterval);
+      statusPollInterval = null;
+      
+      statusMessage.textContent = 'Processing failed';
+      statusDetail.textContent = data.error_message || 'An error occurred during processing';
+      progressBar.classList.remove('bg-primary', 'progress-bar-animated');
+      progressBar.classList.add('bg-danger');
+      
+      document.getElementById('convertBtn').disabled = false;
+      loadHistory();
+    }
+  } catch (error) {
+    console.error('Status check failed:', error);
+  }
+}
+
 // Load history
 async function loadHistory() {
   const historyLoading = document.getElementById('historyLoading');
   const historyEmpty = document.getElementById('historyEmpty');
   const historyList = document.getElementById('historyList');
+  
+  if (!historyLoading || !historyEmpty || !historyList) return;
   
   historyLoading.style.display = 'block';
   historyEmpty.style.display = 'none';
@@ -383,172 +430,144 @@ async function loadHistory() {
   }
 }
 
-// Show delete modal
-function showDeleteModal(executionId) {
-  deleteExecutionId = executionId;
-  const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-  modal.show();
-}
+// Wait for DOM to be ready before initializing event listeners
+document.addEventListener('DOMContentLoaded', function() {
+  // Update speed value display and pace preview
+  const speedSlider = document.getElementById('speedMultiplier');
+  const speedValueDisplay = document.getElementById('speedValue');
+  const newPaceDisplay = document.getElementById('newPace');
 
-// Confirm delete
-document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
-  if (!deleteExecutionId) return;
-  
-  try {
-    const response = await fetch(`/api/v1/executions/${deleteExecutionId}/`, {
-      method: 'DELETE',
-      headers: {
-        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+  if (speedSlider && speedValueDisplay && newPaceDisplay) {
+    speedSlider.addEventListener('input', function() {
+      const multiplier = parseFloat(this.value);
+      speedValueDisplay.textContent = multiplier.toFixed(1) + 'x';
+      
+      // Calculate new pace (assuming 6:00 min/km as reference)
+      const originalPaceSeconds = 6 * 60; // 6:00 in seconds
+      const newPaceSeconds = originalPaceSeconds / multiplier;
+      const newPaceMin = Math.floor(newPaceSeconds / 60);
+      const newPaceSec = Math.round(newPaceSeconds % 60);
+      newPaceDisplay.textContent = newPaceMin + ':' + String(newPaceSec).padStart(2, '0') + ' min/km';
+    });
+  }
+
+  // Confirm delete button
+  const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+  if (confirmDeleteBtn) {
+    confirmDeleteBtn.addEventListener('click', async function() {
+      if (!deleteExecutionId) return;
+      
+      try {
+        const response = await fetch(`/api/v1/executions/${deleteExecutionId}/`, {
+          method: 'DELETE',
+          headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+          }
+        });
+        
+        if (response.ok) {
+          const modal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+          modal.hide();
+          loadHistory();
+        }
+      } catch (error) {
+        console.error('Failed to delete:', error);
       }
     });
-    
-    if (response.ok) {
-      const modal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
-      modal.hide();
-      loadHistory();
-    }
-  } catch (error) {
-    console.error('Failed to delete:', error);
   }
-});
 
-// Check status
-async function checkStatus() {
-  if (!currentExecutionId) return;
-  
-  try {
-    const response = await fetch(`/api/v1/executions/${currentExecutionId}/status/`);
-    const data = await response.json();
-    
-    const statusMessage = document.getElementById('statusMessage');
-    const statusDetail = document.getElementById('statusDetail');
-    const progressBar = document.getElementById('progressBar');
-    const progressText = document.getElementById('progressText');
-    
-    if (data.status === 'processing') {
-      statusMessage.textContent = 'Modifying GPX timestamps...';
-      statusDetail.textContent = 'Azure Functions is processing your file';
-      progressBar.style.width = '60%';
-      progressText.textContent = '60%';
-    } else if (data.status === 'completed') {
-      clearInterval(statusPollInterval);
-      statusPollInterval = null;
+  // Handle form submission
+  const gpxSpeedForm = document.getElementById('gpxSpeedForm');
+  if (gpxSpeedForm) {
+    gpxSpeedForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
       
-      progressBar.style.width = '100%';
-      progressText.textContent = '100%';
-      progressBar.classList.remove('progress-bar-animated');
-      progressBar.classList.add('bg-success');
+      const fileInput = document.getElementById('gpxFile');
+      const file = fileInput.files[0];
       
-      // Show results
-      setTimeout(() => {
-        document.getElementById('statusSection').style.display = 'none';
-        document.getElementById('resultSection').style.display = 'block';
+      if (!file) {
+        alert('Please select a GPX file');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('speed_multiplier', document.getElementById('speedMultiplier').value);
+      
+      const convertBtn = document.getElementById('convertBtn');
+      const statusSection = document.getElementById('statusSection');
+      const resultSection = document.getElementById('resultSection');
+      const progressBar = document.getElementById('progressBar');
+      
+      // Show status section
+      convertBtn.disabled = true;
+      statusSection.style.display = 'block';
+      resultSection.style.display = 'none';
+      
+      // Reset progress
+      progressBar.style.width = '10%';
+      progressBar.classList.remove('bg-success', 'bg-danger');
+      progressBar.classList.add('bg-primary', 'progress-bar-animated', 'progress-bar-striped');
+      document.getElementById('progressText').textContent = '10%';
+      document.getElementById('statusMessage').textContent = 'Uploading file...';
+      document.getElementById('statusDetail').textContent = 'Please wait...';
+      
+      try {
+        const response = await fetch(`/api/v1/tools/${TOOL_NAME}/convert/`, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+          }
+        });
         
-        const downloadBtn = document.getElementById('downloadBtn');
-        downloadBtn.href = `/api/v1/executions/${currentExecutionId}/download/`;
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Upload failed');
+        }
         
-        loadHistory();
-      }, 500);
-      
-    } else if (data.status === 'failed') {
-      clearInterval(statusPollInterval);
-      statusPollInterval = null;
-      
-      statusMessage.textContent = 'Processing failed';
-      statusDetail.textContent = data.error_message || 'An error occurred during processing';
-      progressBar.classList.remove('bg-primary', 'progress-bar-animated');
-      progressBar.classList.add('bg-danger');
-      
-      document.getElementById('convertBtn').disabled = false;
-      loadHistory();
-    }
-  } catch (error) {
-    console.error('Status check failed:', error);
-  }
-}
-
-// Handle form submission
-document.getElementById('gpxSpeedForm').addEventListener('submit', async function(e) {
-  e.preventDefault();
-  
-  const fileInput = document.getElementById('gpxFile');
-  const file = fileInput.files[0];
-  
-  if (!file) {
-    alert('Please select a GPX file');
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('speed_multiplier', document.getElementById('speedMultiplier').value);
-  
-  const convertBtn = document.getElementById('convertBtn');
-  const statusSection = document.getElementById('statusSection');
-  const resultSection = document.getElementById('resultSection');
-  const progressBar = document.getElementById('progressBar');
-  
-  // Show status section
-  convertBtn.disabled = true;
-  statusSection.style.display = 'block';
-  resultSection.style.display = 'none';
-  
-  // Reset progress
-  progressBar.style.width = '10%';
-  progressBar.classList.remove('bg-success', 'bg-danger');
-  progressBar.classList.add('bg-primary', 'progress-bar-animated', 'progress-bar-striped');
-  document.getElementById('progressText').textContent = '10%';
-  document.getElementById('statusMessage').textContent = 'Uploading file...';
-  document.getElementById('statusDetail').textContent = 'Please wait...';
-  
-  try {
-    const response = await fetch(`/api/v1/tools/${TOOL_NAME}/convert/`, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        const data = await response.json();
+        currentExecutionId = data.executionId;
+        
+        // Update progress
+        progressBar.style.width = '30%';
+        document.getElementById('progressText').textContent = '30%';
+        document.getElementById('statusMessage').textContent = 'Processing...';
+        document.getElementById('statusDetail').textContent = 'File uploaded, waiting for processing';
+        
+        // Start polling for status
+        statusPollInterval = setInterval(checkStatus, 2000);
+        
+      } catch (error) {
+        alert('Error: ' + error.message);
+        convertBtn.disabled = false;
+        statusSection.style.display = 'none';
       }
     });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Upload failed');
-    }
-    
-    const data = await response.json();
-    currentExecutionId = data.executionId;
-    
-    // Update progress
-    progressBar.style.width = '30%';
-    document.getElementById('progressText').textContent = '30%';
-    document.getElementById('statusMessage').textContent = 'Processing...';
-    document.getElementById('statusDetail').textContent = 'File uploaded, waiting for processing';
-    
-    // Start polling for status
-    statusPollInterval = setInterval(checkStatus, 2000);
-    
-  } catch (error) {
-    alert('Error: ' + error.message);
-    convertBtn.disabled = false;
-    statusSection.style.display = 'none';
   }
+
+  // Refresh history button
+  const refreshHistoryBtn = document.getElementById('refreshHistoryBtn');
+  if (refreshHistoryBtn) {
+    refreshHistoryBtn.addEventListener('click', loadHistory);
+  }
+
+  // History search
+  const historySearchInput = document.getElementById('historySearchInput');
+  if (historySearchInput) {
+    historySearchInput.addEventListener('input', function(e) {
+      const searchTerm = e.target.value.toLowerCase();
+      const items = document.querySelectorAll('#historyList .list-group-item');
+      
+      items.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(searchTerm) ? '' : 'none';
+      });
+    });
+  }
+
+  // Load history on page load
+  loadHistory();
 });
-
-// Refresh history button
-document.getElementById('refreshHistoryBtn').addEventListener('click', loadHistory);
-
-// History search
-document.getElementById('historySearchInput').addEventListener('input', function(e) {
-  const searchTerm = e.target.value.toLowerCase();
-  const items = document.querySelectorAll('#historyList .list-group-item');
-  
-  items.forEach(item => {
-    const text = item.textContent.toLowerCase();
-    item.style.display = text.includes(searchTerm) ? '' : 'none';
-  });
-});
-
-// Load history on page load
-document.addEventListener('DOMContentLoaded', loadHistory);
 </script>
 {% endblock %}
