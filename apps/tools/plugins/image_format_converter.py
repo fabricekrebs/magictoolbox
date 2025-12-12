@@ -268,8 +268,15 @@ class ImageFormatConverter(BaseTool):
                     function_url = f"{base_url}/image/convert"
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": f"uploads/{blob_name}"  # Full path: uploads/image/{uuid}.ext
+                        "blob_name": f"uploads/{blob_name}",  # Full path: uploads/image/{uuid}.ext
+                        "output_format": output_format,
+                        "quality": quality
                     }
+                    # Add optional resize parameters if provided
+                    if resize_width:
+                        payload["width"] = resize_width
+                    if resize_height:
+                        payload["height"] = resize_height
                     self.logger.info(f"   Function URL: {function_url}")
                     self.logger.info(f"   Payload: {payload}")
                     self.logger.info(f"   Sending async POST request...")

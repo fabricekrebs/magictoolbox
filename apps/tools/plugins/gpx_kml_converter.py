@@ -190,7 +190,8 @@ class GPXKMLConverter(BaseTool):
                     function_url = f"{base_url}/gpx/convert"
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": f"uploads/{blob_name}"  # Full path: uploads/gpx/{uuid}.gpx
+                        "blob_name": f"uploads/{blob_name}",  # Full path: uploads/gpx/{uuid}.gpx
+                        "conversion_type": conversion_type  # Add conversion type to payload
                     }
                     self.logger.info(f"   Function URL: {function_url}")
                     self.logger.info(f"   Payload: {payload}")

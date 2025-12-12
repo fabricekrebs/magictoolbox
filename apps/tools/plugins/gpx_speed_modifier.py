@@ -163,7 +163,8 @@ class GPXSpeedModifier(BaseTool):
                     function_url = f"{base_url}/gpx/speed"
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": f"uploads/{blob_name}"  # Full path: uploads/gpx/{uuid}.gpx
+                        "blob_name": f"uploads/{blob_name}",  # Full path: uploads/gpx/{uuid}.gpx
+                        "speed_multiplier": speed_multiplier  # Add speed multiplier to payload
                     }
                     self.logger.info(f"   Function URL: {function_url}")
                     self.logger.info(f"   Payload: {payload}")
