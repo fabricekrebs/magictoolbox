@@ -1,6 +1,6 @@
 # Async File Processing - Gold Standard
 
-**Last Updated**: December 11, 2025  
+**Last Updated**: December 12, 2025  
 **Status**: ✅ Production Ready
 
 ## 📋 Overview
@@ -453,7 +453,7 @@ function initializeUploadForm() {
     submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
     
     try {
-      const response = await fetch('/api/v1/tools/{tool-name}/process/', {
+      const response = await fetch('/api/v1/tools/{tool-name}/convert/', {
         method: 'POST',
         body: formData,
         headers: {
@@ -768,9 +768,9 @@ function getCsrfToken() {
 
 **All Required Endpoints**:
 
-#### A. Upload & Process File
+#### A. Upload & Convert File
 ```
-POST /api/v1/tools/{tool-name}/process/
+POST /api/v1/tools/{tool-name}/convert/
 Content-Type: multipart/form-data
 
 Request Body:
@@ -1209,7 +1209,7 @@ Before creating a new async tool, ensure all requirements are met:
 - [ ] **Auto-refresh history**: After upload completion or item deletion
 
 ### **API Requirements**
-- [ ] `POST /api/v1/tools/{tool-name}/process/` - Upload & process
+- [ ] `POST /api/v1/tools/{tool-name}/convert/` - Upload & convert
 - [ ] `GET /api/v1/executions/{id}/status/` - Check status
 - [ ] `GET /api/v1/executions/{id}/download/` - Download result
 - [ ] `GET /api/v1/executions/?tool_name={name}&limit=10` - Get history with pagination

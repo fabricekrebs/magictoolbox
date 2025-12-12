@@ -222,7 +222,7 @@ async function checkStatus() {
 ```
 
 **API Endpoints Required**:
-- `POST /api/v1/tools/{tool-name}/process/` - Upload & process
+- `POST /api/v1/tools/{tool-name}/convert/` - Upload & convert
 - `GET /api/v1/executions/{id}/status/` - Check status
 - `GET /api/v1/executions/{id}/download/` - Download result
 - `GET /api/v1/executions/?tool_name={name}&limit=10` - Get history

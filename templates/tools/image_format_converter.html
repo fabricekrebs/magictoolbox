@@ -491,7 +491,7 @@ document.getElementById('imageConverterForm').addEventListener('submit', async f
   document.getElementById('statusDetail').textContent = 'Please wait...';
   
   try {
-    const response = await fetch(`/api/v1/tools/${TOOL_NAME}/process/`, {
+    const response = await fetch(`/api/v1/tools/${TOOL_NAME}/convert/`, {
       method: 'POST',
       body: formData,
       headers: {
@@ -505,7 +505,7 @@ document.getElementById('imageConverterForm').addEventListener('submit', async f
     }
     
     const data = await response.json();
-    currentExecutionId = data.execution_id;
+    currentExecutionId = data.executionId;
     
     // Update progress
     progressBar.style.width = '30%';

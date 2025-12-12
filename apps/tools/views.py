@@ -591,8 +591,8 @@ class ToolViewSet(viewsets.ViewSet):
         if request.data.get("rotation"):
             parameters["rotation"] = request.data.get("rotation")
 
-        # Special handling for async tools (PDF converter, Video rotation)
-        if pk in ["pdf-docx-converter", "video-rotation"]:
+        # Special handling for async tools (PDF converter, Video rotation, Image converter, GPX tools)
+        if pk in ["pdf-docx-converter", "video-rotation", "image-format-converter", "gpx-kml-converter", "gpx-speed-modifier"]:
             # Handle single file upload for async processing
             if len(files) == 1:
                 file = files[0]
@@ -608,7 +608,15 @@ class ToolViewSet(viewsets.ViewSet):
                     execution_id = str(uuid.uuid4())
                     
                     # Create ToolExecution record BEFORE processing
-                    container_prefix = "uploads/pdf" if pk == "pdf-docx-converter" else "video-uploads/video"
+                    # Determine container prefix based on tool type
+                    container_prefixes = {
+                        "pdf-docx-converter": "uploads/pdf",
+                        "video-rotation": "video-uploads/video",
+                        "image-format-converter": "uploads/image",
+                        "gpx-kml-converter": "uploads/gpx",
+                        "gpx-speed-modifier": "uploads/gpx",
+                    }
+                    container_prefix = container_prefixes.get(pk, "uploads")
                     file_ext = Path(file.name).suffix
                     
                     _execution = ToolExecution.objects.create(
