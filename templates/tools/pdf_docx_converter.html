@@ -380,6 +380,11 @@ document.getElementById('pdfConverterForm').addEventListener('submit', async fun
     // Initialize status display
     updateStatusDisplay();
     
+    // Immediately refresh history after upload
+    if (typeof ToolHistory !== 'undefined') {
+      ToolHistory.loadHistory('pdf-docx-converter');
+    }
+    
     // Start polling for status updates
     startStatusPolling();
     
@@ -422,7 +427,7 @@ function createStatusCard(executionId, exec) {
     progressBar = `
       <div class="progress mt-2" style="height: 20px;">
         <div class="progress-bar progress-bar-striped progress-bar-animated" 
-             style="width: 25%">Uploading...</div>
+             style="width: 25%">Waiting to process...</div>
       </div>
     `;
   } else if (exec.status === 'processing') {
@@ -507,8 +512,18 @@ function updateOverallProgress() {
 
 // Start polling for status updates
 function startStatusPolling() {
-  // Poll every 2 seconds
+  // Poll every 2 seconds for status
   statusPollInterval = setInterval(checkBatchStatus, 2000);
+  
+  // Also refresh history every 5 seconds
+  const historyPollInterval = setInterval(() => {
+    if (typeof ToolHistory !== 'undefined') {
+      ToolHistory.loadHistory('pdf-docx-converter');
+    }
+  }, 5000);
+  
+  // Store interval ID for cleanup
+  window._pdfHistoryPollInterval = historyPollInterval;
   
   // Initial check
   checkBatchStatus();
@@ -519,6 +534,12 @@ function stopStatusPolling() {
   if (statusPollInterval) {
     clearInterval(statusPollInterval);
     statusPollInterval = null;
+  }
+  
+  // Stop history polling
+  if (window._pdfHistoryPollInterval) {
+    clearInterval(window._pdfHistoryPollInterval);
+    window._pdfHistoryPollInterval = null;
   }
 }
 
