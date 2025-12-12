@@ -1436,32 +1436,52 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Determine container and blob name based on tool type
-            if execution.tool_name == "video-rotation":
-                container_name = "video-processed"
-                # Use output_blob_path if available
-                if execution.output_blob_path:
-                    blob_name = execution.output_blob_path
-                    # Remove container prefix if present
-                    if blob_name.startswith("video-processed/"):
-                        blob_name = blob_name[len("video-processed/"):]
-                elif execution.output_file and execution.output_file.name:
-                    blob_name = execution.output_file.name
-                    if blob_name.startswith("video-processed/"):
-                        blob_name = blob_name[len("video-processed/"):]
-                else:
-                    # Default to video/{execution_id}.mp4
-                    blob_name = f"video/{execution.id}.mp4"
-            else:
-                # PDF and other tools use 'processed' container
-                container_name = "processed"
-                if execution.output_file and execution.output_file.name:
-                    blob_name = execution.output_file.name
-                    if blob_name.startswith("processed/"):
-                        blob_name = blob_name[len("processed/"):]
-                else:
-                    blob_name = f"docx/{execution.id}.docx"
+            # Determine container and blob name from output_blob_path
+            container_name = "processed"  # Default container
+            blob_name = None
             
+            if execution.output_blob_path:
+                # Parse the output_blob_path which includes container/blob format
+                # Examples:
+                #   - processed/docx/{uuid}.docx
+                #   - processed/image/{uuid}.png
+                #   - processed/gpx/{uuid}.gpx
+                #   - video-processed/video/{uuid}.mp4
+                path_parts = execution.output_blob_path.split("/", 1)
+                if len(path_parts) == 2:
+                    container_name = path_parts[0]
+                    blob_name = path_parts[1]
+                else:
+                    blob_name = execution.output_blob_path
+                    
+                logger.info(f"Parsed output_blob_path: container={container_name}, blob={blob_name}")
+            elif execution.output_file and execution.output_file.name:
+                # Fallback to output_file field
+                blob_name = execution.output_file.name
+                # Remove container prefix if present
+                if blob_name.startswith("processed/"):
+                    blob_name = blob_name[len("processed/"):]
+                elif blob_name.startswith("video-processed/"):
+                    container_name = "video-processed"
+                    blob_name = blob_name[len("video-processed/"):]
+            else:
+                # Last resort: guess based on tool name
+                if execution.tool_name == "video-rotation":
+                    container_name = "video-processed"
+                    blob_name = f"video/{execution.id}.mp4"
+                elif execution.tool_name == "pdf-docx-converter":
+                    blob_name = f"docx/{execution.id}.docx"
+                elif execution.tool_name == "image-format-converter":
+                    blob_name = f"image/{execution.id}.png"  # Default extension
+                elif execution.tool_name in ["gpx-kml-converter", "gpx-speed-modifier"]:
+                    blob_name = f"gpx/{execution.id}.gpx"
+                else:
+                    return Response(
+                        {"error": "Cannot determine output file location"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
+            
+            logger.info(f"Download request - Tool: {execution.tool_name}")
             logger.info(f"Using container: {container_name}, blob: {blob_name}")
             logger.info(f"About to initialize blob service client...")
 
@@ -1499,22 +1519,55 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
 
             logger.info(f"✅ Downloaded {len(blob_data)} bytes for execution {execution.id}")
 
-            # Determine content type
-            if execution.tool_name == "video-rotation":
-                output_filename = execution.output_filename or "rotated_video.mp4"
-            else:
-                output_filename = execution.output_filename or "converted.docx"
+            # Determine output filename and content type
+            output_filename = execution.output_filename or "download"
+            
+            # Add default extension if no filename available
+            if not output_filename or output_filename == "download":
+                if execution.tool_name == "video-rotation":
+                    output_filename = "rotated_video.mp4"
+                elif execution.tool_name == "pdf-docx-converter":
+                    output_filename = "converted.docx"
+                elif execution.tool_name == "image-format-converter":
+                    output_filename = "converted.png"
+                elif execution.tool_name in ["gpx-kml-converter", "gpx-speed-modifier"]:
+                    output_filename = "track.gpx"
+                else:
+                    output_filename = "download.bin"
             
             file_ext = output_filename.split(".")[-1].lower()
             content_type_map = {
+                # Documents
                 "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 "pdf": "application/pdf",
                 "txt": "text/plain",
+                # Videos
                 "mp4": "video/mp4",
                 "avi": "video/x-msvideo",
                 "mov": "video/quicktime",
                 "mkv": "video/x-matroska",
                 "webm": "video/webm",
+                "flv": "video/x-flv",
+                "wmv": "video/x-ms-wmv",
+                "m4v": "video/x-m4v",
+                "mpg": "video/mpeg",
+                "mpeg": "video/mpeg",
+                "3gp": "video/3gpp",
+                # Images
+                "jpg": "image/jpeg",
+                "jpeg": "image/jpeg",
+                "png": "image/png",
+                "gif": "image/gif",
+                "webp": "image/webp",
+                "bmp": "image/bmp",
+                "tiff": "image/tiff",
+                "tif": "image/tiff",
+                "ico": "image/x-icon",
+                "svg": "image/svg+xml",
+                # GPS/Map formats
+                "gpx": "application/gpx+xml",
+                "kml": "application/vnd.google-earth.kml+xml",
+                "kmz": "application/vnd.google-earth.kmz",
             }
             content_type = content_type_map.get(file_ext, "application/octet-stream")
 
