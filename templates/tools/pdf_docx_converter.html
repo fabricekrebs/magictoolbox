@@ -19,21 +19,12 @@
           <li class="breadcrumb-item active" aria-current="page">{{ tool.display_name }}</li>
         </ol>
       </nav>
-      <div class="d-flex justify-content-between align-items-center">
-        <div>
-          <h1 class="display-5 fw-bold mb-2">
-            <i class="bi bi-file-earmark-word text-primary me-2"></i>
-            {{ tool.display_name }}
-          </h1>
-          <p class="lead text-muted mb-0">{{ tool.description }}</p>
-        </div>
-        {% if user.is_authenticated %}
-        <div>
-          <a href="{% url 'tools:my_conversions' %}" class="btn btn-outline-primary">
-            <i class="bi bi-clock-history me-2"></i>My Conversions
-          </a>
-        </div>
-        {% endif %}
+      <div>
+        <h1 class="display-5 fw-bold mb-2">
+          <i class="bi bi-file-earmark-word text-primary me-2"></i>
+          {{ tool.display_name }}
+        </h1>
+        <p class="lead text-muted mb-0">{{ tool.description }}</p>
       </div>
     </div>
   </div>

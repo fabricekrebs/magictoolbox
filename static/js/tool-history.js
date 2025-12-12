@@ -82,14 +82,14 @@ function truncateFilename(filename, maxLength = 30) {
 // ============================================================================
 
 /**
- * Load and display execution history
+ * Load and display execution history (internal function)
  * @param {string} toolName - Tool name to filter by
  * @param {Object} elements - DOM element references
  * @param {HTMLElement} elements.container - Container for history items
  * @param {HTMLElement} elements.loading - Loading indicator element
  * @param {HTMLElement} elements.empty - Empty state element
  */
-async function loadHistory(toolName, elements) {
+async function loadHistoryInternal(toolName, elements) {
   const { container, loading, empty } = elements;
   
   // Show loading state
@@ -141,7 +141,7 @@ function renderHistoryItems(items, container) {
   
   container.innerHTML = items.map(item => {
     const statusBadge = getStatusBadge(item.status);
-    const timeAgo = formatTimeAgo(item.createdAt);
+    const timeAgo = formatTimeAgo(item.created_at);
     const canDownload = item.status === 'completed';
     
     return `
@@ -155,19 +155,19 @@ function renderHistoryItems(items, container) {
         <!-- Input Filename -->
         <div class="mb-2">
           <small class="text-muted d-block">Input:</small>
-          <div class="text-truncate" title="${item.inputFilename || 'N/A'}">
+          <div class="text-truncate" title="${item.input_filename || 'N/A'}">
             <i class="bi bi-file-earmark me-1"></i>
-            <strong>${truncateFilename(item.inputFilename, 25)}</strong>
+            <strong>${truncateFilename(item.input_filename, 25)}</strong>
           </div>
         </div>
         
         <!-- Output Filename -->
-        ${item.outputFilename ? `
+        ${item.output_filename ? `
           <div class="mb-2">
             <small class="text-muted d-block">Output:</small>
-            <div class="text-truncate" title="${item.outputFilename}">
+            <div class="text-truncate" title="${item.output_filename}">
               <i class="bi bi-file-earmark-check me-1"></i>
-              ${truncateFilename(item.outputFilename, 25)}
+              ${truncateFilename(item.output_filename, 25)}
             </div>
           </div>
         ` : ''}
@@ -177,7 +177,7 @@ function renderHistoryItems(items, container) {
           ${canDownload ? `
             <a href="${HISTORY_CONFIG.apiBase}/executions/${item.id}/download/" 
                class="btn btn-sm btn-outline-success" 
-               download="${item.outputFilename || 'file'}"
+               download="${item.output_filename || 'file'}"
                title="Download">
               <i class="bi bi-download"></i>
             </a>
@@ -188,7 +188,7 @@ function renderHistoryItems(items, container) {
           `}
           <button class="btn btn-sm btn-outline-danger delete-history-btn" 
                   data-id="${item.id}"
-                  data-filename="${item.inputFilename || 'this item'}"
+                  data-filename="${item.input_filename || 'this item'}"
                   title="Delete">
             <i class="bi bi-trash"></i>
           </button>
@@ -213,9 +213,9 @@ function renderHistoryItems(items, container) {
  * @param {string} filename - Filename for display
  */
 function showDeleteConfirmation(executionId, filename) {
-  const modalElement = document.getElementById('deleteModal');
+  const modalElement = document.getElementById('deleteHistoryModal');
   if (!modalElement) {
-    console.error('Delete modal not found');
+    console.error('Delete modal not found (expected ID: deleteHistoryModal)');
     return;
   }
   
@@ -237,9 +237,21 @@ function showDeleteConfirmation(executionId, filename) {
     confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
     
     newConfirmBtn.addEventListener('click', async function() {
-      await deleteHistoryItem(executionId);
+      const success = await deleteHistoryItem(executionId);
       const modal = bootstrap.Modal.getInstance(modalElement);
       if (modal) modal.hide();
+      
+      // Call callbacks
+      if (success && window._historyDeleteSuccessCallback) {
+        window._historyDeleteSuccessCallback();
+      } else if (!success && window._historyDeleteErrorCallback) {
+        window._historyDeleteErrorCallback('Failed to delete item');
+      }
+      
+      // Refresh history
+      if (success && window._currentHistoryToolName) {
+        await loadHistory(window._currentHistoryToolName);
+      }
     });
   }
   
@@ -333,6 +345,34 @@ function pollExecutionStatus(executionId, onUpdate, onComplete, onError) {
   intervalId = setInterval(checkStatus, HISTORY_CONFIG.pollInterval);
   
   return { stop: stopPolling };
+}
+
+/**
+ * Public wrapper for loadHistory that automatically finds DOM elements
+ * @param {string} toolName - Tool name to filter by
+ * @param {Object} options - Optional callbacks
+ * @param {Function} options.onDeleteSuccess - Callback when item is deleted successfully
+ * @param {Function} options.onDeleteError - Callback when deletion fails
+ */
+async function loadHistory(toolName, options = {}) {
+  const elements = {
+    container: document.getElementById('historyList'),
+    loading: document.getElementById('historyLoading'),
+    empty: document.getElementById('historyEmpty')
+  };
+  
+  // Store current tool name for refresh after delete
+  window._currentHistoryToolName = toolName;
+  
+  // Store callbacks for delete operations
+  if (options.onDeleteSuccess) {
+    window._historyDeleteSuccessCallback = options.onDeleteSuccess;
+  }
+  if (options.onDeleteError) {
+    window._historyDeleteErrorCallback = options.onDeleteError;
+  }
+  
+  await loadHistoryInternal(toolName, elements);
 }
 
 // ============================================================================
