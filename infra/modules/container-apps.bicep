@@ -317,12 +317,8 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: 'true'
             }
             {
-              name: 'AZURE_FUNCTION_PDF_CONVERT_URL'
+              name: 'AZURE_FUNCTION_BASE_URL'
               value: functionAppUrl
-            }
-            {
-              name: 'AZURE_FUNCTION_VIDEO_ROTATE_URL'
-              value: '${functionAppUrl}/video/rotate'
             }
             {
               name: 'AZURE_STORAGE_ACCOUNT_NAME'

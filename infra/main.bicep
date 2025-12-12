@@ -185,7 +185,7 @@ module containerApps './modules/container-apps.bicep' = {
     postgresDatabase: postgresql.outputs.databaseName
     postgresAdminUsername: postgresAdminUsername
     containerAppsSubnetId: network.outputs.containerAppsSubnetId
-    functionAppUrl: 'https://${functionApp.outputs.functionAppHostName}/api/convert/pdf-to-docx'
+    functionAppUrl: 'https://${functionApp.outputs.functionAppHostName}/api'
   }
 }
 
