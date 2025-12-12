@@ -89,6 +89,248 @@ magictoolbox/
 └── README.md
 ```
 
+## Architecture
+
+### Application Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         User Browser                                 │
+│                    (Bootstrap 5 Frontend)                            │
+└────────────────┬────────────────────────────────────────────────────┘
+                 │ HTTPS
+                 ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Django Application                                │
+│                  (Azure Container Apps)                              │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │  Django Views & Templates                                     │  │
+│  │  - File upload forms                                          │  │
+│  │  - Status polling (JavaScript)                                │  │
+│  │  - History sidebar                                            │  │
+│  └────────────────────┬──────────────────────────────────────────┘  │
+│                       │                                              │
+│  ┌────────────────────▼──────────────────────────────────────────┐  │
+│  │  Tool Plugin System (apps/tools/plugins/)                     │  │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐         │  │
+│  │  │ Image    │ │ PDF      │ │ Video    │ │ GPX/KML  │         │  │
+│  │  │Converter │ │Converter │ │Rotation  │ │Converter │         │  │
+│  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘         │  │
+│  │                                                                │  │
+│  │  Each tool:                                                    │  │
+│  │  1. Validates uploaded file                                   │  │
+│  │  2. Uploads to Azure Blob Storage (uploads container)         │  │
+│  │  3. Triggers Azure Function via HTTP POST                     │  │
+│  │  4. Returns execution_id for status polling                   │  │
+│  └────────────────────┬──────────────────────────────────────────┘  │
+│                       │                                              │
+│  ┌────────────────────▼──────────────────────────────────────────┐  │
+│  │  Django REST Framework API                                    │  │
+│  │  - POST /api/v1/tools/{tool}/convert/   (upload & trigger)    │  │
+│  │  - GET  /api/v1/executions/{id}/status/ (polling endpoint)    │  │
+│  │  - GET  /api/v1/executions/{id}/download/ (download result)   │  │
+│  │  - DELETE /api/v1/executions/{id}/      (cleanup)             │  │
+│  └────────────────────┬──────────────────────────────────────────┘  │
+└─────────────────────┬─┴──────────────────────────────────────────────┘
+                      │
+         ┌────────────┼────────────┐
+         ↓            ↓            ↓
+    ┌─────────┐ ┌──────────┐ ┌─────────────┐
+    │ Blob    │ │PostgreSQL│ │   Redis     │
+    │ Storage │ │ Database │ │   Cache     │
+    │ (Files) │ │(Metadata)│ │ (Sessions)  │
+    └────┬────┘ └──────────┘ └─────────────┘
+         │
+         │ HTTP POST (background thread)
+         ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│              Azure Functions (Flex Consumption)                      │
+│                     Python 3.11 Runtime                              │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │  HTTP Triggered Functions:                                    │  │
+│  │  - POST /image/convert   (image conversion)                   │  │
+│  │  - POST /pdf/convert     (PDF to DOCX)                        │  │
+│  │  - POST /video/rotate    (video rotation)                     │  │
+│  │  - POST /gpx/convert     (GPX/KML conversion)                 │  │
+│  │  - POST /gpx/speed       (GPX speed modification)             │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│                                                                      │
+│  Processing Flow (per function):                                    │
+│  1. Parse HTTP request (execution_id, parameters)                   │
+│  2. Update DB: status='processing'                                  │
+│  3. Download file from 'uploads' container                          │
+│  4. Process file (convert/rotate/modify)                            │
+│  5. Upload result to 'processed' container                          │
+│  6. Update DB: status='completed', output_blob_path                 │
+│  7. Cleanup temp files                                              │
+└──────────────────────┬───────────────────────────────────────────────┘
+                       │
+                       ↓
+                ┌─────────────┐
+                │   Blob      │
+                │  Storage    │
+                │ (processed) │
+                └─────────────┘
+                       ↑
+                       │
+            Client polls & downloads when complete
+```
+
+**Key Architectural Features:**
+- **Async Processing Pattern**: Upload → Trigger → Poll → Download
+- **Separation of Concerns**: Django handles UI/API, Azure Functions handle heavy processing
+- **Scalability**: Azure Functions auto-scale based on load
+- **Fault Tolerance**: Status tracking in database, automatic retry on failures
+- **Storage Organization**: 
+  - `uploads/` - Input files organized by category (pdf/, image/, video/, gpx/)
+  - `processed/` - Output files with same organization
+  - `temp/` - Temporary files (auto-cleanup after 24h)
+
+### Azure Infrastructure Diagram
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                         Internet (HTTPS)                             │
+└────────────────────────┬─────────────────────────────────────────────┘
+                         │
+                         ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Azure Front Door (Optional)                       │
+│                         CDN + WAF                                    │
+└────────────────────────┬────────────────────────────────────────────┘
+                         │
+                         ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│                   Azure Container Apps                               │
+│                    (Django Application)                              │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │  Environment: magictoolbox-env                                │  │
+│  │  Container: Django 4.x + uWSGI                                │  │
+│  │  Scale: 1-10 replicas (CPU/HTTP based)                        │  │
+│  │  Resources: 0.5 CPU, 1.0 GB RAM per replica                   │  │
+│  │  Ingress: External, HTTPS only                                │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│                                                                      │
+│  Managed Identity: System-assigned                                  │
+│  VNet Integration: Yes (Private subnet)                             │
+└─────┬───────────────────┬───────────────────┬───────────────────────┘
+      │                   │                   │
+      │                   │                   │
+┌─────▼────────┐   ┌──────▼──────┐   ┌───────▼──────────┐
+│   Azure      │   │   Azure     │   │  Azure Cache     │
+│ Key Vault    │   │ PostgreSQL  │   │   for Redis      │
+│              │   │   Flexible  │   │                  │
+│ Secrets:     │   │   Server    │   │ - Sessions       │
+│ - DB_PASS    │   │             │   │ - Cache          │
+│ - REDIS_CONN │   │ Private     │   │                  │
+│ - STORAGE_KEY│   │ Endpoint    │   │ Private Endpoint │
+│              │   │             │   │                  │
+│ Private      │   │ VNet        │   │ VNet Integrated  │
+│ Endpoint     │   │ Integrated  │   │                  │
+└──────────────┘   └─────────────┘   └──────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                   Azure Functions (Flex Consumption)                 │
+│                    (File Processing Workers)                         │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │  Runtime: Python 3.11                                         │  │
+│  │  Triggers: HTTP (POST endpoints)                              │  │
+│  │  Scale: 0-1000 instances (event-driven)                       │  │
+│  │  Resources: Dynamic allocation                                │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│                                                                      │
+│  Managed Identity: System-assigned                                  │
+│  VNet Integration: Yes (Functions subnet)                           │
+│  Storage: Requires public access for runtime                        │
+└─────┬────────────────────────────────────────────────────────────────┘
+      │
+      ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│              Azure Blob Storage (Standard LRS)                       │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │  Containers:                                                  │  │
+│  │  - uploads/       (input files: pdf/, image/, video/, gpx/)   │  │
+│  │  - processed/     (output files: same structure)              │  │
+│  │  - video-uploads/ (video-specific inputs)                     │  │
+│  │  - video-processed/ (video-specific outputs)                  │  │
+│  │  - temp/          (lifecycle: auto-delete after 24h)          │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│                                                                      │
+│  Access: Public blob access (for Functions runtime)                 │
+│  Authentication: Managed Identity + Access Keys                     │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│              Azure Container Registry (ACR)                          │
+│  - Docker images for Container Apps                                 │
+│  - Private endpoint enabled                                         │
+│  - Admin user disabled (MI auth only)                               │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│              Application Insights                                    │
+│  - Distributed tracing (OpenCensus)                                 │
+│  - Custom metrics & events                                          │
+│  - Exception tracking                                               │
+│  - Performance monitoring                                           │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Virtual Network (VNet)                            │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │  Subnets:                                                     │  │
+│  │  - containerapp-subnet    (10.0.0.0/23)   Container Apps     │  │
+│  │  - functions-subnet       (10.0.2.0/24)   Azure Functions    │  │
+│  │  - private-endpoints      (10.0.3.0/24)   Private Endpoints  │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│                                                                      │
+│  Network Security:                                                   │
+│  - Private endpoints for PostgreSQL, Key Vault, Redis, ACR          │
+│  - Network isolation for backend services                           │
+│  - NSG rules for traffic control                                    │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                    CI/CD Pipeline                                    │
+│  GitHub Actions:                                                     │
+│  - Build Docker image                                                │
+│  - Push to ACR                                                       │
+│  - Deploy to Container Apps                                          │
+│  - Deploy Functions                                                  │
+│  - Run tests & validation                                            │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+**Infrastructure Highlights:**
+
+| Component | Service | Purpose | Scaling |
+|-----------|---------|---------|---------|
+| **Web App** | Azure Container Apps | Django frontend/backend | 1-10 replicas (auto) |
+| **Processing** | Azure Functions (Flex) | File conversion workers | 0-1000 instances (event-driven) |
+| **Database** | PostgreSQL Flexible | Metadata & executions | Single server (can enable HA) |
+| **Cache** | Azure Cache for Redis | Sessions & query cache | Basic/Standard tier |
+| **Storage** | Azure Blob Storage | File uploads & results | Standard LRS |
+| **Secrets** | Azure Key Vault | Configuration secrets | N/A |
+| **Monitoring** | Application Insights | Telemetry & diagnostics | N/A |
+| **Registry** | Azure Container Registry | Docker images | Standard tier |
+| **Network** | Virtual Network | Network isolation | N/A |
+
+**Security Features:**
+- ✅ Managed Identity for all service-to-service auth
+- ✅ Private endpoints for PostgreSQL, Key Vault, Redis, ACR
+- ✅ VNet integration for Container Apps and Functions
+- ✅ HTTPS only (SSL termination at ingress)
+- ✅ RBAC-based access control
+- ✅ No hardcoded credentials (Key Vault references)
+- ✅ Network isolation for backend services
+
+**Cost Optimization:**
+- Functions scale to zero when idle
+- Container Apps scale down to 1 replica minimum
+- Storage uses Standard LRS (not Premium)
+- Redis uses Basic tier (can upgrade)
+- PostgreSQL Burstable tier for development
+
 ## Available Tools
 
 ### 1. Image Format Converter
