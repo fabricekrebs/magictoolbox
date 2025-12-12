@@ -134,6 +134,18 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
           identity: 'system'
         }
         {
+          name: 'redis-url'
+          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/0?ssl_cert_reqs=required'
+        }
+        {
+          name: 'celery-broker-url'
+          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/1?ssl_cert_reqs=required'
+        }
+        {
+          name: 'celery-result-backend'
+          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/1?ssl_cert_reqs=required'
+        }
+        {
           name: 'storage-account-key'
           keyVaultUrl: '${keyVaultUri}secrets/storage-account-key'
           identity: 'system'
@@ -159,6 +171,18 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
         {
           name: 'redis-access-key'
           value: redisAccessKey
+        }
+        {
+          name: 'redis-url'
+          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/0?ssl_cert_reqs=required'
+        }
+        {
+          name: 'celery-broker-url'
+          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/1?ssl_cert_reqs=required'
+        }
+        {
+          name: 'celery-result-backend'
+          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/1?ssl_cert_reqs=required'
         }
         {
           name: 'storage-account-key'
@@ -234,15 +258,15 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             }
             {
               name: 'REDIS_URL'
-              value: 'rediss://default@${redisHostName}:6380/0?ssl_cert_reqs=required'
+              secretRef: 'redis-url'
             }
             {
               name: 'CELERY_BROKER_URL'
-              value: 'rediss://default@${redisHostName}:6380/1?ssl_cert_reqs=required'
+              secretRef: 'celery-broker-url'
             }
             {
               name: 'CELERY_RESULT_BACKEND'
-              value: 'rediss://default@${redisHostName}:6380/1?ssl_cert_reqs=required'
+              secretRef: 'celery-result-backend'
             }
             {
               name: 'AZURE_STORAGE_ACCOUNT_NAME'
