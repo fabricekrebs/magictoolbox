@@ -145,57 +145,57 @@ function renderHistoryItems(items, container) {
     const canDownload = item.status === 'completed';
     
     return `
-      <div class="border-bottom p-3 history-item" 
+      <div class="border-bottom p-2 history-item" 
            data-id="${item.id}"
            data-input="${(item.input_filename || '').toLowerCase()}"
            data-output="${(item.output_filename || '').toLowerCase()}">
-        <!-- Status & Time -->
+        <!-- Status, Time, and Action Buttons on same line -->
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <div>${statusBadge}</div>
-          <small class="text-muted">${timeAgo}</small>
+          <div class="d-flex align-items-center gap-2">
+            ${statusBadge}
+            <small class="text-muted">${timeAgo}</small>
+          </div>
+          <div class="btn-group" role="group">
+            ${canDownload ? `
+              <a href="${HISTORY_CONFIG.apiBase}/executions/${item.id}/download/" 
+                 class="btn btn-sm btn-outline-success" 
+                 download="${item.output_filename || 'file'}"
+                 title="Download">
+                <i class="bi bi-download"></i>
+              </a>
+            ` : `
+              <button class="btn btn-sm btn-outline-secondary" disabled title="Not available">
+                <i class="bi bi-download"></i>
+              </button>
+            `}
+            <button class="btn btn-sm btn-outline-danger delete-history-btn" 
+                    data-id="${item.id}"
+                    data-filename="${item.input_filename || 'this item'}"
+                    title="Delete">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
         </div>
         
         <!-- Input Filename (inline) -->
         <div class="mb-1">
           <small class="text-muted">In:</small>
-          <span class="text-truncate d-inline-block" style="max-width: 70%;" title="${item.input_filename || 'N/A'}">
+          <span class="text-truncate d-inline-block" style="max-width: 80%;" title="${item.input_filename || 'N/A'}">
             <i class="bi bi-file-earmark"></i>
-            <strong>${truncateFilename(item.input_filename, 20)}</strong>
+            <strong>${truncateFilename(item.input_filename, 25)}</strong>
           </span>
         </div>
         
         <!-- Output Filename (inline) -->
         ${item.output_filename ? `
-          <div class="mb-2">
+          <div>
             <small class="text-muted">Out:</small>
-            <span class="text-truncate d-inline-block" style="max-width: 70%;" title="${item.output_filename}">
+            <span class="text-truncate d-inline-block" style="max-width: 80%;" title="${item.output_filename}">
               <i class="bi bi-file-earmark-check"></i>
-              ${truncateFilename(item.output_filename, 20)}
+              ${truncateFilename(item.output_filename, 25)}
             </span>
           </div>
         ` : ''}
-        
-        <!-- Action Buttons -->
-        <div class="btn-group w-100 mt-2" role="group">
-          ${canDownload ? `
-            <a href="${HISTORY_CONFIG.apiBase}/executions/${item.id}/download/" 
-               class="btn btn-sm btn-outline-success" 
-               download="${item.output_filename || 'file'}"
-               title="Download">
-              <i class="bi bi-download"></i>
-            </a>
-          ` : `
-            <button class="btn btn-sm btn-outline-secondary" disabled title="Not available">
-              <i class="bi bi-download"></i>
-            </button>
-          `}
-          <button class="btn btn-sm btn-outline-danger delete-history-btn" 
-                  data-id="${item.id}"
-                  data-filename="${item.input_filename || 'this item'}"
-                  title="Delete">
-            <i class="bi bi-trash"></i>
-          </button>
-        </div>
       </div>
     `;
   }).join('');
