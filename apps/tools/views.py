@@ -1173,15 +1173,17 @@ class ToolViewSet(viewsets.ViewSet):
             return Response({"error": f"Rotation failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class ToolExecutionViewSet(viewsets.ReadOnlyModelViewSet):
+class ToolExecutionViewSet(viewsets.ModelViewSet):
     """
     ViewSet for tool execution history.
 
-    Provides read-only access to execution records.
+    Provides read access to execution records and delete capability.
+    Only allows GET (list, retrieve) and DELETE operations.
     """
 
     permission_classes = [IsAuthenticated]  # Require authentication
     serializer_class = ToolExecutionSerializer
+    http_method_names = ['get', 'delete', 'head', 'options']  # Restrict to GET and DELETE only
 
     def get_queryset(self):
         """Return executions for the authenticated user only, with optional filtering."""
@@ -1197,6 +1199,93 @@ class ToolExecutionViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(status=status)
         
         return queryset.order_by('-created_at')
+    
+    def destroy(self, request, *args, **kwargs):
+        """
+        Delete execution record and associated blob files.
+        
+        DELETE /api/v1/executions/{id}/
+        
+        Returns:
+            204 No Content on success
+            404 Not Found if execution doesn't exist
+            403 Forbidden if user doesn't own the execution
+        """
+        try:
+            execution = self.get_object()  # Automatically filters by user via get_queryset
+            
+            # Delete associated blob files from storage
+            from azure.storage.blob import BlobServiceClient
+            from azure.identity import DefaultAzureCredential
+            from django.conf import settings
+            import logging
+            
+            logger = logging.getLogger(__name__)
+            
+            try:
+                # Get blob service client
+                connection_string = getattr(settings, 'AZURE_STORAGE_CONNECTION_STRING', None)
+                
+                if connection_string and "127.0.0.1" in connection_string:
+                    # Local development with Azurite
+                    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+                    logger.info("🔧 Using Azurite for blob deletion")
+                else:
+                    # Production with Managed Identity
+                    storage_account_name = getattr(settings, 'AZURE_STORAGE_ACCOUNT_NAME', None)
+                    if storage_account_name:
+                        account_url = f"https://{storage_account_name}.blob.core.windows.net"
+                        credential = DefaultAzureCredential()
+                        blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
+                        logger.info("🔐 Using Managed Identity for blob deletion")
+                    else:
+                        logger.warning("⚠️ No storage configuration found, skipping blob deletion")
+                        blob_service_client = None
+                
+                if blob_service_client:
+                    # Delete input blob if exists
+                    if execution.input_blob_path:
+                        try:
+                            container_name = execution.input_blob_path.split('/')[0]
+                            blob_name = '/'.join(execution.input_blob_path.split('/')[1:])
+                            blob_client = blob_service_client.get_blob_client(
+                                container=container_name,
+                                blob=blob_name
+                            )
+                            blob_client.delete_blob()
+                            logger.info(f"✅ Deleted input blob: {execution.input_blob_path}")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Failed to delete input blob: {e}")
+                    
+                    # Delete output blob if exists
+                    if execution.output_blob_path:
+                        try:
+                            container_name = execution.output_blob_path.split('/')[0]
+                            blob_name = '/'.join(execution.output_blob_path.split('/')[1:])
+                            blob_client = blob_service_client.get_blob_client(
+                                container=container_name,
+                                blob=blob_name
+                            )
+                            blob_client.delete_blob()
+                            logger.info(f"✅ Deleted output blob: {execution.output_blob_path}")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Failed to delete output blob: {e}")
+            
+            except Exception as e:
+                logger.error(f"❌ Error during blob deletion: {e}")
+                # Continue with database deletion even if blob deletion fails
+            
+            # Delete the database record
+            execution.delete()
+            logger.info(f"✅ Deleted execution record: {execution.id}")
+            
+            return Response(status=status.HTTP_204_NO_CONTENT)
+            
+        except ToolExecution.DoesNotExist:
+            return Response(
+                {"error": "Execution not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
     def get_serializer_class(self):
         """Use simplified serializer for list view."""
