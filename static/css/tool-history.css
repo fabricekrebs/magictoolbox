@@ -1,0 +1,146 @@
+/**
+ * Shared CSS for Tool History Sidebar
+ * Following the Gold Standard for Async File Processing Tools
+ */
+
+/* ============================================================================
+   HISTORY SIDEBAR
+   ============================================================================ */
+
+.history-sidebar {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.history-item {
+  transition: background-color 0.2s ease;
+}
+
+.history-item:hover {
+  background-color: #f8f9fa;
+}
+
+.history-item:last-child {
+  border-bottom: none !important;
+}
+
+/* ============================================================================
+   STATUS BADGES
+   ============================================================================ */
+
+.badge i {
+  font-size: 0.875rem;
+}
+
+/* ============================================================================
+   ACTION BUTTONS
+   ============================================================================ */
+
+.history-item .btn-group {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.history-item .btn {
+  flex: 1;
+}
+
+/* ============================================================================
+   STICKY SIDEBAR (Desktop only)
+   ============================================================================ */
+
+@media (min-width: 992px) {
+  .sticky-sidebar {
+    position: sticky;
+    top: 20px;
+    z-index: 1020;
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+
+@media (max-width: 991px) {
+  /* Stack history below upload form on mobile */
+  .history-sidebar-col {
+    order: 2;
+    margin-top: 2rem;
+  }
+  
+  .history-sidebar {
+    max-height: 50vh;
+  }
+}
+
+/* ============================================================================
+   SCROLLBAR STYLING (Optional enhancement)
+   ============================================================================ */
+
+.history-sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.history-sidebar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.history-sidebar::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.history-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* ============================================================================
+   LOADING & EMPTY STATES
+   ============================================================================ */
+
+.history-loading,
+.history-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #6c757d;
+}
+
+.history-loading .spinner-border {
+  width: 2rem;
+  height: 2rem;
+}
+
+.history-empty i {
+  font-size: 3rem;
+  opacity: 0.5;
+}
+
+/* ============================================================================
+   ANIMATIONS
+   ============================================================================ */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.history-item {
+  animation: fadeIn 0.3s ease;
+}
+
+/* ============================================================================
+   FILE NAME TRUNCATION
+   ============================================================================ */
+
+.history-item .text-truncate {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
