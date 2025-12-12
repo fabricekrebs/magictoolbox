@@ -489,10 +489,14 @@ function updateOverallProgress() {
   
   const percentage = totalFiles > 0 ? Math.round((completedFiles / totalFiles) * 100) : 0;
   
-  document.getElementById('overallProgressText').textContent = 
+  const overallProgressText = document.getElementById('overallProgressText');
+  const overallProgressBar = document.getElementById('overallProgressBar');
+  const overallPercentage = document.getElementById('overallPercentage');
+  
+  if (overallProgressText) overallProgressText.textContent = 
     `${completedFiles} / ${totalFiles} completed${failedFiles > 0 ? ` (${failedFiles} failed)` : ''}`;
-  document.getElementById('overallProgressBar').style.width = `${percentage}%`;
-  document.getElementById('overallPercentage').textContent = `${percentage}%`;
+  if (overallProgressBar) overallProgressBar.style.width = `${percentage}%`;
+  if (overallPercentage) overallPercentage.textContent = `${percentage}%`;
   
   // Check if all completed or failed
   if (completedFiles + failedFiles === totalFiles) {

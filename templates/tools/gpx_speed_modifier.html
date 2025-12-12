@@ -314,26 +314,30 @@ async function checkStatus() {
     const progressText = document.getElementById('progressText');
     
     if (data.status === 'processing') {
-      statusMessage.textContent = 'Modifying GPX timestamps...';
-      statusDetail.textContent = 'Azure Functions is processing your file';
-      progressBar.style.width = '60%';
-      progressText.textContent = '60%';
+      if (statusMessage) statusMessage.textContent = 'Modifying GPX timestamps...';
+      if (statusDetail) statusDetail.textContent = 'Azure Functions is processing your file';
+      if (progressBar) progressBar.style.width = '60%';
+      if (progressText) progressText.textContent = '60%';
     } else if (data.status === 'completed') {
       clearInterval(statusPollInterval);
       statusPollInterval = null;
       
-      progressBar.style.width = '100%';
-      progressText.textContent = '100%';
-      progressBar.classList.remove('progress-bar-animated');
-      progressBar.classList.add('bg-success');
+      if (progressBar) {
+        progressBar.style.width = '100%';
+        progressBar.classList.remove('progress-bar-animated');
+        progressBar.classList.add('bg-success');
+      }
+      if (progressText) progressText.textContent = '100%';
       
       // Show results
       setTimeout(() => {
-        document.getElementById('statusSection').style.display = 'none';
-        document.getElementById('resultSection').style.display = 'block';
+        const statusSection = document.getElementById('statusSection');
+        const resultSection = document.getElementById('resultSection');
+        if (statusSection) statusSection.style.display = 'none';
+        if (resultSection) resultSection.style.display = 'block';
         
         const downloadBtn = document.getElementById('downloadBtn');
-        downloadBtn.href = `/api/v1/executions/${currentExecutionId}/download/`;
+        if (downloadBtn) downloadBtn.href = `/api/v1/executions/${currentExecutionId}/download/`;
         
         loadHistory();
       }, 500);
@@ -342,12 +346,15 @@ async function checkStatus() {
       clearInterval(statusPollInterval);
       statusPollInterval = null;
       
-      statusMessage.textContent = 'Processing failed';
-      statusDetail.textContent = data.error_message || 'An error occurred during processing';
-      progressBar.classList.remove('bg-primary', 'progress-bar-animated');
-      progressBar.classList.add('bg-danger');
+      if (statusMessage) statusMessage.textContent = 'Processing failed';
+      if (statusDetail) statusDetail.textContent = data.error_message || 'An error occurred during processing';
+      if (progressBar) {
+        progressBar.classList.remove('bg-primary', 'progress-bar-animated');
+        progressBar.classList.add('bg-danger');
+      }
       
-      document.getElementById('convertBtn').disabled = false;
+      const convertBtn = document.getElementById('convertBtn');
+      if (convertBtn) convertBtn.disabled = false;
       loadHistory();
     }
   } catch (error) {
@@ -508,9 +515,14 @@ document.addEventListener('DOMContentLoaded', function() {
       progressBar.style.width = '10%';
       progressBar.classList.remove('bg-success', 'bg-danger');
       progressBar.classList.add('bg-primary', 'progress-bar-animated', 'progress-bar-striped');
-      document.getElementById('progressText').textContent = '10%';
-      document.getElementById('statusMessage').textContent = 'Uploading file...';
-      document.getElementById('statusDetail').textContent = 'Please wait...';
+      
+      const progressText = document.getElementById('progressText');
+      const statusMessage = document.getElementById('statusMessage');
+      const statusDetail = document.getElementById('statusDetail');
+      
+      if (progressText) progressText.textContent = '10%';
+      if (statusMessage) statusMessage.textContent = 'Uploading file...';
+      if (statusDetail) statusDetail.textContent = 'Please wait...';
       
       try {
         const response = await fetch(`/api/v1/tools/${TOOL_NAME}/convert/`, {
@@ -531,9 +543,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Update progress
         progressBar.style.width = '30%';
-        document.getElementById('progressText').textContent = '30%';
-        document.getElementById('statusMessage').textContent = 'Processing...';
-        document.getElementById('statusDetail').textContent = 'File uploaded, waiting for processing';
+        const progressText2 = document.getElementById('progressText');
+        const statusMessage2 = document.getElementById('statusMessage');
+        const statusDetail2 = document.getElementById('statusDetail');
+        
+        if (progressText2) progressText2.textContent = '30%';
+        if (statusMessage2) statusMessage2.textContent = 'Processing...';
+        if (statusDetail2) statusDetail2.textContent = 'File uploaded, waiting for processing';
         
         // Start polling for status
         statusPollInterval = setInterval(checkStatus, 2000);
