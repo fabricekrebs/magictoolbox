@@ -208,155 +208,705 @@ class ToolExecution(UUIDModel, TimeStampedModel):
 
 ---
 
-### 4. **Frontend Template**
+### 4. **Frontend Template Structure** (MANDATORY)
 
 **Location**: `templates/tools/{tool_name}.html`
 
-**Required Sections**:
+**Layout Pattern**: Two-column layout with upload/status on the left and history sidebar on the right.
 
-#### A. **File Upload Form**
+#### **Complete Template Structure**:
+
 ```html
-<div class="card shadow-sm">
-  <div class="card-header bg-primary text-white">
-    <h5><i class="bi bi-upload me-2"></i>Upload & Process</h5>
+{% extends 'base.html' %}
+{% load static crispy_forms_tags %}
+
+{% block title %}{{ tool.display_name }} - MagicToolbox{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-5">
+  <!-- Tool Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'tools:tool_list' %}">Tools</a></li>
+          <li class="breadcrumb-item active">{{ tool.display_name }}</li>
+        </ol>
+      </nav>
+      <h1 class="display-5 fw-bold mb-2">
+        <i class="bi bi-{icon} text-primary me-2"></i>
+        {{ tool.display_name }}
+      </h1>
+      <p class="lead text-muted">{{ tool.description }}</p>
+    </div>
   </div>
-  <div class="card-body">
-    <form id="uploadForm" enctype="multipart/form-data">
-      {% csrf_token %}
-      <div class="mb-3">
-        <label for="file" class="form-label">Select File</label>
-        <input type="file" class="form-control" name="file" accept=".ext" required>
+
+  <div class="row">
+    <!-- LEFT COLUMN: Upload & Processing Status (8 columns) -->
+    <div class="col-lg-8">
+      
+      <!-- A. File Upload Form (MANDATORY) -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-upload me-2"></i>Upload & Process
+          </h5>
+        </div>
+        <div class="card-body">
+          <form id="uploadForm" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <!-- File Input -->
+            <div class="mb-3">
+              <label for="file" class="form-label">Select File</label>
+              <input type="file" 
+                     class="form-control" 
+                     id="file" 
+                     name="file" 
+                     accept=".{extensions}" 
+                     required>
+              <div class="form-text">
+                <i class="bi bi-info-circle me-1"></i>
+                Supported formats: {formats}. Max size: {max_size}MB
+              </div>
+            </div>
+
+            <!-- Tool-specific Parameters (if any) -->
+            <!-- Example: rotation angle, quality settings, etc. -->
+            
+            <!-- Submit Button -->
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                <i class="bi bi-arrow-repeat me-2"></i>Process File
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-      <!-- Tool-specific parameters -->
-      <button type="submit" class="btn btn-primary btn-lg w-100">
-        <i class="bi bi-arrow-repeat me-2"></i>Process File
-      </button>
-    </form>
-  </div>
-</div>
-```
 
-#### B. **Processing Status Section**
-```html
-<div id="statusSection" style="display: none;">
-  <h5><i class="bi bi-hourglass-split me-2"></i>Processing Status</h5>
-  <div class="card">
-    <div class="card-body">
-      <div id="statusList"></div>
-      <div class="progress mt-3" style="height: 25px;">
-        <div class="progress-bar progress-bar-striped progress-bar-animated" 
-             id="progressBar" style="width: 0%">
-          <span id="progressText">0%</span>
+      <!-- B. Processing Status Section (MANDATORY) -->
+      <div id="statusSection" class="card shadow-sm mb-4" style="display: none;">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-hourglass-split me-2"></i>Processing Status
+          </h5>
+        </div>
+        <div class="card-body">
+          <!-- Status Messages -->
+          <div id="statusMessages" class="mb-3"></div>
+          
+          <!-- Progress Bar -->
+          <div class="progress mb-3" style="height: 30px;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                 id="progressBar" 
+                 role="progressbar" 
+                 style="width: 0%">
+              <span id="progressText" class="fw-bold">Initializing...</span>
+            </div>
+          </div>
+          
+          <!-- Download Button (shown on completion) -->
+          <div id="downloadSection" style="display: none;">
+            <div class="alert alert-success">
+              <i class="bi bi-check-circle-fill me-2"></i>
+              Processing completed successfully!
+            </div>
+            <div class="d-grid gap-2">
+              <a href="#" id="downloadBtn" class="btn btn-success btn-lg">
+                <i class="bi bi-download me-2"></i>Download Result
+              </a>
+            </div>
+          </div>
+          
+          <!-- Error Display -->
+          <div id="errorSection" class="alert alert-danger" style="display: none;">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <span id="errorMessage"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- C. Usage Instructions (Optional but recommended) -->
+      <div class="card shadow-sm">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="bi bi-info-circle me-2"></i>How to Use
+          </h5>
+        </div>
+        <div class="card-body">
+          <ol class="mb-0">
+            <li>Select your file using the upload form</li>
+            <li>Configure any tool-specific parameters (if applicable)</li>
+            <li>Click "Process File" to start conversion</li>
+            <li>Monitor the processing status in real-time</li>
+            <li>Download the result when complete</li>
+            <li>View your processing history in the sidebar →</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: Processing History Sidebar (4 columns) - MANDATORY -->
+    <div class="col-lg-4">
+      <div class="card shadow-sm sticky-top" style="top: 20px;">
+        <div class="card-header bg-secondary text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+              <i class="bi bi-clock-history me-2"></i>History
+            </h5>
+            <button class="btn btn-sm btn-light" id="refreshHistoryBtn" title="Refresh">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <!-- History List -->
+          <div id="historyList" style="max-height: 70vh; overflow-y: auto;">
+            <!-- Loading State -->
+            <div id="historyLoading" class="text-center p-4">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <p class="text-muted mt-2 mb-0">Loading history...</p>
+            </div>
+            
+            <!-- Empty State -->
+            <div id="historyEmpty" class="text-center p-4" style="display: none;">
+              <i class="bi bi-inbox fs-1 text-muted"></i>
+              <p class="text-muted mb-0">No processing history yet</p>
+            </div>
+            
+            <!-- History Items (populated via JavaScript) -->
+            <div id="historyItems"></div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </div>
-```
 
-#### C. **History Section** (MANDATORY)
-```html
-<div class="card shadow-sm">
-  <div class="card-header bg-info text-white">
-    <div class="d-flex justify-content-between align-items-center">
-      <h5><i class="bi bi-clock-history me-2"></i>Processing History</h5>
-      <button class="btn btn-sm btn-light" id="refreshHistoryBtn">
-        <i class="bi bi-arrow-clockwise"></i> Refresh
-      </button>
-    </div>
-  </div>
-  <div class="card-body">
-    <div id="historyList">
-      <div class="text-center text-muted">
-        <i class="bi bi-hourglass-split fs-3"></i>
-        <p>Loading history...</p>
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirm Delete</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to delete this item from history?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
       </div>
     </div>
   </div>
 </div>
+{% endblock %}
 ```
 
-**Required JavaScript**:
+---
+
+#### **Required JavaScript Implementation**:
+
+**Location**: Embedded in template or separate file `static/js/tools/{tool_name}.js`
+
 ```javascript
-// Poll status every 2-3 seconds
-async function checkStatus() {
-  const response = await fetch(`/api/v1/executions/${executionId}/status/`);
-  const data = await response.json();
-  
-  if (data.status === 'completed') {
-    showDownloadButton(data.downloadUrl);
-    stopPolling();
-  } else if (data.status === 'failed') {
-    showError(data.error);
-    stopPolling();
-  }
-  // Continue polling for 'pending' or 'processing'
+// ============================================================================
+// GLOBAL STATE
+// ============================================================================
+let currentExecutionId = null;
+let statusCheckInterval = null;
+const POLL_INTERVAL = 2500; // 2.5 seconds
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+document.addEventListener('DOMContentLoaded', function() {
+  initializeUploadForm();
+  loadHistory();
+  setupEventListeners();
+});
+
+function setupEventListeners() {
+  // Refresh history button
+  document.getElementById('refreshHistoryBtn')?.addEventListener('click', () => {
+    loadHistory();
+  });
 }
 
-// Load history on page load
+// ============================================================================
+// UPLOAD & PROCESSING
+// ============================================================================
+function initializeUploadForm() {
+  const form = document.getElementById('uploadForm');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(form);
+    const submitBtn = document.getElementById('submitBtn');
+    
+    // Disable button during upload
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
+    
+    try {
+      const response = await fetch('/api/v1/tools/{tool-name}/process/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-CSRFToken': getCsrfToken()
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        currentExecutionId = data.executionId;
+        showStatusSection();
+        startStatusPolling();
+        form.reset();
+      } else {
+        showError(data.error || 'Upload failed');
+      }
+    } catch (error) {
+      showError('Network error. Please try again.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="bi bi-arrow-repeat me-2"></i>Process File';
+    }
+  });
+}
+
+// ============================================================================
+// STATUS POLLING
+// ============================================================================
+function startStatusPolling() {
+  if (statusCheckInterval) {
+    clearInterval(statusCheckInterval);
+  }
+  
+  // Check immediately
+  checkStatus();
+  
+  // Then poll every 2.5 seconds
+  statusCheckInterval = setInterval(checkStatus, POLL_INTERVAL);
+}
+
+async function checkStatus() {
+  if (!currentExecutionId) return;
+  
+  try {
+    const response = await fetch(`/api/v1/executions/${currentExecutionId}/status/`);
+    const data = await response.json();
+    
+    updateProgressBar(data.status);
+    
+    if (data.status === 'completed') {
+      showDownloadButton(data.downloadUrl, data.outputFilename);
+      stopStatusPolling();
+      loadHistory(); // Refresh history
+    } else if (data.status === 'failed') {
+      showError(data.error || 'Processing failed');
+      stopStatusPolling();
+      loadHistory(); // Refresh history
+    }
+  } catch (error) {
+    console.error('Status check failed:', error);
+  }
+}
+
+function stopStatusPolling() {
+  if (statusCheckInterval) {
+    clearInterval(statusCheckInterval);
+    statusCheckInterval = null;
+  }
+}
+
+function updateProgressBar(status) {
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  
+  const statusMap = {
+    'pending': { width: '25%', text: 'Pending...', class: 'bg-info' },
+    'processing': { width: '50%', text: 'Processing...', class: 'bg-primary' },
+    'completed': { width: '100%', text: 'Completed!', class: 'bg-success' },
+    'failed': { width: '100%', text: 'Failed', class: 'bg-danger' }
+  };
+  
+  const config = statusMap[status] || statusMap['pending'];
+  progressBar.style.width = config.width;
+  progressBar.className = `progress-bar progress-bar-striped ${config.class}`;
+  if (status !== 'processing') {
+    progressBar.classList.remove('progress-bar-animated');
+  }
+  progressText.textContent = config.text;
+}
+
+function showStatusSection() {
+  document.getElementById('statusSection').style.display = 'block';
+  document.getElementById('downloadSection').style.display = 'none';
+  document.getElementById('errorSection').style.display = 'none';
+  updateProgressBar('pending');
+}
+
+function showDownloadButton(url, filename) {
+  const downloadSection = document.getElementById('downloadSection');
+  const downloadBtn = document.getElementById('downloadBtn');
+  
+  downloadBtn.href = url;
+  downloadBtn.download = filename || 'result';
+  downloadSection.style.display = 'block';
+}
+
+function showError(message) {
+  const errorSection = document.getElementById('errorSection');
+  const errorMessage = document.getElementById('errorMessage');
+  
+  errorMessage.textContent = message;
+  errorSection.style.display = 'block';
+}
+
+// ============================================================================
+// HISTORY MANAGEMENT (MANDATORY)
+// ============================================================================
 async function loadHistory() {
-  const response = await fetch('/api/v1/executions/?tool_name={tool-name}&limit=10');
-  const data = await response.json();
-  renderHistoryList(data.results);
+  const historyLoading = document.getElementById('historyLoading');
+  const historyEmpty = document.getElementById('historyEmpty');
+  const historyItems = document.getElementById('historyItems');
+  
+  historyLoading.style.display = 'block';
+  historyEmpty.style.display = 'none';
+  historyItems.innerHTML = '';
+  
+  try {
+    const response = await fetch('/api/v1/executions/?tool_name={tool-name}&limit=10');
+    const data = await response.json();
+    
+    historyLoading.style.display = 'none';
+    
+    if (data.results && data.results.length > 0) {
+      renderHistoryItems(data.results);
+    } else {
+      historyEmpty.style.display = 'block';
+    }
+  } catch (error) {
+    console.error('Failed to load history:', error);
+    historyLoading.style.display = 'none';
+    historyItems.innerHTML = `
+      <div class="alert alert-danger m-3">
+        Failed to load history. Please try again.
+      </div>
+    `;
+  }
+}
+
+function renderHistoryItems(items) {
+  const historyItems = document.getElementById('historyItems');
+  
+  historyItems.innerHTML = items.map(item => {
+    const statusBadge = getStatusBadge(item.status);
+    const timeAgo = formatTimeAgo(item.createdAt);
+    const canDownload = item.status === 'completed';
+    
+    return `
+      <div class="border-bottom p-3 history-item" data-id="${item.id}">
+        <!-- Status & Time -->
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          ${statusBadge}
+          <small class="text-muted">${timeAgo}</small>
+        </div>
+        
+        <!-- Filename -->
+        <div class="mb-2">
+          <small class="text-muted d-block">Input:</small>
+          <div class="text-truncate" title="${item.inputFilename}">
+            <i class="bi bi-file-earmark me-1"></i>
+            <strong>${item.inputFilename}</strong>
+          </div>
+        </div>
+        
+        ${item.outputFilename ? `
+          <div class="mb-2">
+            <small class="text-muted d-block">Output:</small>
+            <div class="text-truncate" title="${item.outputFilename}">
+              <i class="bi bi-file-earmark-check me-1"></i>
+              ${item.outputFilename}
+            </div>
+          </div>
+        ` : ''}
+        
+        <!-- Action Buttons -->
+        <div class="btn-group w-100 mt-2" role="group">
+          ${canDownload ? `
+            <a href="${item.downloadUrl}" 
+               class="btn btn-sm btn-outline-success" 
+               download="${item.outputFilename}"
+               title="Download">
+              <i class="bi bi-download"></i>
+            </a>
+          ` : `
+            <button class="btn btn-sm btn-outline-secondary" disabled>
+              <i class="bi bi-download"></i>
+            </button>
+          `}
+          <button class="btn btn-sm btn-outline-danger" 
+                  onclick="deleteHistoryItem('${item.id}')"
+                  title="Delete">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function getStatusBadge(status) {
+  const badges = {
+    'pending': '<span class="badge bg-info"><i class="bi bi-clock me-1"></i>Pending</span>',
+    'processing': '<span class="badge bg-primary"><i class="bi bi-arrow-repeat me-1"></i>Processing</span>',
+    'completed': '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Completed</span>',
+    'failed': '<span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Failed</span>'
+  };
+  return badges[status] || badges['pending'];
+}
+
+function formatTimeAgo(timestamp) {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  
+  return date.toLocaleDateString();
+}
+
+async function deleteHistoryItem(executionId) {
+  const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+  modal.show();
+  
+  document.getElementById('confirmDeleteBtn').onclick = async () => {
+    try {
+      const response = await fetch(`/api/v1/executions/${executionId}/`, {
+        method: 'DELETE',
+        headers: {
+          'X-CSRFToken': getCsrfToken()
+        }
+      });
+      
+      if (response.ok) {
+        modal.hide();
+        loadHistory(); // Refresh history
+      } else {
+        alert('Failed to delete item');
+      }
+    } catch (error) {
+      alert('Network error. Please try again.');
+    }
+  };
+}
+
+// ============================================================================
+// UTILITIES
+// ============================================================================
+function getCsrfToken() {
+  return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
 }
 ```
 
 ---
 
-### 5. **API Endpoints**
+#### **CSS Styling Requirements**:
 
-**Required Endpoints**:
+```css
+/* History sidebar styling */
+.history-item {
+  transition: background-color 0.2s;
+}
 
-#### Upload & Process
+.history-item:hover {
+  background-color: #f8f9fa;
+}
+
+/* Sticky sidebar on desktop */
+@media (min-width: 992px) {
+  .sticky-top {
+    position: sticky;
+    top: 20px;
+    z-index: 1020;
+  }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 991px) {
+  .col-lg-8, .col-lg-4 {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+  
+  /* Stack history below upload on mobile */
+  .row > .col-lg-4 {
+    order: 2;
+    margin-top: 2rem;
+  }
+}
 ```
-POST /api/v1/tools/{tool-name}/convert/
+
+---
+
+### 5. **API Endpoints** (MANDATORY)
+
+**All Required Endpoints**:
+
+#### A. Upload & Process File
+```
+POST /api/v1/tools/{tool-name}/process/
 Content-Type: multipart/form-data
 
-Response:
+Request Body:
+- file: (binary)
+- parameter1: value (if applicable)
+- parameter2: value (if applicable)
+
+Response (201 Created):
 {
-  "executionId": "uuid",
+  "executionId": "550e8400-e29b-41d4-a716-446655440000",
   "status": "pending",
   "message": "File uploaded successfully"
 }
-```
 
-#### Check Status
-```
-GET /api/v1/executions/{execution_id}/status/
-
-Response:
+Response (400 Bad Request):
 {
-  "executionId": "uuid",
-  "status": "completed",  // pending, processing, completed, failed
-  "downloadUrl": "/api/v1/executions/{id}/download/",
-  "outputFilename": "output.ext",
-  "error": null  // or error message if failed
+  "error": "Invalid file type",
+  "details": "Only .pdf files are allowed"
 }
 ```
 
-#### Download File
+#### B. Check Processing Status
+```
+GET /api/v1/executions/{execution_id}/status/
+
+Response (200 OK):
+{
+  "executionId": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "completed",  // pending | processing | completed | failed
+  "inputFilename": "document.pdf",
+  "outputFilename": "document.docx",
+  "downloadUrl": "/api/v1/executions/550e8400-e29b-41d4-a716-446655440000/download/",
+  "createdAt": "2025-12-11T10:00:00Z",
+  "completedAt": "2025-12-11T10:02:30Z",
+  "error": null
+}
+
+Response (404 Not Found):
+{
+  "error": "Execution not found"
+}
+```
+
+#### C. Download Processed File
 ```
 GET /api/v1/executions/{execution_id}/download/
 
-Response: Binary file stream with proper Content-Disposition header
-```
+Response (200 OK):
+- Content-Type: application/octet-stream (or specific MIME type)
+- Content-Disposition: attachment; filename="output.ext"
+- Binary file stream
 
-#### History
-```
-GET /api/v1/executions/?tool_name={tool-name}&limit=10
-
-Response:
+Response (404 Not Found):
 {
+  "error": "File not found or not ready"
+}
+
+Response (410 Gone):
+{
+  "error": "File expired or deleted"
+}
+```
+
+#### D. Get History (with pagination)
+```
+GET /api/v1/executions/?tool_name={tool-name}&limit=10&offset=0
+
+Query Parameters:
+- tool_name: Filter by specific tool (required)
+- limit: Number of items per page (default: 10, max: 50)
+- offset: Pagination offset (default: 0)
+- status: Filter by status (optional: pending, processing, completed, failed)
+
+Response (200 OK):
+{
+  "count": 42,
+  "next": "/api/v1/executions/?tool_name=pdf-converter&limit=10&offset=10",
+  "previous": null,
   "results": [
     {
-      "id": "uuid",
+      "id": "550e8400-e29b-41d4-a716-446655440000",
       "status": "completed",
-      "inputFilename": "input.ext",
-      "outputFilename": "output.ext",
+      "inputFilename": "document.pdf",
+      "outputFilename": "document.docx",
+      "inputSize": 1048576,
+      "outputSize": 524288,
       "createdAt": "2025-12-11T10:00:00Z",
-      "downloadUrl": "/api/v1/executions/{id}/download/"
+      "completedAt": "2025-12-11T10:02:30Z",
+      "downloadUrl": "/api/v1/executions/550e8400-e29b-41d4-a716-446655440000/download/",
+      "parameters": {
+        "start_page": 0,
+        "end_page": 10
+      }
     }
   ]
+}
+```
+
+#### E. Delete History Item (MANDATORY)
+```
+DELETE /api/v1/executions/{execution_id}/
+
+Response (204 No Content):
+(Empty body - successful deletion)
+
+Response (404 Not Found):
+{
+  "error": "Execution not found"
+}
+
+Response (403 Forbidden):
+{
+  "error": "You don't have permission to delete this item"
+}
+
+Note: This should also delete associated blob files from storage
+```
+
+#### F. Bulk Delete (Optional but recommended)
+```
+POST /api/v1/executions/bulk-delete/
+Content-Type: application/json
+
+Request Body:
+{
+  "execution_ids": [
+    "550e8400-e29b-41d4-a716-446655440000",
+    "660e8400-e29b-41d4-a716-446655440001"
+  ]
+}
+
+Response (200 OK):
+{
+  "deleted": 2,
+  "failed": 0,
+  "errors": []
 }
 ```
 
@@ -629,20 +1179,69 @@ jobs:
 
 ## ✅ Compliance Checklist
 
-Before creating a new async tool, ensure:
+Before creating a new async tool, ensure all requirements are met:
 
-- [ ] Tool class inherits from `BaseTool`
-- [ ] `process()` returns `(execution_id, None)`
-- [ ] File uploaded to standardized blob path
-- [ ] Azure Function endpoint follows naming convention
-- [ ] Database status properly updated at each stage
-- [ ] Frontend has upload, status, and history sections
-- [ ] API endpoints for status, download, and history
-- [ ] Comprehensive error handling and logging
-- [ ] Unit and integration tests added
-- [ ] Bicep infrastructure updated
-- [ ] Environment variables documented
-- [ ] CI/CD pipeline configured
+### **Backend Requirements**
+- [ ] Tool class inherits from `BaseTool` in `apps/tools/plugins/{tool_name}.py`
+- [ ] `process()` returns `(execution_id, None)` to signal async processing
+- [ ] File uploaded to standardized blob path: `uploads/{category}/{execution_id}{ext}`
+- [ ] Azure Function endpoint follows naming: `/{category}/{action}` (e.g., `/pdf/convert`)
+- [ ] Database `ToolExecution` record created with status tracking
+- [ ] Status transitions: `pending` → `processing` → `completed`/`failed`
+- [ ] Comprehensive logging with emojis (🚀, ✅, ❌, ⚠️, 📝, 🔐)
+- [ ] Error handling in try/except with proper cleanup
+- [ ] Support both Azurite (local) and Azure (Managed Identity) authentication
+
+### **Frontend Requirements (MANDATORY)**
+- [ ] **Two-column layout**: Upload/status on left (8 cols), history on right (4 cols)
+- [ ] **Upload section**: File input, validation, parameters, submit button
+- [ ] **Status section**: Progress bar, real-time status updates, download button
+- [ ] **History sidebar**: Right-aligned, sticky on desktop, shows last 10 items
+- [ ] **History features**: Download, re-download, and delete actions for each item
+- [ ] **Status polling**: Every 2-3 seconds until completion or failure
+- [ ] **Responsive design**: History moves below upload on mobile
+- [ ] **Loading states**: Spinners for upload, status check, and history loading
+- [ ] **Empty states**: User-friendly message when history is empty
+- [ ] **Error handling**: Display errors prominently with retry options
+- [ ] **Time display**: Human-readable time ago (e.g., "2m ago", "1h ago")
+- [ ] **Status badges**: Color-coded badges (pending=blue, processing=primary, completed=green, failed=red)
+- [ ] **Delete confirmation**: Modal dialog before deleting history items
+- [ ] **Auto-refresh history**: After upload completion or item deletion
+
+### **API Requirements**
+- [ ] `POST /api/v1/tools/{tool-name}/process/` - Upload & process
+- [ ] `GET /api/v1/executions/{id}/status/` - Check status
+- [ ] `GET /api/v1/executions/{id}/download/` - Download result
+- [ ] `GET /api/v1/executions/?tool_name={name}&limit=10` - Get history with pagination
+- [ ] `DELETE /api/v1/executions/{id}/` - Delete history item (with blob cleanup)
+- [ ] Proper HTTP status codes (200, 201, 400, 404, 410, etc.)
+- [ ] JSON responses follow camelCase convention
+- [ ] CORS headers configured for API endpoints
+
+### **Azure Function Requirements**
+- [ ] Function route matches Django expectation: `/{category}/{action}`
+- [ ] Database status updates: `processing` on start, `completed`/`failed` on finish
+- [ ] Download from `uploads/` container, process, upload to `processed/` container
+- [ ] Temp file cleanup in try/finally blocks
+- [ ] Timeout handling (max 5 minutes for HTTP-triggered functions)
+- [ ] Comprehensive logging for debugging
+- [ ] Support both connection string (local) and Managed Identity (Azure)
+
+### **Infrastructure & Deployment**
+- [ ] Bicep templates updated with new function endpoint
+- [ ] Environment variables added to `.env.example`
+- [ ] `AZURE_FUNCTION_BASE_URL` configured in Django Container App
+- [ ] Blob storage containers configured: `uploads`, `processed`, `temp`
+- [ ] GitHub Actions workflow updated (if needed)
+- [ ] Database migrations created and applied
+
+### **Testing & Documentation**
+- [ ] Unit tests for tool plugin logic
+- [ ] Integration tests with mocked Azure services
+- [ ] E2E tests with real Azure resources (staging)
+- [ ] Test coverage ≥ 80% for new code
+- [ ] Tool added to `.github/copilot-instructions.md` if special notes needed
+- [ ] README or tool-specific documentation created
 
 ---
 

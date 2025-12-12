@@ -150,6 +150,13 @@ User Upload → Django validates & uploads to blob → Azure Function processes 
 - ✅ Upload to standardized blob path: `uploads/{category}/{execution_id}{ext}`
 - ✅ Azure Function endpoint: `/{category}/{action}` (e.g., `/pdf/convert`, `/video/rotate`)
 - ✅ Database status tracking: `pending` → `processing` → `completed`/`failed`
+- ✅ **Frontend Layout**: Two-column with upload/status (left 8 cols) and history sidebar (right 4 cols)
+- ✅ **History Features**: Download, re-download, delete actions; shows last 10 items; auto-refreshes
+- ✅ **Status Polling**: Client polls every 2-3 seconds until completion
+- ✅ Support both Azurite (local) and Azure (Managed Identity) auth
+- ✅ Comprehensive logging with emojis for easy scanning
+- ✅ Azure Function endpoint: `/{category}/{action}` (e.g., `/pdf/convert`, `/video/rotate`)
+- ✅ Database status tracking: `pending` → `processing` → `completed`/`failed`
 - ✅ Frontend must have: upload form, status polling, **history section**
 - ✅ Support both Azurite (local) and Azure (Managed Identity) auth
 - ✅ Comprehensive logging with emojis for easy scanning
@@ -179,22 +186,47 @@ AZURE_FUNCTION_BASE_URL = config("AZURE_FUNCTION_BASE_URL", default="")
 
 **Benefits**: Single configuration point, easier maintenance
 
-#### Frontend Template Requirements
+#### Frontend Template Requirements (MANDATORY)
+**Two-Column Layout**:
+- **Left Column (8 cols)**: Upload form, status section, instructions
+- **Right Column (4 cols)**: History sidebar (sticky on desktop)
+
 **MANDATORY Sections**:
 1. **Upload Form** - File selection with tool-specific parameters
 2. **Status Section** - Real-time progress with polling (every 2-3 seconds)
-3. **History Section** - Show last 10 executions with download/delete actions
+3. **History Sidebar** - Right-aligned, shows last 10 executions
+
+**History Features** (ALL REQUIRED):
+- ✅ Display input/output filenames
+- ✅ Show status with color-coded badges
+- ✅ Time ago display (e.g., "2m ago", "1h ago")
+- ✅ Download button for completed items
+- ✅ Delete button with confirmation modal
+- ✅ Auto-refresh after upload completion
+- ✅ Refresh button for manual updates
+- ✅ Empty state message when no history
+- ✅ Loading spinner during fetch
 
 **Status Polling Pattern**:
 ```javascript
 async function checkStatus() {
   const response = await fetch(`/api/v1/executions/${executionId}/status/`);
   const data = await response.json();
-  if (data.status === 'completed') { /* show download */ }
-  else if (data.status === 'failed') { /* show error */ }
+  if (data.status === 'completed') { 
+    showDownloadButton(data.downloadUrl);
+    loadHistory(); // Refresh history
+  }
+  else if (data.status === 'failed') { showError(data.error); }
   // Continue polling for 'pending' or 'processing'
 }
 ```
+
+**API Endpoints Required**:
+- `POST /api/v1/tools/{tool-name}/process/` - Upload & process
+- `GET /api/v1/executions/{id}/status/` - Check status
+- `GET /api/v1/executions/{id}/download/` - Download result
+- `GET /api/v1/executions/?tool_name={name}&limit=10` - Get history
+- `DELETE /api/v1/executions/{id}/` - Delete item (with blob cleanup)
 
 #### Azure Function Handler Pattern
 ```python
