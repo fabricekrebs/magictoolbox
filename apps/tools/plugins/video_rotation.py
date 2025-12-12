@@ -160,13 +160,20 @@ class VideoRotation(BaseTool):
             }
 
             self.logger.info(f"Uploading to blob: {blob_name}")
+            file_content = input_file.read()
             blob_client.upload_blob(
-                input_file.read(),
+                file_content,
                 overwrite=True,
                 metadata=metadata
             )
 
-            self.logger.info(f"Video uploaded successfully: {blob_name}")
+            self.logger.info(f"✅ Video uploaded successfully to Azure Blob Storage")
+            self.logger.info(f"   Blob name: {blob_name}")
+            self.logger.info(f"   Container: video-uploads")
+            self.logger.info(f"   Size: {len(file_content):,} bytes")
+
+            # Note: Azure Function trigger happens in the rotate-video endpoint
+            # This is just the upload step - rotation is triggered separately by user action
 
             # Return execution_id and None to indicate async processing
             return execution_id, None

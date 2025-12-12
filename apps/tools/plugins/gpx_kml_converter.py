@@ -177,6 +177,55 @@ class GPXKMLConverter(BaseTool):
             self.logger.info(f"   Container: uploads")
             self.logger.info(f"   Size: {len(file_content):,} bytes")
 
+            # Trigger Azure Function via HTTP (workaround for Flex Consumption blob trigger limitations)
+            self.logger.info("=" * 80)
+            self.logger.info("🚀 TRIGGERING AZURE FUNCTION FOR GPX CONVERSION")
+            try:
+                import requests
+                import threading
+                base_url = getattr(settings, "AZURE_FUNCTION_BASE_URL", None)
+                
+                if base_url:
+                    # Construct full URL by appending endpoint
+                    function_url = f"{base_url}/gpx/convert"
+                    payload = {
+                        "execution_id": execution_id,
+                        "blob_name": f"uploads/{blob_name}"  # Full path: uploads/gpx/{uuid}.gpx
+                    }
+                    self.logger.info(f"   Function URL: {function_url}")
+                    self.logger.info(f"   Payload: {payload}")
+                    self.logger.info(f"   Sending async POST request...")
+                    
+                    # Use a background thread to avoid blocking the upload response
+                    def trigger_function_async():
+                        """Background thread to trigger Azure Function."""
+                        try:
+                            response = requests.post(function_url, json=payload, timeout=300)
+                            self.logger.info(f"📨 Response received from Azure Function")
+                            self.logger.info(f"   Status code: {response.status_code}")
+                            
+                            if response.status_code == 200:
+                                self.logger.info("✅ Azure Function triggered successfully")
+                            else:
+                                self.logger.warning(
+                                    f"⚠️  Azure Function returned non-200 status: {response.status_code}"
+                                )
+                        except Exception as e:
+                            self.logger.error(f"❌ Azure Function call failed in background: {e}")
+                    
+                    # Start background thread and return immediately
+                    thread = threading.Thread(target=trigger_function_async, daemon=True)
+                    thread.start()
+                    self.logger.info("✅ Azure Function trigger started in background thread")
+                else:
+                    self.logger.warning(
+                        "⚠️  AZURE_FUNCTION_BASE_URL not configured. "
+                        "Relying on blob trigger (may not work with Flex Consumption)."
+                    )
+            except Exception as http_error:
+                self.logger.error(f"❌ Failed to trigger Azure Function via HTTP: {http_error}")
+                # Don't fail the upload - the blob trigger might still work
+
             # Return execution_id and None to indicate async processing
             return execution_id, None
 

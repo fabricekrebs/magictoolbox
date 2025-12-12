@@ -4,6 +4,7 @@ Core views for MagicToolbox including health checks and home page.
 
 import logging
 
+from django.conf import settings
 from django.core.cache import cache
 from django.db import connection
 from django.http import JsonResponse
@@ -63,3 +64,20 @@ def readiness_check(request):
     return JsonResponse(
         {"status": "ready" if all_healthy else "not_ready", "checks": checks}, status=status_code
     )
+
+
+def troubleshooting(request):
+    """
+    Troubleshooting page showing available diagnostic endpoints.
+    
+    Lists all Azure Function diagnostic endpoints for health checks,
+    storage verification, and debugging.
+    """
+    azure_function_base_url = getattr(settings, 'AZURE_FUNCTION_BASE_URL', None)
+    
+    context = {
+        'azure_function_base_url': azure_function_base_url,
+        'endpoints_available': bool(azure_function_base_url),
+    }
+    
+    return render(request, "troubleshooting.html", context)
