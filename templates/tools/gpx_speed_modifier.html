@@ -1,137 +1,138 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load static %}
 
-{% block title %}{{ tool.display_name }} - MagicToolbox{% endblock %}
+{% block title %}GPX Speed Modifier - MagicToolbox{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/tool-history.css' %}">
+{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-  <!-- ==================== BREADCRUMB & HEADER ==================== -->
+<div class="container-fluid py-5">
+  <!-- Tool Header -->
   <div class="row mb-4">
-    <div class="col">
+    <div class="col-12">
       <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
           <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
           <li class="breadcrumb-item"><a href="{% url 'tools:tool_list' %}">Tools</a></li>
-          <li class="breadcrumb-item active" aria-current="page">{{ tool.display_name }}</li>
+          <li class="breadcrumb-item active" aria-current="page">GPX Speed Modifier</li>
         </ol>
       </nav>
-      
-      <h1 class="display-4 mb-3">
-        <i class="bi bi-{{ tool.icon }} text-primary me-3"></i>
-        {{ tool.display_name }}
-      </h1>
-      <p class="lead text-muted">{{ tool.description }}</p>
+      <div>
+        <h1 class="display-5 fw-bold mb-2">
+          <i class="bi bi-speedometer2 text-primary me-2"></i>
+          GPX Speed Modifier
+        </h1>
+        <p class="lead text-muted mb-0">Adjust the recorded speed of your GPX tracks by modifying timestamps.</p>
+      </div>
     </div>
   </div>
 
   <div class="row">
-    <!-- ==================== MAIN CONTENT (LEFT COLUMN) ==================== -->
-    <div class="col-lg-8">
-      <!-- Upload Card -->
-      <div class="card shadow-sm mb-4">
+    <!-- Left Column: Upload & Status (8 columns) -->
+    <div class="col-lg-8 mb-4">
+      <div class="card shadow-sm">
         <div class="card-header bg-primary text-white">
           <h5 class="mb-0">
-            <i class="bi bi-upload me-2"></i>Upload GPX File
+            <i class="bi bi-upload me-2"></i>Modify GPX Speed
           </h5>
         </div>
         <div class="card-body">
-          <form id="toolForm" enctype="multipart/form-data">
+          <form id="gpxSpeedForm" enctype="multipart/form-data">
             {% csrf_token %}
             
-            <!-- File Input -->
             <div class="mb-3">
-              <label for="inputFile" class="form-label">
-                Select GPX File(s)
-                <span class="badge bg-success">Bulk supported!</span>
-              </label>
-              <input 
-                type="file" 
-                class="form-control" 
-                id="inputFile" 
-                name="files[]" 
-                accept=".gpx"
-                multiple 
-                required>
+              <label for="gpxFile" class="form-label">Select GPX File</label>
+              <input type="file" class="form-control" id="gpxFile" name="file" 
+                     accept=".gpx" required>
               <div class="form-text">
                 <i class="bi bi-info-circle me-1"></i>
-                Select one or multiple GPX files (max 50MB per file).
-              </div>
-              <div id="fileList" class="mt-2"></div>
-            </div>
-
-            <!-- Speed Modifier -->
-            <div class="mb-3">
-              <label for="speedMultiplier" class="form-label">
-                Speed Multiplier: <span id="speedValue">1.0</span>x
-                <small class="text-muted">(Average speed will be multiplied by this factor)</small>
-              </label>
-              <input 
-                type="range" 
-                class="form-range" 
-                id="speedMultiplier" 
-                name="speed_multiplier" 
-                min="0.1" 
-                max="10.0" 
-                step="0.1" 
-                value="1.0">
-              <div class="d-flex justify-content-between small text-muted">
-                <span>0.1x (10% speed)</span>
-                <span>1.0x (original)</span>
-                <span>10.0x (10x speed)</span>
+                Supported format: GPX (max 10MB)
               </div>
             </div>
             
-            <!-- Submit Button -->
-            <div class="d-grid gap-2">
-              <button type="submit" class="btn btn-primary btn-lg" id="convertBtn">
-                <i class="bi bi-play-circle me-2"></i>Modify Track Speed
-              </button>
-            </div>
-          </form>
-
-          <!-- ==================== PROGRESS SECTION ==================== -->
-          <div id="progressSection" class="mt-4" style="display: none;">
-            <div class="progress" style="height: 30px;">
-              <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
-                   role="progressbar" 
-                   id="progressBar"
-                   style="width: 0%">
-                <span id="progressText">0%</span>
+            <div class="mb-4">
+              <label for="speedMultiplier" class="form-label">
+                Speed Multiplier: <strong id="speedValue">1.0x</strong>
+              </label>
+              <div class="d-flex align-items-center">
+                <span class="badge bg-secondary me-2">0.1x</span>
+                <input type="range" class="form-range flex-grow-1" id="speedMultiplier" name="speed_multiplier"
+                       min="0.1" max="10" step="0.1" value="1.0">
+                <span class="badge bg-secondary ms-2">10x</span>
+              </div>
+              <div class="form-text">
+                <i class="bi bi-lightbulb me-1"></i>
+                <strong>2.0x</strong> = double speed (half the time), <strong>0.5x</strong> = half speed (double the time)
               </div>
             </div>
-            <p class="text-center text-muted mt-2" id="progressMessage">Processing your file...</p>
-          </div>
-
-          <!-- ==================== SINGLE FILE RESULT ==================== -->
-          <div id="resultSection" class="mt-4" style="display: none;">
-            <div class="alert alert-success" role="alert">
-              <h5 class="alert-heading">
-                <i class="bi bi-check-circle me-2"></i>Speed Modification Successful!
-              </h5>
-              <p class="mb-0">Your GPX file has been modified with the new speed.</p>
-            </div>
-
-            <div class="card mb-3">
-              <div class="card-header">
-                <h6 class="mb-0">File Details</h6>
-              </div>
+            
+            <!-- Speed Preview Card -->
+            <div class="card bg-light mb-3">
               <div class="card-body">
+                <h6 class="card-title">
+                  <i class="bi bi-calculator me-2"></i>Speed Preview
+                </h6>
                 <div class="row">
                   <div class="col-md-6">
-                    <h6 class="text-muted mb-2">Original File</h6>
-                    <p class="mb-1" id="originalFileName"></p>
-                    <small class="text-muted" id="originalFileInfo"></small>
+                    <small class="text-muted d-block">If original pace was:</small>
+                    <span class="fs-5" id="originalPace">6:00 min/km</span>
                   </div>
                   <div class="col-md-6">
-                    <h6 class="text-muted mb-2">Modified File</h6>
-                    <p class="mb-1" id="convertedFileName"></p>
-                    <small class="text-muted" id="convertedFileInfo"></small>
+                    <small class="text-muted d-block">New pace will be:</small>
+                    <span class="fs-5 text-primary" id="newPace">6:00 min/km</span>
                   </div>
                 </div>
               </div>
             </div>
-
+            
             <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary btn-lg" id="convertBtn">
+                <i class="bi bi-speedometer2 me-2"></i>Modify Speed
+              </button>
+            </div>
+          </form>
+
+          <!-- Processing Status Section -->
+          <div id="statusSection" class="mt-4" style="display: none;">
+            <h5 class="mb-3">
+              <i class="bi bi-hourglass-split me-2"></i>Processing Status
+            </h5>
+            <div id="processingStatusList">
+              <div class="alert alert-info">
+                <div class="d-flex align-items-center">
+                  <div class="spinner-border spinner-border-sm me-3" role="status">
+                    <span class="visually-hidden">Processing...</span>
+                  </div>
+                  <div>
+                    <strong id="statusMessage">Uploading file...</strong>
+                    <br><small class="text-muted" id="statusDetail">Please wait while we process your GPX file</small>
+                  </div>
+                </div>
+              </div>
+              <div class="progress" style="height: 25px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                     role="progressbar" 
+                     id="progressBar"
+                     style="width: 0%">
+                  <span id="progressText">0%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Results Section -->
+          <div id="resultSection" class="mt-4" style="display: none;">
+            <div class="alert alert-success" role="alert">
+              <h5 class="alert-heading">
+                <i class="bi bi-check-circle me-2"></i>Speed Modification Completed!
+              </h5>
+              <p class="mb-0" id="completionSummary">Your GPX file has been modified successfully.</p>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="d-grid gap-2 mt-3">
               <a href="#" id="downloadBtn" class="btn btn-success btn-lg" download>
                 <i class="bi bi-download me-2"></i>Download Modified GPX
               </a>
@@ -140,99 +141,124 @@
               </button>
             </div>
           </div>
-
-          <!-- ==================== BULK RESULT SECTION ==================== -->
-          <div id="bulkResultSection" class="mt-4" style="display: none;">
-            <div class="alert alert-success" role="alert">
-              <h5 class="alert-heading">
-                <i class="bi bi-check-circle me-2"></i>Batch Processing Complete!
-              </h5>
-              <p class="mb-0">Successfully processed <span id="successCount">0</span> file(s).</p>
-            </div>
-
-            <div class="card mb-3">
-              <div class="card-header">
-                <h6 class="mb-0">Processing Results</h6>
-              </div>
-              <div class="card-body">
-                <div class="table-responsive">
-                  <table class="table table-sm">
-                    <thead>
-                      <tr>
-                        <th>Original File</th>
-                        <th>Status</th>
-                        <th>Result File</th>
-                        <th>Size</th>
-                      </tr>
-                    </thead>
-                    <tbody id="bulkResultsTable"></tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            <div class="d-grid gap-2">
-              <a href="#" id="downloadZipBtn" class="btn btn-success btn-lg" download>
-                <i class="bi bi-file-earmark-zip me-2"></i>Download All as ZIP
-              </a>
-              <button type="button" class="btn btn-outline-primary" onclick="location.reload()">
-                <i class="bi bi-arrow-clockwise me-2"></i>Process More Files
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>
 
-    <!-- ==================== SIDEBAR (RIGHT COLUMN) ==================== -->
+    <!-- Right Column: History Sidebar (4 columns) -->
     <div class="col-lg-4">
-      <!-- Features Card -->
-      <div class="card shadow-sm mb-3">
-        <div class="card-header bg-light">
-          <h6 class="mb-0">
-            <i class="bi bi-star me-2"></i>Features
-          </h6>
+      <div class="history-sidebar">
+        <div class="card shadow-sm">
+          <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+              <i class="bi bi-clock-history me-2"></i>Processing History
+            </h6>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="refreshHistoryBtn" title="Refresh history">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+          </div>
+          
+          <!-- Search Filter -->
+          <div class="history-search">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text">
+                <i class="bi bi-search"></i>
+              </span>
+              <input type="text" 
+                     class="form-control" 
+                     id="historySearchInput" 
+                     placeholder="Search by filename..."
+                     aria-label="Search history">
+            </div>
+          </div>
+          
+          <div class="card-body p-0">
+            <!-- Loading state -->
+            <div id="historyLoading" class="text-center py-4" style="display: none;">
+              <div class="spinner-border spinner-border-sm text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <p class="text-muted small mt-2 mb-0">Loading history...</p>
+            </div>
+            
+            <!-- Empty state -->
+            <div id="historyEmpty" class="text-center py-4" style="display: none;">
+              <i class="bi bi-inbox text-muted" style="font-size: 2rem;"></i>
+              <p class="text-muted small mt-2 mb-0">No processing history yet</p>
+            </div>
+            
+            <!-- History list -->
+            <div id="historyList" class="list-group list-group-flush"></div>
+          </div>
         </div>
-        <div class="card-body">
-          <ul class="list-unstyled mb-0">
-            <li><i class="bi bi-check-circle text-success me-2"></i>Modify average speed</li>
-            <li><i class="bi bi-check-circle text-success me-2"></i>Preserves distance & elevation</li>
-            <li><i class="bi bi-check-circle text-success me-2"></i>Adjust timestamps only</li>
-            <li><i class="bi bi-check-circle text-success me-2"></i>Speed range: 0.1x to 10x</li>
-            <li><i class="bi bi-check-circle text-success me-2"></i>Bulk processing support</li>
-            <li><i class="bi bi-check-circle text-success me-2"></i>Original route preserved</li>
-          </ul>
+        
+        <!-- Speed Reference Card -->
+        <div class="card shadow-sm mt-3">
+          <div class="card-header bg-light">
+            <h6 class="mb-0">
+              <i class="bi bi-speedometer me-2"></i>Speed Reference
+            </h6>
+          </div>
+          <div class="card-body">
+            <table class="table table-sm mb-0">
+              <thead>
+                <tr>
+                  <th>Multiplier</th>
+                  <th>Effect</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="badge bg-success">0.5x</span></td>
+                  <td><small>Half speed, double duration</small></td>
+                </tr>
+                <tr>
+                  <td><span class="badge bg-primary">1.0x</span></td>
+                  <td><small>Original (no change)</small></td>
+                </tr>
+                <tr>
+                  <td><span class="badge bg-warning text-dark">2.0x</span></td>
+                  <td><small>Double speed, half duration</small></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card shadow-sm mt-3">
+          <div class="card-header bg-light">
+            <h6 class="mb-0">
+              <i class="bi bi-lightbulb me-2"></i>Usage Tips
+            </h6>
+          </div>
+          <div class="card-body">
+            <ul class="small mb-0">
+              <li>Use values &gt;1 to increase recorded speed</li>
+              <li>Use values &lt;1 to decrease recorded speed</li>
+              <li>GPS coordinates remain unchanged</li>
+              <li>Only timestamps are modified</li>
+            </ul>
+          </div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
 
-      <!-- How It Works Card -->
-      <div class="card shadow-sm mb-3">
-        <div class="card-header bg-light">
-          <h6 class="mb-0">
-            <i class="bi bi-info-circle me-2"></i>How It Works
-          </h6>
-        </div>
-        <div class="card-body">
-          <p class="small text-muted mb-0">The tool adjusts the timestamps in your GPX file to achieve the desired average speed. The route, distance, and elevation data remain unchanged - only the time between points is recalculated. Use the speed multiplier slider to set your desired speed: values below 1.0 slow down the track, while values above 1.0 speed it up.</p>
-        </div>
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-
-      <!-- Use Cases Card -->
-      <div class="card shadow-sm">
-        <div class="card-header bg-light">
-          <h6 class="mb-0">
-            <i class="bi bi-lightbulb me-2"></i>Use Cases
-          </h6>
-        </div>
-        <div class="card-body">
-          <ul class="small mb-0">
-            <li>Create training plans with different paces</li>
-            <li>Adjust virtual ride speeds</li>
-            <li>Compare different speed scenarios</li>
-            <li>Generate realistic activity times</li>
-            <li>Simulate faster or slower performances</li>
-          </ul>
-        </div>
+      <div class="modal-body">
+        Are you sure you want to delete this item from history?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
       </div>
     </div>
   </div>
@@ -241,302 +267,288 @@
 
 {% block extra_js %}
 <script>
-// ==================== SPEED MULTIPLIER SLIDER ====================
+const TOOL_NAME = 'gpx-speed-modifier';
+let currentExecutionId = null;
+let statusPollInterval = null;
+let deleteExecutionId = null;
+
+// Update speed value display and pace preview
 const speedSlider = document.getElementById('speedMultiplier');
-const speedValue = document.getElementById('speedValue');
+const speedValueDisplay = document.getElementById('speedValue');
+const newPaceDisplay = document.getElementById('newPace');
 
 speedSlider.addEventListener('input', function() {
-  speedValue.textContent = parseFloat(this.value).toFixed(1);
+  const multiplier = parseFloat(this.value);
+  speedValueDisplay.textContent = multiplier.toFixed(1) + 'x';
+  
+  // Calculate new pace (assuming 6:00 min/km as reference)
+  const originalPaceSeconds = 6 * 60; // 6:00 in seconds
+  const newPaceSeconds = originalPaceSeconds / multiplier;
+  const newPaceMin = Math.floor(newPaceSeconds / 60);
+  const newPaceSec = Math.round(newPaceSeconds % 60);
+  newPaceDisplay.textContent = newPaceMin + ':' + String(newPaceSec).padStart(2, '0') + ' min/km';
 });
 
-// ==================== FILE LIST DISPLAY ====================
-const fileInput = document.getElementById('inputFile');
-const fileListDiv = document.getElementById('fileList');
+// Format file size helper
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 
-fileInput.addEventListener('change', function() {
-  const files = Array.from(fileInput.files);
-  if (files.length === 0) {
-    fileListDiv.innerHTML = '';
-    return;
-  }
-
-  let html = '<div class="list-group">';
-  let totalSize = 0;
+// Format time ago helper
+function formatTimeAgo(dateString) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now - date) / 1000);
   
-  files.forEach((file, index) => {
-    totalSize += file.size;
+  if (seconds < 60) return 'Just now';
+  if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+  if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+  return Math.floor(seconds / 86400) + 'd ago';
+}
+
+// Load history
+async function loadHistory() {
+  const historyLoading = document.getElementById('historyLoading');
+  const historyEmpty = document.getElementById('historyEmpty');
+  const historyList = document.getElementById('historyList');
+  
+  historyLoading.style.display = 'block';
+  historyEmpty.style.display = 'none';
+  historyList.innerHTML = '';
+  
+  try {
+    const response = await fetch(\`/api/v1/executions/?tool_name=\${TOOL_NAME}&limit=10\`);
+    const data = await response.json();
     
-    html += `
-      <div class="list-group-item">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <i class="bi bi-file-earmark-arrow-down me-2 text-primary"></i>
-            <strong>${file.name}</strong>
-          </div>
-          <small class="text-muted">${MagicToolbox.formatFileSize(file.size)}</small>
-        </div>
-      </div>
-    `;
-  });
-  
-  html += '</div>';
-  
-  if (files.length > 1) {
-    html += `
-      <div class="alert alert-info mt-2 mb-0">
-        <i class="bi bi-info-circle me-1"></i>
-        <strong>${files.length} files selected</strong> (Total: ${MagicToolbox.formatFileSize(totalSize)})
-      </div>
-    `;
-  }
-  
-  fileListDiv.innerHTML = html;
-});
-
-// ==================== FORM SUBMISSION ====================
-document.getElementById('toolForm').addEventListener('submit', async function(e) {
-  e.preventDefault();
-  
-  const files = Array.from(fileInput.files);
-  if (files.length === 0) {
-    MagicToolbox.showNotification('Please select at least one file', 'error');
-    return;
-  }
-
-  const convertBtn = document.getElementById('convertBtn');
-  const progressSection = document.getElementById('progressSection');
-  const resultSection = document.getElementById('resultSection');
-  const bulkResultSection = document.getElementById('bulkResultSection');
-  const progressBar = document.getElementById('progressBar');
-  const progressText = document.getElementById('progressText');
-  const progressMessage = document.getElementById('progressMessage');
-  
-  // Show progress
-  convertBtn.disabled = true;
-  progressSection.style.display = 'block';
-  resultSection.style.display = 'none';
-  bulkResultSection.style.display = 'none';
-  
-  // Determine mode
-  const isBulk = files.length > 1;
-  progressMessage.textContent = isBulk 
-    ? `Processing ${files.length} files...` 
-    : 'Processing your file...';
-  
-  try {
-    if (isBulk) {
-      await handleBulkProcessing(files, progressBar, progressText);
-    } else {
-      await handleSingleModification(files[0], progressBar, progressText, this);
+    historyLoading.style.display = 'none';
+    
+    if (!data.results || data.results.length === 0) {
+      historyEmpty.style.display = 'block';
+      return;
     }
+    
+    data.results.forEach(item => {
+      const statusClass = {
+        'completed': 'bg-success',
+        'processing': 'bg-primary',
+        'pending': 'bg-warning',
+        'failed': 'bg-danger'
+      }[item.status] || 'bg-secondary';
+      
+      // Extract speed multiplier from parameters if available
+      const speedMultiplier = item.parameters?.speed_multiplier || '';
+      const speedBadge = speedMultiplier ? \`<span class="badge bg-info ms-1">\${speedMultiplier}x</span>\` : '';
+      
+      const historyItem = document.createElement('div');
+      historyItem.className = 'list-group-item list-group-item-action';
+      historyItem.innerHTML = \`
+        <div class="d-flex w-100 justify-content-between align-items-start">
+          <div class="flex-grow-1 me-2" style="min-width: 0;">
+            <div class="d-flex align-items-center mb-1">
+              <span class="badge \${statusClass} me-2">\${item.status}</span>
+              \${speedBadge}
+              <small class="text-muted ms-auto">\${formatTimeAgo(item.created_at)}</small>
+            </div>
+            <p class="mb-1 text-truncate small" title="\${item.input_filename}">
+              <i class="bi bi-file-earmark me-1"></i>\${item.input_filename}
+            </p>
+            \${item.output_filename ? \`
+              <p class="mb-0 text-truncate small text-success" title="\${item.output_filename}">
+                <i class="bi bi-arrow-right me-1"></i>\${item.output_filename}
+              </p>
+            \` : ''}
+          </div>
+          <div class="btn-group btn-group-sm">
+            \${item.status === 'completed' ? \`
+              <a href="/api/v1/executions/\${item.id}/download/" class="btn btn-outline-success" title="Download">
+                <i class="bi bi-download"></i>
+              </a>
+            \` : ''}
+            <button type="button" class="btn btn-outline-danger" onclick="showDeleteModal('\${item.id}')" title="Delete">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </div>
+      \`;
+      historyList.appendChild(historyItem);
+    });
   } catch (error) {
-    console.error('Processing error:', error);
-    MagicToolbox.showNotification(error.message || 'Processing failed', 'error');
-    progressSection.style.display = 'none';
-  } finally {
-    convertBtn.disabled = false;
+    console.error('Failed to load history:', error);
+    historyLoading.style.display = 'none';
+    historyEmpty.style.display = 'block';
   }
-});
+}
 
-// ==================== SINGLE FILE MODIFICATION ====================
-async function handleSingleModification(file, progressBar, progressText, form) {
-  const progressSection = document.getElementById('progressSection');
-  const resultSection = document.getElementById('resultSection');
-  const speedMultiplier = document.getElementById('speedMultiplier').value;
-  
-  // Animate progress
-  let progress = 0;
-  const progressInterval = setInterval(() => {
-    progress += 15;
-    progressBar.style.width = Math.min(progress, 90) + '%';
-    progressText.textContent = Math.min(progress, 90) + '%';
-    if (progress >= 90) clearInterval(progressInterval);
-  }, 150);
-  
-  // Prepare form data
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('mode', 'modify');
-  formData.append('speed_multiplier', speedMultiplier);
+// Show delete modal
+function showDeleteModal(executionId) {
+  deleteExecutionId = executionId;
+  const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+  modal.show();
+}
+
+// Confirm delete
+document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
+  if (!deleteExecutionId) return;
   
   try {
-    const response = await fetch('/api/v1/tools/gpx-speed-modifier/convert/', {
-      method: 'POST',
-      body: formData,
+    const response = await fetch(\`/api/v1/executions/\${deleteExecutionId}/\`, {
+      method: 'DELETE',
       headers: {
-        'X-CSRFToken': '{{ csrf_token }}'
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
       }
     });
     
-    clearInterval(progressInterval);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Server error: ${response.status}`);
+    if (response.ok) {
+      const modal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+      modal.hide();
+      loadHistory();
     }
-    
-    // Complete progress
-    progressBar.style.width = '100%';
-    progressText.textContent = '100%';
-    
-    // Get modified file
-    const blob = await response.blob();
-    const convertedFileUrl = URL.createObjectURL(blob);
-    
-    // Extract filename from Content-Disposition
-    const contentDisposition = response.headers.get('Content-Disposition');
-    let convertedFilename = file.name;
-    if (contentDisposition) {
-      const matches = /filename="([^"]+)"/.exec(contentDisposition);
-      if (matches) convertedFilename = matches[1];
-    }
-    
-    // Update UI
-    document.getElementById('originalFileName').textContent = file.name;
-    document.getElementById('originalFileInfo').textContent = 
-      `GPX | ${MagicToolbox.formatFileSize(file.size)}`;
-    
-    document.getElementById('convertedFileName').textContent = convertedFilename;
-    document.getElementById('convertedFileInfo').textContent = 
-      `GPX | ${MagicToolbox.formatFileSize(blob.size)} | Speed: ${speedMultiplier}x`;
-    
-    const downloadBtn = document.getElementById('downloadBtn');
-    downloadBtn.href = convertedFileUrl;
-    downloadBtn.download = convertedFilename;
-    
-    // Show results
-    setTimeout(() => {
-      progressSection.style.display = 'none';
-      resultSection.style.display = 'block';
-      MagicToolbox.showNotification('Speed modification successful!', 'success');
-    }, 500);
   } catch (error) {
-    throw error;
+    console.error('Failed to delete:', error);
+  }
+});
+
+// Check status
+async function checkStatus() {
+  if (!currentExecutionId) return;
+  
+  try {
+    const response = await fetch(\`/api/v1/executions/\${currentExecutionId}/status/\`);
+    const data = await response.json();
+    
+    const statusMessage = document.getElementById('statusMessage');
+    const statusDetail = document.getElementById('statusDetail');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    
+    if (data.status === 'processing') {
+      statusMessage.textContent = 'Modifying GPX timestamps...';
+      statusDetail.textContent = 'Azure Functions is processing your file';
+      progressBar.style.width = '60%';
+      progressText.textContent = '60%';
+    } else if (data.status === 'completed') {
+      clearInterval(statusPollInterval);
+      statusPollInterval = null;
+      
+      progressBar.style.width = '100%';
+      progressText.textContent = '100%';
+      progressBar.classList.remove('progress-bar-animated');
+      progressBar.classList.add('bg-success');
+      
+      // Show results
+      setTimeout(() => {
+        document.getElementById('statusSection').style.display = 'none';
+        document.getElementById('resultSection').style.display = 'block';
+        
+        const downloadBtn = document.getElementById('downloadBtn');
+        downloadBtn.href = \`/api/v1/executions/\${currentExecutionId}/download/\`;
+        
+        loadHistory();
+      }, 500);
+      
+    } else if (data.status === 'failed') {
+      clearInterval(statusPollInterval);
+      statusPollInterval = null;
+      
+      statusMessage.textContent = 'Processing failed';
+      statusDetail.textContent = data.error_message || 'An error occurred during processing';
+      progressBar.classList.remove('bg-primary', 'progress-bar-animated');
+      progressBar.classList.add('bg-danger');
+      
+      document.getElementById('convertBtn').disabled = false;
+      loadHistory();
+    }
+  } catch (error) {
+    console.error('Status check failed:', error);
   }
 }
 
-// ==================== BULK PROCESSING ====================
-async function handleBulkProcessing(files, progressBar, progressText) {
-  const progressSection = document.getElementById('progressSection');
-  const bulkResultSection = document.getElementById('bulkResultSection');
-  const speedMultiplier = document.getElementById('speedMultiplier').value;
+// Handle form submission
+document.getElementById('gpxSpeedForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
   
-  const results = [];
-  const convertedBlobs = [];
-  let successCount = 0;
+  const fileInput = document.getElementById('gpxFile');
+  const file = fileInput.files[0];
   
-  // Process each file sequentially
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    const percent = Math.round(((i + 1) / files.length) * 100);
-    
-    progressBar.style.width = percent + '%';
-    progressText.textContent = `${percent}% (${i + 1}/${files.length})`;
-    
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('mode', 'modify');
-      formData.append('speed_multiplier', speedMultiplier);
-      
-      const response = await fetch('/api/v1/tools/gpx-speed-modifier/convert/', {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'X-CSRFToken': '{{ csrf_token }}'
-        }
-      });
-      
-      if (response.ok) {
-        const blob = await response.blob();
-        const contentDisposition = response.headers.get('Content-Disposition');
-        let filename = file.name;
-        if (contentDisposition) {
-          const matches = /filename="([^"]+)"/.exec(contentDisposition);
-          if (matches) filename = matches[1];
-        }
-        
-        convertedBlobs.push({ blob, filename });
-        results.push({
-          originalName: file.name,
-          convertedName: filename,
-          size: blob.size,
-          status: 'success'
-        });
-        successCount++;
-      } else {
-        results.push({
-          originalName: file.name,
-          status: 'error',
-          error: 'Processing failed'
-        });
+  if (!file) {
+    alert('Please select a GPX file');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('speed_multiplier', document.getElementById('speedMultiplier').value);
+  
+  const convertBtn = document.getElementById('convertBtn');
+  const statusSection = document.getElementById('statusSection');
+  const resultSection = document.getElementById('resultSection');
+  const progressBar = document.getElementById('progressBar');
+  
+  // Show status section
+  convertBtn.disabled = true;
+  statusSection.style.display = 'block';
+  resultSection.style.display = 'none';
+  
+  // Reset progress
+  progressBar.style.width = '10%';
+  progressBar.classList.remove('bg-success', 'bg-danger');
+  progressBar.classList.add('bg-primary', 'progress-bar-animated', 'progress-bar-striped');
+  document.getElementById('progressText').textContent = '10%';
+  document.getElementById('statusMessage').textContent = 'Uploading file...';
+  document.getElementById('statusDetail').textContent = 'Please wait...';
+  
+  try {
+    const response = await fetch(\`/api/v1/tools/\${TOOL_NAME}/process/\`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
       }
-    } catch (error) {
-      results.push({
-        originalName: file.name,
-        status: 'error',
-        error: error.message
-      });
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Upload failed');
     }
+    
+    const data = await response.json();
+    currentExecutionId = data.execution_id;
+    
+    // Update progress
+    progressBar.style.width = '30%';
+    document.getElementById('progressText').textContent = '30%';
+    document.getElementById('statusMessage').textContent = 'Processing...';
+    document.getElementById('statusDetail').textContent = 'File uploaded, waiting for processing';
+    
+    // Start polling for status
+    statusPollInterval = setInterval(checkStatus, 2000);
+    
+  } catch (error) {
+    alert('Error: ' + error.message);
+    convertBtn.disabled = false;
+    statusSection.style.display = 'none';
   }
+});
+
+// Refresh history button
+document.getElementById('refreshHistoryBtn').addEventListener('click', loadHistory);
+
+// History search
+document.getElementById('historySearchInput').addEventListener('input', function(e) {
+  const searchTerm = e.target.value.toLowerCase();
+  const items = document.querySelectorAll('#historyList .list-group-item');
   
-  // Display results table
-  const tableBody = document.getElementById('bulkResultsTable');
-  if (!tableBody) {
-    throw new Error('Results table not found');
-  }
-  
-  tableBody.innerHTML = '';
-  results.forEach(result => {
-    const row = document.createElement('tr');
-    if (result.status === 'success') {
-      row.innerHTML = `
-        <td>${result.originalName}</td>
-        <td><span class="badge bg-success">Success</span></td>
-        <td>${result.convertedName}</td>
-        <td>${MagicToolbox.formatFileSize(result.size)}</td>
-      `;
-    } else {
-      row.innerHTML = `
-        <td>${result.originalName}</td>
-        <td><span class="badge bg-danger">Failed</span></td>
-        <td colspan="2"><small class="text-danger">${result.error}</small></td>
-      `;
-    }
-    tableBody.appendChild(row);
+  items.forEach(item => {
+    const text = item.textContent.toLowerCase();
+    item.style.display = text.includes(searchTerm) ? '' : 'none';
   });
-  
-  document.getElementById('successCount').textContent = successCount;
-  
-  // Create ZIP file
-  if (successCount > 0) {
-    const JSZip = window.JSZip;
-    if (JSZip) {
-      const zip = new JSZip();
-      convertedBlobs.forEach(({ blob, filename }) => {
-        zip.file(filename, blob);
-      });
-      
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-      const zipUrl = URL.createObjectURL(zipBlob);
-      
-      const downloadZipBtn = document.getElementById('downloadZipBtn');
-      if (downloadZipBtn) {
-        downloadZipBtn.href = zipUrl;
-        downloadZipBtn.download = 'gpx_speed_modified.zip';
-      }
-    }
-  }
-  
-  // Show results
-  setTimeout(() => {
-    progressSection.style.display = 'none';
-    bulkResultSection.style.display = 'block';
-    MagicToolbox.showNotification(
-      `Processed ${successCount} of ${files.length} files`, 
-      successCount > 0 ? 'success' : 'error'
-    );
-  }, 500);
-}
+});
+
+// Load history on page load
+document.addEventListener('DOMContentLoaded', loadHistory);
 </script>
 {% endblock %}
