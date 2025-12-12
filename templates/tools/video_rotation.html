@@ -507,8 +507,16 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('selectVideo called:', videoId, videoName);
     console.log('rotationForm element:', rotationForm);
     
-    document.getElementById('selectedVideoId').value = videoId;
-    document.getElementById('selectedVideoName').textContent = videoName;
+    const selectedVideoIdInput = document.getElementById('selectedVideoId');
+    const selectedVideoNameSpan = document.getElementById('selectedVideoName');
+    
+    if (!selectedVideoIdInput || !selectedVideoNameSpan) {
+      console.error('Required form elements not found');
+      return;
+    }
+    
+    selectedVideoIdInput.value = videoId;
+    selectedVideoNameSpan.textContent = videoName;
     
     // Show the rotation form
     rotationForm.style.display = 'block';
