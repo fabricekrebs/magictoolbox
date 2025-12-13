@@ -1745,3 +1745,433 @@ def _modify_gpx_timestamps(gpx_content: str, speed_multiplier: float) -> str:
             continue  # Skip timestamps that can't be parsed
     
     return modified_content
+
+
+@app.route(route="gpx/merge", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def merge_gpx_files(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Merge multiple GPX files into a single GPX file.
+    
+    Expected JSON payload:
+    {
+        "execution_id": "uuid",
+        "blob_names": ["uploads/gpx/{uuid}_000.gpx", "uploads/gpx/{uuid}_001.gpx", ...],
+        "merge_mode": "chronological|sequential|preserve_order",
+        "output_name": "merged_track",
+        "file_count": 3
+    }
+    """
+    import xml.etree.ElementTree as ET
+    from xml.dom import minidom
+    
+    execution_id = None
+    temp_files = []
+    temp_output_path = None
+    
+    try:
+        logger.info("=" * 100)
+        logger.info("🔗 GPX MERGE STARTED")
+        logger.info("=" * 100)
+        
+        # Parse request
+        try:
+            req_body = req.get_json()
+            execution_id = req_body.get('execution_id')
+            blob_names = req_body.get('blob_names', [])
+            merge_mode = req_body.get('merge_mode', 'chronological')
+            output_name = req_body.get('output_name', 'merged_track')
+            file_count = req_body.get('file_count', len(blob_names))
+            
+            logger.info(f"📋 Request Details:")
+            logger.info(f"   Execution ID: {execution_id}")
+            logger.info(f"   Number of files: {file_count}")
+            logger.info(f"   Merge mode: {merge_mode}")
+            logger.info(f"   Output name: {output_name}")
+            logger.info(f"   Blob names: {blob_names}")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to parse request: {e}")
+            return func.HttpResponse(
+                body=json.dumps({"error": "Invalid JSON payload"}),
+                mimetype="application/json",
+                status_code=400
+            )
+        
+        if not all([execution_id, blob_names]):
+            return func.HttpResponse(
+                body=json.dumps({"error": "Missing required parameters"}),
+                mimetype="application/json",
+                status_code=400
+            )
+        
+        if len(blob_names) < 2:
+            return func.HttpResponse(
+                body=json.dumps({"error": "At least 2 files required for merging"}),
+                mimetype="application/json",
+                status_code=400
+            )
+        
+        # Update database: processing
+        try:
+            logger.info("📝 Updating database status: processing")
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE tool_executions SET status = %s, started_at = NOW() WHERE id = %s",
+                ('processing', execution_id)
+            )
+            conn.commit()
+            cursor.close()
+            conn.close()
+            logger.info("✅ Database updated: status = processing")
+        except Exception as db_error:
+            logger.warning(f"⚠️ Failed to update database: {db_error}")
+        
+        # Initialize blob service
+        logger.info("-" * 100)
+        logger.info("🔐 INITIALIZING BLOB STORAGE CLIENT")
+        blob_service = get_blob_service_client()
+        logger.info("✅ Blob service client initialized")
+        
+        # Download all files from blob storage
+        logger.info("-" * 100)
+        logger.info(f"📥 DOWNLOADING {len(blob_names)} FILES FROM BLOB STORAGE")
+        
+        gpx_files = []
+        
+        for idx, blob_name in enumerate(blob_names):
+            try:
+                # Parse blob path
+                if blob_name.startswith('uploads/'):
+                    actual_blob_name = blob_name.replace('uploads/', '', 1)
+                else:
+                    actual_blob_name = blob_name
+                
+                logger.info(f"   [{idx+1}/{len(blob_names)}] Downloading: {actual_blob_name}")
+                
+                blob_client = blob_service.get_blob_client(
+                    container="uploads",
+                    blob=actual_blob_name
+                )
+                
+                if not blob_client.exists():
+                    raise Exception(f"Blob not found: {blob_name}")
+                
+                # Get metadata
+                blob_properties = blob_client.get_blob_properties()
+                original_filename = blob_properties.metadata.get('original_filename', f'file_{idx}.gpx')
+                
+                # Download to temp file
+                with tempfile.NamedTemporaryFile(suffix='.gpx', delete=False) as temp_file:
+                    temp_path = temp_file.name
+                    blob_data = blob_client.download_blob()
+                    temp_file.write(blob_data.readall())
+                
+                temp_files.append(temp_path)
+                
+                # Parse GPX file
+                tree = ET.parse(temp_path)
+                root = tree.getroot()
+                
+                gpx_files.append({
+                    'path': temp_path,
+                    'filename': original_filename,
+                    'root': root,
+                    'index': idx
+                })
+                
+                logger.info(f"   ✅ Downloaded: {original_filename} ({Path(temp_path).stat().st_size:,} bytes)")
+                
+            except Exception as e:
+                logger.error(f"   ❌ Failed to download file {idx}: {e}")
+                raise
+        
+        logger.info(f"✅ All {len(gpx_files)} files downloaded successfully")
+        
+        # Merge GPX files
+        logger.info("-" * 100)
+        logger.info(f"🔄 MERGING GPX FILES (mode: {merge_mode})")
+        
+        try:
+            merged_gpx = _merge_gpx_files(gpx_files, merge_mode, output_name)
+            
+            # Save merged GPX to temp file
+            with tempfile.NamedTemporaryFile(suffix='.gpx', delete=False, mode='w', encoding='utf-8') as temp_output:
+                temp_output_path = temp_output.name
+                temp_output.write(merged_gpx)
+            
+            output_size = Path(temp_output_path).stat().st_size
+            logger.info(f"✅ Merge completed")
+            logger.info(f"   Output size: {output_size:,} bytes")
+            
+        except Exception as e:
+            logger.error(f"❌ Merge failed: {e}")
+            raise
+        
+        # Upload merged file to blob storage
+        logger.info("-" * 100)
+        logger.info(f"📤 UPLOADING MERGED FILE TO BLOB STORAGE")
+        
+        try:
+            output_blob_name = f"gpx/{execution_id}.gpx"
+            
+            with open(temp_output_path, 'rb') as f:
+                output_data = f.read()
+            
+            blob_client = blob_service.get_blob_client(
+                container="processed",
+                blob=output_blob_name
+            )
+            
+            blob_client.upload_blob(output_data, overwrite=True)
+            
+            logger.info(f"✅ Merged file uploaded successfully")
+            logger.info(f"   Blob path: processed/{output_blob_name}")
+            logger.info(f"   Size: {output_size:,} bytes")
+            
+        except Exception as e:
+            logger.error(f"❌ Upload failed: {e}")
+            raise
+        
+        # Update database: completed
+        try:
+            logger.info("📝 Updating database status: completed")
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            output_filename = f"{output_name}.gpx"
+            
+            cursor.execute(
+                """
+                UPDATE tool_executions 
+                SET status = %s,
+                    completed_at = NOW(),
+                    output_filename = %s,
+                    output_size = %s,
+                    output_blob_path = %s
+                WHERE id = %s
+                """,
+                ('completed', output_filename, output_size, f"processed/{output_blob_name}", execution_id)
+            )
+            conn.commit()
+            cursor.close()
+            conn.close()
+            logger.info("✅ Database updated: status = completed")
+        except Exception as db_error:
+            logger.warning(f"⚠️ Failed to update database completion: {db_error}")
+        
+        logger.info("=" * 100)
+        logger.info(f"✅ GPX MERGE COMPLETED SUCCESSFULLY")
+        logger.info(f"   Execution ID: {execution_id}")
+        logger.info(f"   Files merged: {len(gpx_files)}")
+        logger.info(f"   Output: {output_filename}")
+        logger.info(f"   Size: {output_size:,} bytes")
+        logger.info("=" * 100)
+        
+        return func.HttpResponse(
+            body=json.dumps({
+                "status": "success",
+                "execution_id": execution_id,
+                "output_filename": output_filename,
+                "output_size": output_size
+            }),
+            mimetype="application/json",
+            status_code=200
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ GPX merge failed: {e}", exc_info=True)
+        
+        # Update database: failed
+        if execution_id:
+            try:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    "UPDATE tool_executions SET status = %s, error_message = %s WHERE id = %s",
+                    ('failed', str(e), execution_id)
+                )
+                conn.commit()
+                cursor.close()
+                conn.close()
+            except Exception as db_error:
+                logger.error(f"Failed to update database error status: {db_error}")
+        
+        return func.HttpResponse(
+            body=json.dumps({
+                "status": "error",
+                "error": str(e),
+                "execution_id": execution_id
+            }),
+            mimetype="application/json",
+            status_code=500
+        )
+    
+    finally:
+        # Cleanup temp files
+        for temp_file in temp_files:
+            try:
+                if os.path.exists(temp_file):
+                    os.unlink(temp_file)
+            except Exception as e:
+                logger.warning(f"Failed to delete temp file {temp_file}: {e}")
+        
+        if temp_output_path and os.path.exists(temp_output_path):
+            try:
+                os.unlink(temp_output_path)
+            except Exception as e:
+                logger.warning(f"Failed to delete temp output file: {e}")
+
+
+def _merge_gpx_files(gpx_files: list, merge_mode: str, output_name: str) -> str:
+    """
+    Merge multiple GPX files into one.
+    
+    Args:
+        gpx_files: List of dicts with 'root', 'filename', 'index' keys
+        merge_mode: 'chronological', 'sequential', or 'preserve_order'
+        output_name: Name for the merged track
+    
+    Returns:
+        Merged GPX content as string
+    """
+    import xml.etree.ElementTree as ET
+    from xml.dom import minidom
+    from datetime import datetime
+    
+    GPX_NS = "http://www.topografix.com/GPX/1/1"
+    ET.register_namespace('', GPX_NS)
+    
+    # Create new GPX root element
+    merged_root = ET.Element('gpx', {
+        'version': '1.1',
+        'creator': 'MagicToolbox GPX Merger',
+        'xmlns': GPX_NS,
+        'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+        'xsi:schemaLocation': f'{GPX_NS} http://www.topografix.com/GPX/1/1/gpx.xsd'
+    })
+    
+    # Add metadata
+    metadata = ET.SubElement(merged_root, 'metadata')
+    name_elem = ET.SubElement(metadata, 'name')
+    name_elem.text = output_name
+    desc_elem = ET.SubElement(metadata, 'desc')
+    desc_elem.text = f'Merged from {len(gpx_files)} GPX files'
+    time_elem = ET.SubElement(metadata, 'time')
+    time_elem.text = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+    
+    # Collect all tracks with their timestamps (for chronological sorting)
+    all_tracks = []
+    all_waypoints = []
+    all_routes = []
+    
+    for gpx_file in gpx_files:
+        root = gpx_file['root']
+        
+        # Find namespace (handle files with or without namespace)
+        ns = {'gpx': GPX_NS}
+        
+        # Extract waypoints
+        for wpt in root.findall('.//gpx:wpt', ns):
+            all_waypoints.append(wpt)
+        for wpt in root.findall('.//wpt'):
+            if wpt not in all_waypoints:
+                all_waypoints.append(wpt)
+        
+        # Extract routes
+        for rte in root.findall('.//gpx:rte', ns):
+            all_routes.append(rte)
+        for rte in root.findall('.//rte'):
+            if rte not in all_routes:
+                all_routes.append(rte)
+        
+        # Extract tracks with timestamp for sorting
+        for trk in root.findall('.//gpx:trk', ns):
+            timestamp = _get_track_start_time(trk, ns)
+            all_tracks.append({
+                'element': trk,
+                'timestamp': timestamp,
+                'index': gpx_file['index'],
+                'filename': gpx_file['filename']
+            })
+        for trk in root.findall('.//trk'):
+            if not any(t['element'] == trk for t in all_tracks):
+                timestamp = _get_track_start_time(trk, {})
+                all_tracks.append({
+                    'element': trk,
+                    'timestamp': timestamp,
+                    'index': gpx_file['index'],
+                    'filename': gpx_file['filename']
+                })
+    
+    # Sort tracks based on merge mode
+    if merge_mode == 'chronological' and any(t['timestamp'] for t in all_tracks):
+        # Sort by timestamp (earliest first)
+        all_tracks.sort(key=lambda t: t['timestamp'] if t['timestamp'] else datetime.max)
+        logger.info(f"   Sorted {len(all_tracks)} tracks chronologically")
+    elif merge_mode == 'sequential':
+        # Sort by original file index (preserves upload order)
+        all_tracks.sort(key=lambda t: t['index'])
+        logger.info(f"   Sorted {len(all_tracks)} tracks sequentially by file order")
+    else:  # preserve_order
+        # Keep original order from files
+        logger.info(f"   Preserving original order of {len(all_tracks)} tracks")
+    
+    # Add all waypoints to merged GPX
+    for wpt in all_waypoints:
+        merged_root.append(wpt)
+    
+    # Add all routes to merged GPX
+    for rte in all_routes:
+        merged_root.append(rte)
+    
+    # Add all tracks to merged GPX
+    for track_info in all_tracks:
+        merged_root.append(track_info['element'])
+    
+    logger.info(f"   Merged: {len(all_waypoints)} waypoints, {len(all_routes)} routes, {len(all_tracks)} tracks")
+    
+    # Convert to string with pretty formatting
+    rough_string = ET.tostring(merged_root, encoding='unicode')
+    reparsed = minidom.parseString(rough_string)
+    pretty_xml = reparsed.toprettyxml(indent='  ')
+    
+    # Remove extra blank lines
+    lines = [line for line in pretty_xml.split('\n') if line.strip()]
+    return '\n'.join(lines)
+
+
+def _get_track_start_time(track_element: ET.Element, namespaces: dict) -> datetime:
+    """
+    Extract the earliest timestamp from a track element.
+    
+    Args:
+        track_element: GPX track element
+        namespaces: XML namespaces dict
+    
+    Returns:
+        datetime object or None if no timestamp found
+    """
+    timestamps = []
+    
+    # Try with namespace
+    if namespaces:
+        for trkpt in track_element.findall('.//gpx:trkpt/gpx:time', namespaces):
+            if trkpt.text:
+                timestamps.append(trkpt.text)
+    
+    # Try without namespace
+    for trkpt in track_element.findall('.//time'):
+        if trkpt.text and trkpt.text not in timestamps:
+            timestamps.append(trkpt.text)
+    
+    if not timestamps:
+        return None
+    
+    # Parse first timestamp
+    try:
+        ts = timestamps[0]
+        # Handle ISO format with Z or +00:00
+        return datetime.fromisoformat(ts.replace('Z', '+00:00'))
+    except Exception:
+        return None

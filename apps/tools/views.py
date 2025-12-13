@@ -918,6 +918,109 @@ class ToolViewSet(viewsets.ViewSet):
                 logger.error(f"Image conversion failed: {e}")
                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @action(detail=True, methods=["post"], url_path="merge")
+    def merge_files(self, request, pk=None):
+        """
+        Merge multiple GPX files into a single file.
+
+        POST /api/v1/tools/{tool_name}/merge/
+
+        For gpx-merger:
+        - files[]: Multiple GPX files to merge (minimum 2)
+        - merge_mode: chronological|sequential|preserve_order (optional, default: chronological)
+        - output_name: Name for merged file without extension (optional, default: merged_track)
+        """
+        tool_instance = tool_registry.get_tool_instance(pk)
+        if not tool_instance:
+            return Response({"error": "Tool not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Only support tools with process_multiple method
+        if not hasattr(tool_instance, "process_multiple"):
+            return Response(
+                {"error": "Tool does not support merging multiple files"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Get files from request
+        files = request.FILES.getlist("files[]") or request.FILES.getlist("files")
+        if not files:
+            return Response({"error": "No files provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get merge parameters
+        parameters = {
+            "merge_mode": request.data.get("merge_mode", "chronological"),
+            "output_name": request.data.get("output_name", "merged_track"),
+        }
+
+        # Validate using validate_multiple if available
+        if hasattr(tool_instance, "validate_multiple"):
+            is_valid, error_msg = tool_instance.validate_multiple(files, parameters)
+            if not is_valid:
+                return Response({"error": error_msg}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            # Fallback: validate each file individually
+            for file in files:
+                is_valid, error_msg = tool_instance.validate(file, parameters)
+                if not is_valid:
+                    return Response(
+                        {"error": f"File '{file.name}' validation failed: {error_msg}"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+        # Process files
+        try:
+            # Call process_multiple which returns list of (execution_id, filename) tuples
+            results = tool_instance.process_multiple(files, parameters)
+
+            # For merge operations, we expect a single result
+            if results and len(results) > 0:
+                execution_id, output_filename = results[0]
+
+                # Create ToolExecution record
+                total_size = sum(f.size for f in files)
+                input_filenames = ", ".join(f.name for f in files)
+
+                _execution = ToolExecution.objects.create(
+                    id=execution_id,
+                    user=request.user,
+                    tool_name=pk,
+                    input_filename=input_filenames,
+                    output_filename=output_filename,
+                    input_size=total_size,
+                    parameters=parameters,
+                    status="pending",
+                    azure_function_invoked=True,
+                    function_execution_id=execution_id,
+                    input_blob_path=f"uploads/gpx/{execution_id}_*.gpx",
+                )
+
+                return Response(
+                    {
+                        "executions": [
+                            {
+                                "executionId": execution_id,
+                                "filename": output_filename,
+                                "status": "pending",
+                                "statusUrl": f"/api/v1/executions/{execution_id}/status/",
+                            }
+                        ],
+                        "message": f"{len(files)} files uploaded for merging",
+                    },
+                    status=status.HTTP_202_ACCEPTED,
+                )
+            else:
+                return Response(
+                    {"error": "No results returned from merge operation"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+        except Exception as e:
+            logger.error(f"Merge failed: {e}", exc_info=True)
+            return Response(
+                {"error": f"Merge failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
     @action(detail=False, methods=["post"])
     def process(self, request):
         """
