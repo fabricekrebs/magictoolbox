@@ -65,7 +65,7 @@ jobs:
       - name: Verify functions are deployed
         run: |
           echo "🔍 Verifying function deployment..."
-          sleep 15  # Wait for app to be ready
+          sleep 60  # Wait for app to be ready (increased timeout for cold start)
           az functionapp function list \
             --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
             --name ${{ steps.get_function_app.outputs.function_app_name }} \
@@ -123,7 +123,7 @@ jobs:
             --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
             --public-network-access Enabled \
             --default-action Allow
-          sleep 10  # Wait for propagation
+          sleep 30  # Wait for propagation (increased for network settings to apply)
       
       - name: Ensure deployments container exists
         run: |
