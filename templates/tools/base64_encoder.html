@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Base64 Encoder/Decoder{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mode-tabs {
+        margin-bottom: 20px;
+    }
+    .textarea-container {
+        position: relative;
+    }
+    .copy-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 10;
+    }
+    .char-count {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 5px;
+    }
+    .swap-icon {
+        font-size: 24px;
+        cursor: pointer;
+        transition: transform 0.3s;
+    }
+    .swap-icon:hover {
+        transform: rotate(180deg);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="bi bi-file-binary"></i> Base64 Encoder/Decoder</h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Encode text to Base64 or decode Base64 back to text. Supports direct text input or file upload.</p>
+                    
+                    <!-- Mode Selection Tabs -->
+                    <ul class="nav nav-pills mode-tabs" id="modeTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="encode-tab" data-bs-toggle="pill" data-bs-target="#encode" type="button" role="tab" aria-controls="encode" aria-selected="true">
+                                <i class="bi bi-lock"></i> Encode
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="decode-tab" data-bs-toggle="pill" data-bs-target="#decode" type="button" role="tab" aria-controls="decode" aria-selected="false">
+                                <i class="bi bi-unlock"></i> Decode
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="modeTabContent">
+                        <!-- Encode Tab -->
+                        <div class="tab-pane fade show active" id="encode" role="tabpanel" aria-labelledby="encode-tab">
+                            <form id="encode-form">
+                                <div class="mb-3">
+                                    <label for="encode-input" class="form-label">Text to Encode</label>
+                                    <div class="textarea-container">
+                                        <textarea class="form-control" id="encode-input" rows="6" placeholder="Enter text to encode..."></textarea>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary copy-btn" id="copy-input-btn" title="Copy to clipboard" style="display: none;">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="char-count">Characters: <span id="encode-char-count">0</span></div>
+                                        <div class="mt-2">
+                                            <label for="encode-file" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-upload"></i> Upload Text File
+                                            </label>
+                                            <input type="file" id="encode-file" accept=".txt,.text" style="display: none;">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="text-center mb-3">
+                                    <i class="bi bi-arrow-down-up swap-icon text-primary" id="encode-swap-icon"></i>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="encode-output" class="form-label">Base64 Encoded Result</label>
+                                    <div class="textarea-container">
+                                        <textarea class="form-control bg-light" id="encode-output" rows="6" readonly placeholder="Base64 encoded result will appear here..."></textarea>
+                                        <button type="button" class="btn btn-sm btn-success copy-btn" id="copy-encode-output-btn" title="Copy to clipboard" style="display: none;">
+                                            <i class="bi bi-clipboard-check"></i> Copy
+                                        </button>
+                                    </div>
+                                    <div class="char-count">Characters: <span id="encode-output-count">0</span></div>
+                                </div>
+
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-lock"></i> Encode to Base64
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="clear-encode-btn">
+                                        <i class="bi bi-x-circle"></i> Clear
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Decode Tab -->
+                        <div class="tab-pane fade" id="decode" role="tabpanel" aria-labelledby="decode-tab">
+                            <form id="decode-form">
+                                <div class="mb-3">
+                                    <label for="decode-input" class="form-label">Base64 to Decode</label>
+                                    <div class="textarea-container">
+                                        <textarea class="form-control" id="decode-input" rows="6" placeholder="Enter Base64 text to decode..."></textarea>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary copy-btn" id="copy-decode-input-btn" title="Copy to clipboard" style="display: none;">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="char-count">Characters: <span id="decode-char-count">0</span></div>
+                                        <div class="mt-2">
+                                            <label for="decode-file" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-upload"></i> Upload Base64 File
+                                            </label>
+                                            <input type="file" id="decode-file" accept=".txt,.text" style="display: none;">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="text-center mb-3">
+                                    <i class="bi bi-arrow-down-up swap-icon text-primary" id="decode-swap-icon"></i>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="decode-output" class="form-label">Decoded Text Result</label>
+                                    <div class="textarea-container">
+                                        <textarea class="form-control bg-light" id="decode-output" rows="6" readonly placeholder="Decoded text will appear here..."></textarea>
+                                        <button type="button" class="btn btn-sm btn-success copy-btn" id="copy-decode-output-btn" title="Copy to clipboard" style="display: none;">
+                                            <i class="bi bi-clipboard-check"></i> Copy
+                                        </button>
+                                    </div>
+                                    <div class="char-count">Characters: <span id="decode-output-count">0</span></div>
+                                </div>
+
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-unlock"></i> Decode from Base64
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="clear-decode-btn">
+                                        <i class="bi bi-x-circle"></i> Clear
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Error Display -->
+                    <div id="error-display" class="alert alert-danger mt-3" style="display: none;" role="alert"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">About Base64</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small">Base64 is a binary-to-text encoding scheme that represents binary data in an ASCII string format.</p>
+                    
+                    <h6 class="mt-3">Common Uses:</h6>
+                    <ul class="small">
+                        <li>Email attachments (MIME)</li>
+                        <li>Data URLs in HTML/CSS</li>
+                        <li>API authentication tokens</li>
+                        <li>Embedding images in JSON</li>
+                        <li>URL-safe data transmission</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Features</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="small mb-0">
+                        <li>Bidirectional encoding/decoding</li>
+                        <li>Support for text input or file upload</li>
+                        <li>Maximum file size: 10MB</li>
+                        <li>One-click copy to clipboard</li>
+                        <li>Real-time character counting</li>
+                        <li>Automatic whitespace handling</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Get CSRF token
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+           document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+}
+
+// Character count updates
+document.getElementById('encode-input').addEventListener('input', function() {
+    document.getElementById('encode-char-count').textContent = this.value.length;
+    document.getElementById('copy-input-btn').style.display = this.value ? 'block' : 'none';
+});
+
+document.getElementById('decode-input').addEventListener('input', function() {
+    document.getElementById('decode-char-count').textContent = this.value.length;
+    document.getElementById('copy-decode-input-btn').style.display = this.value ? 'block' : 'none';
+});
+
+// File upload handlers
+document.getElementById('encode-file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            document.getElementById('encode-input').value = event.target.result;
+            document.getElementById('encode-char-count').textContent = event.target.result.length;
+            document.getElementById('copy-input-btn').style.display = 'block';
+        };
+        reader.readAsText(file);
+    }
+});
+
+document.getElementById('decode-file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            document.getElementById('decode-input').value = event.target.result;
+            document.getElementById('decode-char-count').textContent = event.target.result.length;
+            document.getElementById('copy-decode-input-btn').style.display = 'block';
+        };
+        reader.readAsText(file);
+    }
+});
+
+// Encode form submission
+document.getElementById('encode-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const text = document.getElementById('encode-input').value;
+    if (!text) {
+        showError('Please enter text to encode');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/v1/tools/base64-encoder/process/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: JSON.stringify({
+                mode: 'encode',
+                text: text
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Encoding failed');
+        }
+        
+        const data = await response.json();
+        document.getElementById('encode-output').value = data.result;
+        document.getElementById('encode-output-count').textContent = data.result.length;
+        document.getElementById('copy-encode-output-btn').style.display = 'block';
+        hideError();
+    } catch (error) {
+        showError(error.message);
+    }
+});
+
+// Decode form submission
+document.getElementById('decode-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const text = document.getElementById('decode-input').value;
+    if (!text) {
+        showError('Please enter Base64 text to decode');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/v1/tools/base64-encoder/process/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: JSON.stringify({
+                mode: 'decode',
+                text: text
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Decoding failed');
+        }
+        
+        const data = await response.json();
+        document.getElementById('decode-output').value = data.result;
+        document.getElementById('decode-output-count').textContent = data.result.length;
+        document.getElementById('copy-decode-output-btn').style.display = 'block';
+        hideError();
+    } catch (error) {
+        showError(error.message);
+    }
+});
+
+// Copy to clipboard functions
+function copyToClipboard(text, button) {
+    navigator.clipboard.writeText(text).then(() => {
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="bi bi-check"></i> Copied!';
+        button.classList.remove('btn-success', 'btn-outline-secondary');
+        button.classList.add('btn-success');
+        setTimeout(() => {
+            button.innerHTML = originalHTML;
+        }, 2000);
+    });
+}
+
+document.getElementById('copy-encode-output-btn').addEventListener('click', function() {
+    copyToClipboard(document.getElementById('encode-output').value, this);
+});
+
+document.getElementById('copy-decode-output-btn').addEventListener('click', function() {
+    copyToClipboard(document.getElementById('decode-output').value, this);
+});
+
+document.getElementById('copy-input-btn').addEventListener('click', function() {
+    copyToClipboard(document.getElementById('encode-input').value, this);
+});
+
+document.getElementById('copy-decode-input-btn').addEventListener('click', function() {
+    copyToClipboard(document.getElementById('decode-input').value, this);
+});
+
+// Clear buttons
+document.getElementById('clear-encode-btn').addEventListener('click', function() {
+    document.getElementById('encode-input').value = '';
+    document.getElementById('encode-output').value = '';
+    document.getElementById('encode-char-count').textContent = '0';
+    document.getElementById('encode-output-count').textContent = '0';
+    document.getElementById('copy-input-btn').style.display = 'none';
+    document.getElementById('copy-encode-output-btn').style.display = 'none';
+    hideError();
+});
+
+document.getElementById('clear-decode-btn').addEventListener('click', function() {
+    document.getElementById('decode-input').value = '';
+    document.getElementById('decode-output').value = '';
+    document.getElementById('decode-char-count').textContent = '0';
+    document.getElementById('decode-output-count').textContent = '0';
+    document.getElementById('copy-decode-input-btn').style.display = 'none';
+    document.getElementById('copy-decode-output-btn').style.display = 'none';
+    hideError();
+});
+
+// Error display
+function showError(message) {
+    const errorDiv = document.getElementById('error-display');
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+}
+
+function hideError() {
+    document.getElementById('error-display').style.display = 'none';
+}
+</script>
+{% endblock %}

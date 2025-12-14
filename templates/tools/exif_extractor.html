@@ -1,0 +1,437 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}EXIF Metadata Extractor{% endblock %}
+
+{% block extra_css %}
+<style>
+    .exif-table {
+        font-size: 0.875rem;
+    }
+    .exif-table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+    .image-preview {
+        max-width: 100%;
+        max-height: 300px;
+        object-fit: contain;
+        border-radius: 8px;
+    }
+    .gps-map-link {
+        display: inline-block;
+        margin-top: 10px;
+    }
+    .export-btn-group {
+        margin-top: 15px;
+    }
+    .no-exif-message {
+        padding: 40px 20px;
+        text-align: center;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="bi bi-image"></i> EXIF Metadata Extractor</h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Extract EXIF metadata from images including camera settings, GPS location, timestamps, and more.</p>
+                    
+                    <!-- Upload Form -->
+                    <form id="exif-form" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="image-file" class="form-label">Select Image</label>
+                            <input type="file" class="form-control" id="image-file" name="file" accept=".jpg,.jpeg,.png,.tiff,.tif,.webp,.heic" required>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Supported formats: JPG, PNG, TIFF, WebP, HEIC (max 20MB)
+                            </div>
+                        </div>
+
+                        <!-- Image Preview -->
+                        <div id="preview-section" class="mb-3" style="display: none;">
+                            <label class="form-label">Preview</label>
+                            <div class="text-center">
+                                <img id="image-preview" class="image-preview" alt="Image preview">
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg" id="extract-btn">
+                                <i class="bi bi-search"></i> Extract EXIF Data
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Results Section -->
+                    <div id="results-section" class="mt-4" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0"><i class="bi bi-info-circle"></i> EXIF Metadata</h5>
+                            <div class="export-btn-group">
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-sm btn-outline-success" id="export-json-btn">
+                                        <i class="bi bi-filetype-json"></i> Export JSON
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-success" id="export-csv-btn">
+                                        <i class="bi bi-filetype-csv"></i> Export CSV
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Image Info Section -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="bi bi-image-fill"></i> Image Information</h6>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-sm table-borderless exif-table mb-0" id="image-info-table">
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- EXIF Data Section -->
+                        <div id="exif-data-section" class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="bi bi-camera-fill"></i> EXIF Data</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover exif-table" id="exif-data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Tag</th>
+                                                <th>Value</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="exif-data-tbody">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- GPS Data Section -->
+                        <div id="gps-data-section" class="card mb-3" style="display: none;">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="bi bi-geo-alt-fill"></i> GPS Location</h6>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-sm table-borderless exif-table mb-0" id="gps-data-table">
+                                </table>
+                                <div id="gps-map-link" class="gps-map-link"></div>
+                            </div>
+                        </div>
+
+                        <!-- No EXIF Message -->
+                        <div id="no-exif-message" class="no-exif-message" style="display: none;">
+                            <i class="bi bi-exclamation-circle text-warning" style="font-size: 3rem;"></i>
+                            <h5 class="mt-3">No EXIF Data Found</h5>
+                            <p class="text-muted">This image doesn't contain EXIF metadata, or it has been removed.</p>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-3">
+                            <button type="button" class="btn btn-outline-primary" onclick="location.reload()">
+                                <i class="bi bi-arrow-clockwise"></i> Extract from Another Image
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Error Display -->
+                    <div id="error-display" class="alert alert-danger mt-3" style="display: none;" role="alert"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">About EXIF</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small">EXIF (Exchangeable Image File Format) is a standard that specifies formats for images, sound, and ancillary tags used by digital cameras, smartphones, and other devices.</p>
+                    
+                    <h6 class="mt-3">What You Can Find:</h6>
+                    <ul class="small">
+                        <li><strong>Camera:</strong> Make, model, settings</li>
+                        <li><strong>Settings:</strong> ISO, aperture, shutter speed</li>
+                        <li><strong>Timestamp:</strong> Date and time taken</li>
+                        <li><strong>GPS:</strong> Location coordinates</li>
+                        <li><strong>Image:</strong> Resolution, orientation</li>
+                        <li><strong>Software:</strong> Editing applications used</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Supported Formats</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="small mb-0">
+                        <li>JPEG / JPG</li>
+                        <li>PNG (limited EXIF support)</li>
+                        <li>TIFF / TIF</li>
+                        <li>WebP</li>
+                        <li>HEIC (Apple photos)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">Privacy Note</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small mb-0">
+                        <i class="bi bi-shield-check me-1"></i>
+                        EXIF data may contain sensitive information like GPS coordinates. Consider removing EXIF data before sharing images publicly.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Get CSRF token
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+           document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+}
+
+// Global variable to store current result
+let currentExifData = null;
+
+// Image preview
+document.getElementById('image-file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            document.getElementById('image-preview').src = event.target.result;
+            document.getElementById('preview-section').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    } else {
+        document.getElementById('preview-section').style.display = 'none';
+    }
+});
+
+// Form submission
+document.getElementById('exif-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const fileInput = document.getElementById('image-file');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showError('Please select an image file');
+        return;
+    }
+    
+    const extractBtn = document.getElementById('extract-btn');
+    extractBtn.disabled = true;
+    extractBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Extracting...';
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+        const response = await fetch('/api/v1/tools/exif-extractor/extract/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Extraction failed');
+        }
+        
+        const data = await response.json();
+        currentExifData = data;
+        displayResults(data);
+        hideError();
+    } catch (error) {
+        showError(error.message);
+    } finally {
+        extractBtn.disabled = false;
+        extractBtn.innerHTML = '<i class="bi bi-search"></i> Extract EXIF Data';
+    }
+});
+
+// Display results
+function displayResults(data) {
+    document.getElementById('results-section').style.display = 'block';
+    
+    // Display image info
+    const imageInfoTable = document.getElementById('image-info-table');
+    imageInfoTable.innerHTML = '';
+    if (data.image_info) {
+        for (const [key, value] of Object.entries(data.image_info)) {
+            imageInfoTable.innerHTML += `
+                <tr>
+                    <td class="fw-semibold" style="width: 40%;">${key}</td>
+                    <td>${value}</td>
+                </tr>
+            `;
+        }
+    }
+    
+    // Display EXIF data
+    const exifDataSection = document.getElementById('exif-data-section');
+    const exifDataTbody = document.getElementById('exif-data-tbody');
+    const noExifMessage = document.getElementById('no-exif-message');
+    
+    exifDataTbody.innerHTML = '';
+    
+    if (data.has_exif && data.exif_data && Object.keys(data.exif_data).length > 0) {
+        exifDataSection.style.display = 'block';
+        noExifMessage.style.display = 'none';
+        
+        for (const [key, value] of Object.entries(data.exif_data)) {
+            exifDataTbody.innerHTML += `
+                <tr>
+                    <td class="fw-semibold">${key}</td>
+                    <td>${value}</td>
+                </tr>
+            `;
+        }
+    } else {
+        exifDataSection.style.display = 'none';
+        noExifMessage.style.display = 'block';
+    }
+    
+    // Display GPS data
+    const gpsDataSection = document.getElementById('gps-data-section');
+    const gpsDataTable = document.getElementById('gps-data-table');
+    const gpsMapLink = document.getElementById('gps-map-link');
+    
+    gpsDataTable.innerHTML = '';
+    gpsMapLink.innerHTML = '';
+    
+    if (data.has_gps && data.gps_data && Object.keys(data.gps_data).length > 0) {
+        gpsDataSection.style.display = 'block';
+        
+        for (const [key, value] of Object.entries(data.gps_data)) {
+            if (key !== 'MapsURL') {
+                gpsDataTable.innerHTML += `
+                    <tr>
+                        <td class="fw-semibold" style="width: 40%;">${key}</td>
+                        <td>${value}</td>
+                    </tr>
+                `;
+            }
+        }
+        
+        // Add Google Maps link if coordinates available
+        if (data.gps_data.MapsURL) {
+            gpsMapLink.innerHTML = `
+                <a href="${data.gps_data.MapsURL}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-map"></i> View on Google Maps
+                </a>
+            `;
+        }
+    } else {
+        gpsDataSection.style.display = 'none';
+    }
+}
+
+// Export functionality
+document.getElementById('export-json-btn').addEventListener('click', async function() {
+    if (!currentExifData) return;
+    
+    try {
+        const fileInput = document.getElementById('image-file');
+        const file = fileInput.files[0];
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('export_format', 'json');
+        
+        const response = await fetch('/api/v1/tools/exif-extractor/extract/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: formData
+        });
+        
+        if (!response.ok) throw new Error('Export failed');
+        
+        const data = await response.json();
+        if (data.export_data) {
+            downloadFile(data.export_data, 'exif_data.json', 'application/json');
+        }
+    } catch (error) {
+        showError('Failed to export JSON: ' + error.message);
+    }
+});
+
+document.getElementById('export-csv-btn').addEventListener('click', async function() {
+    if (!currentExifData) return;
+    
+    try {
+        const fileInput = document.getElementById('image-file');
+        const file = fileInput.files[0];
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('export_format', 'csv');
+        
+        const response = await fetch('/api/v1/tools/exif-extractor/extract/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: formData
+        });
+        
+        if (!response.ok) throw new Error('Export failed');
+        
+        const data = await response.json();
+        if (data.export_data) {
+            downloadFile(data.export_data, 'exif_data.csv', 'text/csv');
+        }
+    } catch (error) {
+        showError('Failed to export CSV: ' + error.message);
+    }
+});
+
+// Download helper function
+function downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// Error display
+function showError(message) {
+    const errorDiv = document.getElementById('error-display');
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function hideError() {
+    document.getElementById('error-display').style.display = 'none';
+}
+</script>
+{% endblock %}

@@ -1055,6 +1055,204 @@ def convert_image(req: func.HttpRequest) -> func.HttpResponse:
         )
 
 
+@app.route(route="image/ocr", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def extract_text_ocr(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    OCR text extraction from images.
+    
+    Endpoint: POST /api/image/ocr
+    
+    Expected JSON payload:
+    {
+        "execution_id": "uuid",
+        "blob_name": "uploads/image/{uuid}.{ext}",
+        "language": "eng",  # Optional: Language code (default: eng)
+        "ocr_mode": "3",    # Optional: Tesseract PSM mode 0-12 (default: 3)
+        "preprocess": "true"  # Optional: Enable image preprocessing (default: true)
+    }
+    
+    Returns:
+    {
+        "status": "success",
+        "execution_id": "uuid",
+        "output_blob": "processed/image/{uuid}.txt",
+        "output_size_bytes": 1234,
+        "text_length": 500,
+        "language_used": "eng"
+    }
+    """
+    execution_id = None
+    temp_input = None
+    temp_output = None
+    
+    try:
+        # Parse request
+        req_body = req.get_json()
+        execution_id = req_body.get('execution_id')
+        blob_name = req_body.get('blob_name')
+        language = req_body.get('language', 'eng')
+        ocr_mode = req_body.get('ocr_mode', '3')
+        preprocess = str(req_body.get('preprocess', 'true')).lower() == 'true'
+        
+        logging.info(f"🚀 OCR PROCESSING STARTED")
+        logging.info(f"   Execution ID: {execution_id}")
+        logging.info(f"   Blob: {blob_name}")
+        logging.info(f"   Language: {language}")
+        logging.info(f"   OCR Mode: {ocr_mode}")
+        logging.info(f"   Preprocessing: {preprocess}")
+        
+        # Update database status to 'processing'
+        update_database_status(execution_id, 'processing')
+        
+        # Download image from blob storage
+        blob_service = get_blob_service_client()
+        temp_input = download_blob_to_temp(blob_service, blob_name)
+        logging.info(f"✅ Downloaded image to: {temp_input}")
+        
+        # Perform OCR with preprocessing
+        logging.info(f"📝 Starting OCR extraction...")
+        
+        try:
+            import pytesseract
+            from PIL import Image
+            import cv2
+            import numpy as np
+            
+            # Load image
+            image = Image.open(temp_input)
+            
+            # Preprocessing if enabled
+            if preprocess:
+                logging.info(f"🔧 Preprocessing image...")
+                
+                # Convert PIL to OpenCV format
+                img_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+                
+                # Convert to grayscale
+                gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+                
+                # Apply denoising
+                denoised = cv2.fastNlMeansDenoising(gray, h=10)
+                
+                # Apply adaptive thresholding for better text detection
+                binary = cv2.adaptiveThreshold(
+                    denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                    cv2.THRESH_BINARY, 11, 2
+                )
+                
+                # Deskew if needed (simple rotation detection)
+                try:
+                    coords = np.column_stack(np.where(binary > 0))
+                    angle = cv2.minAreaRect(coords)[-1]
+                    if angle < -45:
+                        angle = -(90 + angle)
+                    else:
+                        angle = -angle
+                    
+                    if abs(angle) > 0.5:  # Only rotate if angle is significant
+                        (h, w) = binary.shape[:2]
+                        center = (w // 2, h // 2)
+                        M = cv2.getRotationMatrix2D(center, angle, 1.0)
+                        binary = cv2.warpAffine(
+                            binary, M, (w, h),
+                            flags=cv2.INTER_CUBIC, 
+                            borderMode=cv2.BORDER_REPLICATE
+                        )
+                        logging.info(f"   Deskewed by {angle:.2f} degrees")
+                except Exception as deskew_err:
+                    logging.warning(f"⚠️  Deskew failed (not critical): {deskew_err}")
+                
+                # Convert back to PIL Image for Tesseract
+                image = Image.fromarray(binary)
+                logging.info(f"✅ Preprocessing complete")
+            
+            # Perform OCR
+            tesseract_config = f'--psm {ocr_mode}'
+            extracted_text = pytesseract.image_to_string(
+                image, 
+                lang=language, 
+                config=tesseract_config
+            )
+            
+            text_length = len(extracted_text)
+            logging.info(f"✅ OCR extraction complete")
+            logging.info(f"   Extracted {text_length} characters")
+            
+        except ImportError as import_err:
+            logging.error(f"❌ Missing dependencies: {import_err}")
+            raise Exception(f"OCR dependencies not installed: {import_err}")
+        except Exception as ocr_err:
+            logging.error(f"❌ OCR processing failed: {ocr_err}")
+            raise Exception(f"OCR failed: {ocr_err}")
+        
+        # Save extracted text to temp file
+        temp_output = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8')
+        temp_output.write(extracted_text)
+        temp_output.close()
+        temp_output_path = temp_output.name
+        logging.info(f"✅ Saved text to temp file: {temp_output_path}")
+        
+        # Upload result to processed container
+        output_blob_name = f"image/{execution_id}.txt"
+        upload_blob_from_file(blob_service, temp_output_path, "processed", output_blob_name)
+        logging.info(f"✅ Uploaded result to: processed/{output_blob_name}")
+        
+        # Get output size
+        output_size = os.path.getsize(temp_output_path)
+        
+        # Update database with completion
+        update_database_completion(
+            execution_id,
+            output_blob_path=f"processed/{output_blob_name}",
+            output_size=output_size
+        )
+        logging.info(f"✅ Database updated with completion")
+        
+        # Cleanup temp files
+        cleanup_temp_files(temp_input, temp_output_path)
+        
+        logging.info(f"🎉 OCR PROCESSING COMPLETED SUCCESSFULLY")
+        logging.info(f"   Execution ID: {execution_id}")
+        logging.info(f"   Text length: {text_length} characters")
+        logging.info(f"   Output size: {output_size} bytes")
+        
+        return func.HttpResponse(
+            body=json.dumps({
+                "status": "success",
+                "execution_id": execution_id,
+                "output_blob": f"processed/{output_blob_name}",
+                "output_size_bytes": output_size,
+                "text_length": text_length,
+                "language_used": language
+            }),
+            mimetype="application/json",
+            status_code=200
+        )
+        
+    except Exception as e:
+        logging.error(f"❌ OCR PROCESSING FAILED")
+        logging.error(f"   Execution ID: {execution_id}")
+        logging.error(f"   Error: {str(e)}")
+        logging.error(f"   Traceback:", exc_info=True)
+        
+        # Update database with failure
+        if execution_id:
+            update_database_failure(execution_id, str(e))
+        
+        # Cleanup temp files
+        cleanup_temp_files(temp_input, temp_output)
+        
+        return func.HttpResponse(
+            body=json.dumps({
+                "status": "error",
+                "error": str(e),
+                "execution_id": execution_id
+            }),
+            mimetype="application/json",
+            status_code=500
+        )
+
+
 @app.route(route="gpx/convert", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
 def convert_gpx_kml(req: func.HttpRequest) -> func.HttpResponse:
     """
