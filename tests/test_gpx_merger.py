@@ -222,7 +222,7 @@ class TestGPXMergerTool:
         assert "multiple files" in str(exc_info.value).lower()
 
     @patch("apps.tools.plugins.gpx_merger.BlobServiceClient")
-    @patch("apps.tools.plugins.gpx_merger.requests.post")
+    @patch("requests.post")
     def test_process_multiple_files(
         self,
         mock_requests_post,
@@ -287,7 +287,7 @@ class TestGPXMergerTool:
             mock_settings.AZURE_STORAGE_CONNECTION_STRING = "UseDevelopmentStorage=true"
             mock_settings.AZURE_FUNCTION_BASE_URL = "http://localhost:7071"
 
-            with patch("apps.tools.plugins.gpx_merger.requests.post"):
+            with patch("requests.post"):
                 gpx_merger_tool.process_multiple(files, parameters)
 
                 # Verify blob names include sequential indices
@@ -303,7 +303,7 @@ class TestGPXMergerAPI:
     """Test suite for GPX Merger API endpoints."""
 
     @patch("apps.tools.plugins.gpx_merger.BlobServiceClient")
-    @patch("apps.tools.plugins.gpx_merger.requests.post")
+    @patch("requests.post")
     def test_merge_endpoint(
         self,
         mock_requests_post,

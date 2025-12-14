@@ -329,3 +329,18 @@ class GPXMerger(BaseTool):
                 credential = DefaultAzureCredential()
 
             return BlobServiceClient(account_url=account_url, credential=credential)
+
+    def cleanup(self, *file_paths: str) -> None:
+        """
+        Clean up temporary files.
+
+        For GPX Merger, cleanup is handled by Azure Function and blob lifecycle policies.
+        This method is implemented to satisfy the abstract base class requirement.
+
+        Args:
+            *file_paths: Paths to temporary files (unused for async processing)
+        """
+        # No local cleanup needed - files are uploaded directly to blob storage
+        # Azure Function handles cleanup of processed files
+        # Blob lifecycle policies manage retention
+        pass
