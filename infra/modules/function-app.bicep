@@ -76,19 +76,9 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
     }
     siteConfig: {
       appSettings: [
-        // ===== CRITICAL: Azure Functions Runtime Configuration =====
-        {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'python'
-        }
-        {
-          name: 'FUNCTIONS_EXTENSION_VERSION'
-          value: '~4'
-        }
-        {
-          name: 'WEBSITE_RUN_FROM_PACKAGE'
-          value: '1'
-        }
+        // NOTE: For Flex Consumption, FUNCTIONS_WORKER_RUNTIME and version are set in functionAppConfig.runtime above
+        // Only application-specific settings go here
+        
         // Identity-based storage connection (no shared key needed)
         {
           name: 'AzureWebJobsStorage__accountName'
