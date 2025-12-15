@@ -4,6 +4,8 @@
 {% block title %}EXIF Metadata Extractor{% endblock %}
 
 {% block extra_css %}
+<!-- Include EXIF.js library for client-side EXIF extraction -->
+<script src="https://cdn.jsdelivr.net/npm/exif-js@2.3.0/exif.min.js"></script>
 <style>
     .exif-table {
         font-size: 0.875rem;
@@ -226,8 +228,8 @@ document.getElementById('image-file').addEventListener('change', function(e) {
     }
 });
 
-// Form submission
-document.getElementById('exif-form').addEventListener('submit', async function(e) {
+// Form submission - Pure JavaScript (client-side EXIF extraction)
+document.getElementById('exif-form').addEventListener('submit', function(e) {
     e.preventDefault();
     
     const fileInput = document.getElementById('image-file');
@@ -242,34 +244,117 @@ document.getElementById('exif-form').addEventListener('submit', async function(e
     extractBtn.disabled = true;
     extractBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Extracting...';
     
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    try {
-        const response = await fetch('/api/v1/tools/exif-extractor/extract/', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCSRFToken(),
-            },
-            body: formData
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Extraction failed');
-        }
-        
-        const data = await response.json();
-        currentExifData = data;
-        displayResults(data);
-        hideError();
-    } catch (error) {
-        showError(error.message);
-    } finally {
-        extractBtn.disabled = false;
-        extractBtn.innerHTML = '<i class="bi bi-search"></i> Extract EXIF Data';
-    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            try {
+                // Extract EXIF data using EXIF.js
+                EXIF.getData(img, function() {
+                    const allTags = EXIF.getAllTags(this);
+                    const imageInfo = {
+                        'Width': img.width + 'px',
+                        'Height': img.height + 'px',
+                        'Format': file.type.split('/')[1].toUpperCase(),
+                        'File Size': formatFileSize(file.size),
+                        'File Name': file.name
+                    };
+                    
+                    // Process EXIF data
+                    const exifData = {};
+                    const gpsData = {};
+                    let hasExif = false;
+                    let hasGPS = false;
+                    
+                    for (const tag in allTags) {
+                        if (allTags.hasOwnProperty(tag) && tag !== 'thumbnail' && tag !== 'undefined') {
+                            const value = allTags[tag];
+                            
+                            // Handle GPS tags separately
+                            if (tag.startsWith('GPS')) {
+                                hasGPS = true;
+                                gpsData[tag] = formatExifValue(value);
+                            } else {
+                                hasExif = true;
+                                exifData[tag] = formatExifValue(value);
+                            }
+                        }
+                    }
+                    
+                    // Extract GPS coordinates if available
+                    const lat = EXIF.getTag(this, 'GPSLatitude');
+                    const latRef = EXIF.getTag(this, 'GPSLatitudeRef');
+                    const lon = EXIF.getTag(this, 'GPSLongitude');
+                    const lonRef = EXIF.getTag(this, 'GPSLongitudeRef');
+                    
+                    if (lat && lon) {
+                        const latitude = convertDMSToDD(lat, latRef);
+                        const longitude = convertDMSToDD(lon, lonRef);
+                        gpsData['Latitude'] = latitude.toFixed(6);
+                        gpsData['Longitude'] = longitude.toFixed(6);
+                        gpsData['MapsURL'] = `https://www.google.com/maps?q=${latitude},${longitude}`;
+                    }
+                    
+                    // Store and display results
+                    currentExifData = {
+                        image_info: imageInfo,
+                        exif_data: exifData,
+                        gps_data: gpsData,
+                        has_exif: hasExif,
+                        has_gps: hasGPS
+                    };
+                    
+                    displayResults(currentExifData);
+                    hideError();
+                });
+            } catch (error) {
+                showError('Failed to extract EXIF data: ' + error.message);
+            } finally {
+                extractBtn.disabled = false;
+                extractBtn.innerHTML = '<i class="bi bi-search"></i> Extract EXIF Data';
+            }
+        };
+        img.onerror = function() {
+            showError('Failed to load image');
+            extractBtn.disabled = false;
+            extractBtn.innerHTML = '<i class="bi bi-search"></i> Extract EXIF Data';
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
 });
+
+// Helper function to format EXIF values
+function formatExifValue(value) {
+    if (value === null || value === undefined) return 'N/A';
+    if (typeof value === 'object' && value.numerator !== undefined) {
+        // Handle rational numbers (like shutter speed)
+        return (value.numerator / value.denominator).toFixed(2);
+    }
+    if (Array.isArray(value)) {
+        return value.join(', ');
+    }
+    return value.toString();
+}
+
+// Helper function to format file size
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+// Convert GPS DMS (Degrees Minutes Seconds) to DD (Decimal Degrees)
+function convertDMSToDD(dms, ref) {
+    if (!dms || !Array.isArray(dms) || dms.length !== 3) return 0;
+    
+    let dd = dms[0];
+    if (dms[1] !== undefined) dd += dms[1] / 60;
+    if (dms[2] !== undefined) dd += dms[2] / 3600;
+    
+    if (ref === 'S' || ref === 'W') dd = -dd;
+    return dd;
+}
 
 // Display results
 function displayResults(data) {
@@ -348,62 +433,47 @@ function displayResults(data) {
     }
 }
 
-// Export functionality
-document.getElementById('export-json-btn').addEventListener('click', async function() {
+// Export functionality - Client-side export
+document.getElementById('export-json-btn').addEventListener('click', function() {
     if (!currentExifData) return;
     
     try {
-        const fileInput = document.getElementById('image-file');
-        const file = fileInput.files[0];
-        
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('export_format', 'json');
-        
-        const response = await fetch('/api/v1/tools/exif-extractor/extract/', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCSRFToken(),
-            },
-            body: formData
-        });
-        
-        if (!response.ok) throw new Error('Export failed');
-        
-        const data = await response.json();
-        if (data.export_data) {
-            downloadFile(data.export_data, 'exif_data.json', 'application/json');
-        }
+        const exportData = {
+            image_info: currentExifData.image_info,
+            exif_data: currentExifData.exif_data,
+            gps_data: currentExifData.gps_data
+        };
+        const jsonString = JSON.stringify(exportData, null, 2);
+        downloadFile(jsonString, 'exif_data.json', 'application/json');
     } catch (error) {
         showError('Failed to export JSON: ' + error.message);
     }
 });
 
-document.getElementById('export-csv-btn').addEventListener('click', async function() {
+document.getElementById('export-csv-btn').addEventListener('click', function() {
     if (!currentExifData) return;
     
     try {
-        const fileInput = document.getElementById('image-file');
-        const file = fileInput.files[0];
+        let csv = 'Category,Tag,Value\n';
         
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('export_format', 'csv');
-        
-        const response = await fetch('/api/v1/tools/exif-extractor/extract/', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCSRFToken(),
-            },
-            body: formData
-        });
-        
-        if (!response.ok) throw new Error('Export failed');
-        
-        const data = await response.json();
-        if (data.export_data) {
-            downloadFile(data.export_data, 'exif_data.csv', 'text/csv');
+        // Add image info
+        for (const [key, value] of Object.entries(currentExifData.image_info)) {
+            csv += `Image Info,"${key}","${value}"\n`;
         }
+        
+        // Add EXIF data
+        for (const [key, value] of Object.entries(currentExifData.exif_data)) {
+            csv += `EXIF,"${key}","${value}"\n`;
+        }
+        
+        // Add GPS data
+        for (const [key, value] of Object.entries(currentExifData.gps_data)) {
+            if (key !== 'MapsURL') {
+                csv += `GPS,"${key}","${value}"\n`;
+            }
+        }
+        
+        downloadFile(csv, 'exif_data.csv', 'text/csv');
     } catch (error) {
         showError('Failed to export CSV: ' + error.message);
     }

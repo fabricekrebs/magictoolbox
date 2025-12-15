@@ -245,8 +245,8 @@ document.getElementById('decode-file').addEventListener('change', function(e) {
     }
 });
 
-// Encode form submission
-document.getElementById('encode-form').addEventListener('submit', async function(e) {
+// Encode form submission - Pure JavaScript (client-side only)
+document.getElementById('encode-form').addEventListener('submit', function(e) {
     e.preventDefault();
     
     const text = document.getElementById('encode-input').value;
@@ -256,68 +256,40 @@ document.getElementById('encode-form').addEventListener('submit', async function
     }
     
     try {
-        const response = await fetch('/api/v1/tools/base64-encoder/process/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCSRFToken(),
-            },
-            body: JSON.stringify({
-                mode: 'encode',
-                text: text
-            })
-        });
+        // Use btoa for Base64 encoding (built-in browser function)
+        // For UTF-8 support, first encode to URI component then to Base64
+        const encoded = btoa(unescape(encodeURIComponent(text)));
         
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Encoding failed');
-        }
-        
-        const data = await response.json();
-        document.getElementById('encode-output').value = data.result;
-        document.getElementById('encode-output-count').textContent = data.result.length;
+        document.getElementById('encode-output').value = encoded;
+        document.getElementById('encode-output-count').textContent = encoded.length;
         document.getElementById('copy-encode-output-btn').style.display = 'block';
         hideError();
     } catch (error) {
-        showError(error.message);
+        showError('Encoding failed: ' + error.message);
     }
 });
 
-// Decode form submission
-document.getElementById('decode-form').addEventListener('submit', async function(e) {
+// Decode form submission - Pure JavaScript (client-side only)
+document.getElementById('decode-form').addEventListener('submit', function(e) {
     e.preventDefault();
     
-    const text = document.getElementById('decode-input').value;
+    const text = document.getElementById('decode-input').value.trim();
     if (!text) {
         showError('Please enter Base64 text to decode');
         return;
     }
     
     try {
-        const response = await fetch('/api/v1/tools/base64-encoder/process/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCSRFToken(),
-            },
-            body: JSON.stringify({
-                mode: 'decode',
-                text: text
-            })
-        });
+        // Use atob for Base64 decoding (built-in browser function)
+        // For UTF-8 support, decode from Base64 then from URI component
+        const decoded = decodeURIComponent(escape(atob(text)));
         
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Decoding failed');
-        }
-        
-        const data = await response.json();
-        document.getElementById('decode-output').value = data.result;
-        document.getElementById('decode-output-count').textContent = data.result.length;
+        document.getElementById('decode-output').value = decoded;
+        document.getElementById('decode-output-count').textContent = decoded.length;
         document.getElementById('copy-decode-output-btn').style.display = 'block';
         hideError();
     } catch (error) {
-        showError(error.message);
+        showError('Decoding failed: Invalid Base64 string. Please check your input.');
     }
 });
 
