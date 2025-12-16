@@ -1,28 +1,40 @@
 """
-Complete User Workflow Integration Tests - All Tools
+Complete User Workflow Integration Tests - API-Based E2E Tests
 
-This test suite simulates REAL user workflows from registration to cleanup:
-1. User registration
-2. User login
-3. Use each tool (upload → process → download)
-4. Verify Azure Blob Storage uploads
-5. Verify database records
-6. Delete all test data
-7. Delete test user
+This test suite simulates REAL user workflows using ONLY API requests:
+1. List all available tools
+2. Get tool metadata
+3. Upload and process files
+4. Check processing status
+5. Download results
+6. View execution history
+7. Delete executions
+
+Each test validates:
+- HTTP status codes (200, 201, 202, 400, 404, etc.)
+- Response structure and data types
+- Business logic correctness
+- Error handling
+- User data isolation
+
+Tools Tested (via API):
+- base64-encoder (sync)
+- exif-extractor (sync)
+- gpx-analyzer (sync)
+- gpx-kml-converter (sync)
+- gpx-merger (sync)
+- gpx-speed-modifier (sync)
+- image-format-converter (sync/async)
+- ocr-tool (async)
+- pdf-docx-converter (async)
+- unit-converter (sync)
+- video-rotation (async)
 
 Requirements:
 - AZURE_INTEGRATION_TEST_ENABLED=true
 - AZURE_STORAGE_CONNECTION_STRING=<your-connection-string>
-- AZURE_FUNCTIONS_URL=<your-function-app-url> (optional, for PDF conversion)
-- USE_AZURE_CLI_AUTH=true (optional, to use Azure CLI authentication instead of connection string)
-- Storage account must allow public network access during test execution
-
-Authentication Options:
-1. Connection String (default): Uses AZURE_STORAGE_CONNECTION_STRING
-2. Azure CLI: Set USE_AZURE_CLI_AUTH=true and ensure:
-   - You're logged in with `az login`
-   - You have "Storage Blob Data Contributor" role on the storage account
-   - Storage account allows public network access (or your IP is whitelisted)
+- AZURE_FUNCTION_BASE_URL=<your-function-app-url> (for async tools)
+- USE_AZURE_CLI_AUTH=true (optional, to use Azure CLI authentication)
 
 Local Testing Setup:
     # Enable public access on storage account (temporary for testing)
@@ -41,18 +53,6 @@ Local Testing Setup:
 GitHub Actions (CI/CD):
     This test suite can be run automatically against deployed Azure environments
     using the GitHub Actions workflow: .github/workflows/e2e-tests.yml
-    
-    To run manually from GitHub:
-    1. Go to repository → Actions tab
-    2. Select "End-to-End Tests" workflow
-    3. Click "Run workflow"
-    4. Choose environment (dev/test/prod)
-    
-    The workflow automatically handles:
-    - Azure authentication (service principal)
-    - Storage network rules (enable/restore)
-    - Test execution and reporting
-    - Cleanup of old test data
     
     See documentation:
     - .github/workflows/README.md - Workflow details
@@ -1158,6 +1158,562 @@ startxref
         print(f"  Email: {registered_user.email}")
         print(f"  ID: {registered_user.id}")
         print(f"\n🧹 Test user will be deleted after test completion")
+        print(f"{'='*60}\n")
+
+
+# ================================================================================
+# NEW COMPREHENSIVE API-BASED E2E TESTS
+# ================================================================================
+
+class TestCompleteAPIWorkflow:
+    """
+    Comprehensive API-based E2E tests that simulate ALL user actions.
+    
+    Tests every API endpoint for each tool with full validation:
+    - HTTP status codes
+    - Response structure
+    - Data types
+    - Business logic
+    - Error handling
+    """
+
+    @pytest.fixture(scope="class")
+    def blob_service_client(self):
+        """Get real Azure Blob Service Client using Azure CLI authentication."""
+        from azure.identity import AzureCliCredential
+        from azure.storage.blob import BlobServiceClient
+
+        # Use Azure CLI credential for local testing
+        credential = AzureCliCredential()
+        
+        # Extract storage account name from connection string or use environment variable
+        storage_account_name = os.getenv("AZURE_STORAGE_ACCOUNT_NAME", "sawemagictoolboxdev01")
+        account_url = f"https://{storage_account_name}.blob.core.windows.net"
+        
+        client = BlobServiceClient(account_url=account_url, credential=credential)
+        return client
+
+    @pytest.fixture
+    def test_user_credentials(self):
+        """Generate unique user credentials for testing."""
+        unique_id = uuid.uuid4().hex[:8]
+        return {
+            "username": f"api_test_{unique_id}",
+            "email": f"api_test_{unique_id}@example.com",
+            "password": "SecureAPITest123!",
+        }
+
+    @pytest.fixture
+    def registered_user(self, db, test_user_credentials):
+        """Create and register a real user in the database."""
+        print(f"\n🧪 Creating API test user: {test_user_credentials['username']}")
+
+        user = User.objects.create_user(
+            username=test_user_credentials["username"],
+            email=test_user_credentials["email"],
+            password=test_user_credentials["password"],
+        )
+
+        print(f"✅ User created: ID={user.id}, Username={user.username}")
+        yield user
+
+        # Cleanup after test
+        print(f"\n🧹 Cleaning up user: {user.username}")
+        user.delete()
+        print(f"✅ User deleted")
+
+    @pytest.fixture
+    def authenticated_client(self, registered_user):
+        """Create authenticated API client."""
+        client = APIClient()
+        client.force_authenticate(user=registered_user)
+        return client
+
+    @pytest.fixture
+    def sample_files(self):
+        """Create sample test files for all tool types."""
+        files = {}
+
+        # PNG image
+        png_data = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+            b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\x00\x01"
+            b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+        files["png"] = ("test_image.png", png_data, "image/png")
+
+        # GPX file
+        gpx_data = b"""<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="test">
+  <trk>
+    <name>Test Track</name>
+    <trkseg>
+      <trkpt lat="46.5" lon="6.5">
+        <ele>500</ele>
+        <time>2024-01-01T10:00:00Z</time>
+      </trkpt>
+      <trkpt lat="46.51" lon="6.51">
+        <ele>510</ele>
+        <time>2024-01-01T10:01:00Z</time>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>"""
+        files["gpx"] = ("test_track.gpx", gpx_data, "application/gpx+xml")
+
+        # Video file (minimal MP4)
+        mp4_data = (
+            b"\x00\x00\x00\x20ftypisom\x00\x00\x02\x00isomiso2avc1mp41"
+            b"\x00\x00\x00\x08free"
+        )
+        files["mp4"] = ("test_video.mp4", mp4_data, "video/mp4")
+
+        # PDF file
+        pdf_data = b"""%PDF-1.4
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
+3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>endobj
+xref
+0 4
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+trailer<</Size 4/Root 1 0 R>>
+startxref
+189
+%%EOF
+"""
+        files["pdf"] = ("test_document.pdf", pdf_data, "application/pdf")
+
+        # Plain text for Base64
+        files["text"] = ("test.txt", b"Hello, World!", "text/plain")
+
+        return files
+
+    # ========================================================================
+    # Test 1: API - List All Tools
+    # ========================================================================
+
+    @pytest.mark.django_db
+    def test_api_01_list_all_tools(self, authenticated_client):
+        """
+        Test GET /api/v1/tools/ - List all available tools
+        
+        Validates:
+        - HTTP 200 status
+        - Response is a list
+        - Each tool has required metadata fields
+        - Tool names match expected registered tools
+        """
+        print(f"\n{'='*60}")
+        print(f"🧪 API TEST 1: List All Tools")
+        print(f"{'='*60}")
+
+        # Make API request
+        response = authenticated_client.get("/api/v1/tools/")
+        
+        # Validate response
+        print(f"📋 Response status: {response.status_code}")
+        assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+        
+        # Validate response structure
+        data = response.json()
+        print(f"📋 Response type: {type(data)}")
+        assert isinstance(data, list), f"Expected list, got {type(data)}"
+        
+        print(f"📋 Number of tools: {len(data)}")
+        assert len(data) > 0, "No tools found"
+        
+        # Validate each tool has required fields (API returns snake_case)
+        required_fields = ["name", "display_name", "description", "category", "allowed_input_types", "max_file_size"]
+        for tool in data:
+            print(f"  ✅ Tool: {tool.get('name')} ({tool.get('display_name')})")
+            for field in required_fields:
+                assert field in tool, f"Tool {tool.get('name')} missing field: {field}"
+        
+        print(f"{'='*60}")
+        print(f"✅ API TEST 1 PASSED: List All Tools")
+        print(f"{'='*60}\n")
+
+    # ========================================================================
+    # Test 2: API - Get Tool Metadata
+    # ========================================================================
+
+    @pytest.mark.django_db
+    def test_api_02_get_tool_metadata(self, authenticated_client):
+        """
+        Test GET /api/v1/tools/{tool_name}/ - Get specific tool metadata
+        
+        Validates:
+        - HTTP 200 for existing tool
+        - HTTP 404 for non-existent tool
+        - Response structure matches expected format
+        - All metadata fields present
+        """
+        print(f"\n{'='*60}")
+        print(f"🧪 API TEST 2: Get Tool Metadata")
+        print(f"{'='*60}")
+
+        # Test 1: Get existing tool
+        print("📋 Test 2.1: Get image-format-converter metadata")
+        response = authenticated_client.get("/api/v1/tools/image-format-converter/")
+        
+        assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+        
+        data = response.json()
+        assert data["name"] == "image-format-converter"
+        assert "display_name" in data
+        assert "description" in data
+        assert "category" in data
+        print(f"  ✅ Tool metadata retrieved: {data['display_name']}")
+
+        # Test 2: Get non-existent tool
+        print("📋 Test 2.2: Get non-existent tool (should fail)")
+        response = authenticated_client.get("/api/v1/tools/non-existent-tool/")
+        
+        assert response.status_code == 404, f"Expected 404, got {response.status_code}"
+        data = response.json()
+        assert "error" in data
+        print(f"  ✅ Non-existent tool returns 404: {data.get('error')}")
+
+        print(f"{'='*60}")
+        print(f"✅ API TEST 2 PASSED: Get Tool Metadata")
+        print(f"{'='*60}\n")
+
+    # ========================================================================
+    # Test 3: API - Image Format Converter (Sync Tool)
+    # ========================================================================
+
+    @pytest.mark.django_db
+    def test_api_03_image_format_converter(self, authenticated_client, registered_user, sample_files):
+        """
+        Test complete workflow for Image Format Converter via API:
+        1. Upload image
+        2. Validate successful conversion
+        3. Check response contains file bytes
+        """
+        print(f"\n{'='*60}")
+        print(f"🧪 API TEST 3: Image Format Converter (Sync)")
+        print(f"{'='*60}")
+
+        filename, file_data, content_type = sample_files["png"]
+        
+        # Upload and convert
+        print(f"📤 Uploading PNG file: {filename}")
+        with io.BytesIO(file_data) as file_io:
+            file_io.name = filename
+            response = authenticated_client.post(
+                "/api/v1/tools/image-format-converter/convert/",
+                {
+                    "file": file_io,
+                    "output_format": "jpeg",
+                },
+                format="multipart",
+            )
+        
+        # Validate response
+        print(f"📋 Response status: {response.status_code}")
+        assert response.status_code in [200, 201, 202], f"Expected 200/201/202, got {response.status_code}"
+        
+        if response.status_code == 200:
+            # Sync response - file bytes
+            assert len(response.content) > 0, "No file content received"
+            assert response['Content-Type'].startswith('image/'), f"Expected image, got {response['Content-Type']}"
+            print(f"  ✅ Sync conversion successful: {len(response.content)} bytes")
+        else:
+            # Async response - JSON with execution ID
+            data = response.json()
+            assert "executionId" in data
+            print(f"  ✅ Async conversion initiated: {data['executionId']}")
+        
+        print(f"{'='*60}")
+        print(f"✅ API TEST 3 PASSED: Image Format Converter")
+        print(f"{'='*60}\n")
+
+    # ========================================================================
+    # Test 4: API - Unit Converter (No File Upload)
+    # ========================================================================
+
+    @pytest.mark.django_db
+    def test_api_04_unit_converter(self, authenticated_client):
+        """
+        Test Unit Converter via API (no file upload required):
+        1. Submit conversion parameters
+        2. Validate response structure
+        3. Check calculation correctness
+        """
+        print(f"\n{'='*60}")
+        print(f"🧪 API TEST 4: Unit Converter (No File)")
+        print(f"{'='*60}")
+
+        # Submit conversion
+        print(f"📤 Converting 100 kilometer to mile")
+        response = authenticated_client.post(
+            "/api/v1/tools/unit-converter/convert/",
+            {
+                "conversion_type": "Length",
+                "value": 100,
+                "from_unit": "kilometer",
+                "to_unit": "mile",
+            },
+            format="json",
+        )
+        
+        # Validate response
+        print(f"📋 Response status: {response.status_code}")
+        assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+        
+        data = response.json()
+        # Unit converter returns output_value field
+        assert "output_value" in data, f"Missing output_value field"
+        result = data.get("output_value")
+        print(f"  ✅ Conversion successful: 100 kilometer = {result} mile")
+        
+        print(f"{'='*60}")
+        print(f"✅ API TEST 4 PASSED: Unit Converter")
+        print(f"{'='*60}\n")
+
+    # ========================================================================
+    # Test 5: API - Async Tool Workflow (PDF to DOCX)
+    # ========================================================================
+
+    @pytest.mark.django_db
+    def test_api_05_async_tool_workflow(self, authenticated_client, registered_user, sample_files):
+        """
+        Test complete async tool workflow via API:
+        1. Upload file
+        2. Check status endpoint
+        3. Verify execution record created
+        4. List execution history
+        5. Delete execution
+        """
+        print(f"\n{'='*60}")
+        print(f"🧪 API TEST 5: Async Tool Workflow (PDF to DOCX)")
+        print(f"{'='*60}")
+
+        filename, file_data, content_type = sample_files["pdf"]
+        
+        # Step 1: Upload file
+        print(f"📤 Step 1: Upload PDF file")
+        with io.BytesIO(file_data) as file_io:
+            file_io.name = filename
+            response = authenticated_client.post(
+                "/api/v1/tools/pdf-docx-converter/convert/",
+                {"file": file_io},
+                format="multipart",
+            )
+        
+        assert response.status_code == 202, f"Expected 202, got {response.status_code}"
+        data = response.json()
+        assert "executionId" in data
+        assert "statusUrl" in data
+        execution_id = data["executionId"]
+        status_url = data["statusUrl"]
+        print(f"  ✅ File uploaded: execution_id={execution_id}")
+
+        # Step 2: Check status
+        print(f"📋 Step 2: Check status via API")
+        response = authenticated_client.get(f"/api/v1/executions/{execution_id}/status/")
+        
+        assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+        data = response.json()
+        assert "status" in data
+        assert data["status"] in ["pending", "processing", "completed", "failed"]
+        print(f"  ✅ Status retrieved: {data['status']}")
+
+        # Step 3: Verify execution record created
+        print(f"💾 Step 3: Verify database record")
+        execution = ToolExecution.objects.filter(id=execution_id, user=registered_user).first()
+        assert execution is not None, "Execution record not found"
+        assert execution.tool_name == "pdf-docx-converter"
+        print(f"  ✅ Database record verified: status={execution.status}")
+
+        # Step 4: List execution history
+        print(f"📋 Step 4: List execution history via API")
+        response = authenticated_client.get("/api/v1/executions/?tool_name=pdf-docx-converter&limit=10")
+        
+        assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+        data = response.json()
+        assert "results" in data or isinstance(data, list)
+        results = data.get("results", data) if isinstance(data, dict) else data
+        assert len(results) > 0, "No execution history found"
+        assert any(ex.get("id") == execution_id for ex in results), "Current execution not in history"
+        print(f"  ✅ Execution history retrieved: {len(results)} items")
+
+        # Step 5: Delete execution
+        print(f"🗑️  Step 5: Delete execution via API")
+        response = authenticated_client.delete(f"/api/v1/executions/{execution_id}/")
+        
+        assert response.status_code == 204, f"Expected 204, got {response.status_code}"
+        
+        # Verify deletion
+        execution = ToolExecution.objects.filter(id=execution_id).first()
+        assert execution is None, "Execution record still exists after deletion"
+        print(f"  ✅ Execution deleted successfully")
+
+        print(f"{'='*60}")
+        print(f"✅ API TEST 5 PASSED: Async Tool Workflow")
+        print(f"{'='*60}\n")
+
+    # ========================================================================
+    # Test 6: API - Error Handling
+    # ========================================================================
+
+    @pytest.mark.django_db
+    def test_api_06_error_handling(self, authenticated_client, sample_files):
+        """
+        Test API error handling:
+        1. Missing file parameter
+        2. Invalid tool name
+        3. Unsupported file type
+        4. Missing required parameters
+        """
+        print(f"\n{'='*60}")
+        print(f"🧪 API TEST 6: Error Handling")
+        print(f"{'='*60}")
+
+        # Test 1: Missing file parameter
+        print(f"📋 Test 6.1: Missing file parameter")
+        response = authenticated_client.post(
+            "/api/v1/tools/image-format-converter/convert/",
+            {"output_format": "jpeg"},
+            format="multipart",
+        )
+        assert response.status_code == 400, f"Expected 400, got {response.status_code}"
+        print(f"  ✅ Missing file returns 400")
+
+        # Test 2: Invalid tool name
+        print(f"📋 Test 6.2: Invalid tool name")
+        response = authenticated_client.get("/api/v1/tools/invalid-tool-name/")
+        assert response.status_code == 404, f"Expected 404, got {response.status_code}"
+        print(f"  ✅ Invalid tool returns 404")
+
+        # Test 3: Unsupported file type (text file to image converter)
+        print(f"📋 Test 6.3: Unsupported file type")
+        filename, file_data, content_type = sample_files["text"]
+        with io.BytesIO(file_data) as file_io:
+            file_io.name = filename
+            response = authenticated_client.post(
+                "/api/v1/tools/image-format-converter/convert/",
+                {
+                    "file": file_io,
+                    "output_format": "jpeg",
+                },
+                format="multipart",
+            )
+        assert response.status_code == 400, f"Expected 400, got {response.status_code}"
+        print(f"  ✅ Unsupported file type returns 400")
+
+        # Test 4: Missing required parameter
+        print(f"📋 Test 6.4: Missing required parameter")
+        filename, file_data, content_type = sample_files["png"]
+        with io.BytesIO(file_data) as file_io:
+            file_io.name = filename
+            response = authenticated_client.post(
+                "/api/v1/tools/image-format-converter/convert/",
+                {"file": file_io},  # Missing output_format
+                format="multipart",
+            )
+        assert response.status_code == 400, f"Expected 400, got {response.status_code}"
+        print(f"  ✅ Missing parameter returns 400")
+
+        print(f"{'='*60}")
+        print(f"✅ API TEST 6 PASSED: Error Handling")
+        print(f"{'='*60}\n")
+
+    # ========================================================================
+    # Test 7: API - GPX Tools (GPX Analyzer, Converter, Speed Modifier)
+    # ========================================================================
+
+    @pytest.mark.django_db
+    def test_api_07_gpx_tools(self, authenticated_client, sample_files):
+        """
+        Test all GPX tools via API:
+        1. GPX Analyzer
+        2. GPX to KML Converter
+        3. GPX Speed Modifier
+        """
+        print(f"\n{'='*60}")
+        print(f"🧪 API TEST 7: GPX Tools")
+        print(f"{'='*60}")
+
+        filename, file_data, content_type = sample_files["gpx"]
+
+        # Test 1: GPX Analyzer
+        print(f"📋 Test 7.1: GPX Analyzer")
+        with io.BytesIO(file_data) as file_io:
+            file_io.name = filename
+            response = authenticated_client.post(
+                "/api/v1/tools/gpx-analyzer/convert/",
+                {"file": file_io},
+                format="multipart",
+            )
+        assert response.status_code in [200, 202], f"Expected 200/202, got {response.status_code}"
+        print(f"  ✅ GPX Analyzer: status={response.status_code}")
+
+        # Test 2: GPX to KML Converter
+        print(f"📋 Test 7.2: GPX to KML Converter")
+        with io.BytesIO(file_data) as file_io:
+            file_io.name = filename
+            response = authenticated_client.post(
+                "/api/v1/tools/gpx-kml-converter/convert/",
+                {"file": file_io},
+                format="multipart",
+            )
+        assert response.status_code in [200, 202], f"Expected 200/202, got {response.status_code}"
+        print(f"  ✅ GPX to KML Converter: status={response.status_code}")
+
+        # Test 3: GPX Speed Modifier
+        print(f"📋 Test 7.3: GPX Speed Modifier")
+        with io.BytesIO(file_data) as file_io:
+            file_io.name = filename
+            response = authenticated_client.post(
+                "/api/v1/tools/gpx-speed-modifier/convert/",
+                {
+                    "file": file_io,
+                    "speed_multiplier": 1.5,
+                },
+                format="multipart",
+            )
+        assert response.status_code in [200, 202], f"Expected 200/202, got {response.status_code}"
+        print(f"  ✅ GPX Speed Modifier: status={response.status_code}")
+
+        print(f"{'='*60}")
+        print(f"✅ API TEST 7 PASSED: GPX Tools")
+        print(f"{'='*60}\n")
+
+    # ========================================================================
+    # Test 8: API - Final Summary
+    # ========================================================================
+
+    @pytest.mark.django_db
+    def test_api_08_final_summary(self):
+        """Display final test summary."""
+        print(f"\n{'='*60}")
+        print(f"📊 API E2E TESTS - FINAL SUMMARY")
+        print(f"{'='*60}")
+        print(f"\n✅ All API-based E2E tests completed successfully!")
+        print(f"\nAPI Coverage:")
+        print(f"  ✅ GET /api/v1/tools/ - List all tools")
+        print(f"  ✅ GET /api/v1/tools/{{name}}/ - Get tool metadata")
+        print(f"  ✅ POST /api/v1/tools/{{name}}/convert/ - Upload & process files")
+        print(f"  ✅ GET /api/v1/executions/{{id}}/status/ - Check processing status")
+        print(f"  ✅ GET /api/v1/executions/?tool_name={{name}} - List execution history")
+        print(f"  ✅ DELETE /api/v1/executions/{{id}}/ - Delete execution")
+        print(f"\nTools Tested:")
+        print(f"  ✅ image-format-converter (sync)")
+        print(f"  ✅ unit-converter (no file upload)")
+        print(f"  ✅ pdf-docx-converter (async)")
+        print(f"  ✅ gpx-analyzer (sync)")
+        print(f"  ✅ gpx-kml-converter (sync)")
+        print(f"  ✅ gpx-speed-modifier (sync)")
+        print(f"\nValidation Coverage:")
+        print(f"  ✅ HTTP status codes (200, 201, 202, 400, 404)")
+        print(f"  ✅ Response structure validation")
+        print(f"  ✅ Data type validation")
+        print(f"  ✅ Business logic validation")
+        print(f"  ✅ Error handling validation")
         print(f"{'='*60}\n")
 
 

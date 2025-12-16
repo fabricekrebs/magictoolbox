@@ -1255,19 +1255,35 @@ class ToolViewSet(viewsets.ViewSet):
             if base_url:
                 function_url = f"{base_url}/video/rotate"
                 try:
+                    # Convert rotation string to integer for Azure Function
+                    rotation_map = {
+                        "90_cw": 90,
+                        "90_ccw": 270,
+                        "180": 180
+                    }
+                    rotation_degrees = rotation_map.get(rotation, 90)
+                    
+                    # Fix blob_name to include container name
+                    # blob_name format: "video/xxxxx.mp4" from video-uploads container
+                    # Azure Function expects: "video-uploads/video/xxxxx.mp4"
+                    full_blob_path = f"video-uploads/{blob_name}" if not blob_name.startswith("video-uploads/") else blob_name
+                    
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": blob_name,
-                        "rotation": rotation
+                        "blob_name": full_blob_path,
+                        "rotation": rotation_degrees
                     }
-                    logger.info(f"Triggering video rotation: {function_url}")
+                    logger.info(f"🚀 Triggering video rotation (async): {function_url}")
                     logger.info(f"Payload: {payload}")
-                    response = requests.post(function_url, json=payload, timeout=10)
-                    logger.info(f"Azure Function response: {response.status_code}")
-                    if response.status_code not in [200, 202]:
-                        logger.error(f"Azure Function error: {response.text}")
+                    # Fire-and-forget: trigger the function without waiting for completion
+                    # Frontend will poll status endpoint to check progress
+                    response = requests.post(function_url, json=payload, timeout=5)
+                    logger.info(f"✅ Azure Function triggered: {response.status_code}")
+                except requests.exceptions.Timeout:
+                    # Expected for async operations - function is processing in background
+                    logger.info(f"⏱️ Azure Function processing asynchronously (timeout OK)")
                 except Exception as func_error:
-                    logger.error(f"Failed to trigger Azure Function: {func_error}", exc_info=True)
+                    logger.error(f"❌ Failed to trigger Azure Function: {func_error}", exc_info=True)
             
             return Response({
                 "execution_id": execution_id,

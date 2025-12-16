@@ -220,7 +220,11 @@ class ImageFormatConverter(BaseTool):
 
             # Upload to image uploads container
             file_ext = Path(input_file.name).suffix
-            blob_name = f"image/{execution_id}{file_ext}"
+            # Extract input format from file extension (remove the dot and normalize to lowercase)
+            input_format = file_ext.lstrip('.').lower() if file_ext else 'jpg'
+            # Use normalized lowercase extension for blob storage path
+            normalized_ext = f".{input_format}"
+            blob_name = f"image/{execution_id}{normalized_ext}"
             blob_client = blob_service.get_blob_client(
                 container="uploads",
                 blob=blob_name
@@ -230,6 +234,7 @@ class ImageFormatConverter(BaseTool):
             metadata = {
                 "execution_id": execution_id,
                 "original_filename": input_file.name,
+                "input_format": input_format,  # Include input format
                 "output_format": output_format,
                 "quality": str(quality),
                 "file_size": str(input_file.size),
@@ -269,6 +274,7 @@ class ImageFormatConverter(BaseTool):
                     payload = {
                         "execution_id": execution_id,
                         "blob_name": f"uploads/{blob_name}",  # Full path: uploads/image/{uuid}.ext
+                        "input_format": input_format,  # Add input format from file extension
                         "output_format": output_format,
                         "quality": quality
                     }

@@ -1,2 +1,0 @@
-# Azure Functions Core
-azure-functions>=1.18.0,<2.0.0
