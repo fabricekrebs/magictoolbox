@@ -219,39 +219,55 @@ class TestCompleteUserWorkflow:
 
     @pytest.fixture
     def sample_files(self):
-        """Create sample test files for all tool types."""
+        """Load real sample test files for all tool types."""
         files = {}
+        fixtures_dir = Path(__file__).parent / "fixtures"
 
-        # PNG image for image converter
-        png_data = (
-            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
-            b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\x00\x01"
-            b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
-        )
-        files["png"] = ("test_image.png", png_data, "image/png")
+        # Load real JPEG image from fixtures
+        jpeg_path = fixtures_dir / "sample.jpg"
+        if jpeg_path.exists():
+            with open(jpeg_path, "rb") as f:
+                jpeg_data = f.read()
+            files["jpeg"] = ("sample.jpg", jpeg_data, "image/jpeg")
+            files["png"] = ("sample.jpg", jpeg_data, "image/jpeg")  # Use same for PNG tests
+        else:
+            # Fallback to minimal JPEG
+            jpeg_data = (
+                b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01"
+                b"\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07"
+                b"\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14"
+                b"\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.\' \",#\x1c\x1c(7),01444"
+                b"\x1f\'9=82<.342\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01"
+                b"\x11\x00\xff\xc4\x00\x1f\x00\x00\x01\x05\x01\x01\x01\x01\x01"
+                b"\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06"
+                b"\x07\x08\t\n\x0b\xff\xc4\x00\xb5\x10\x00\x02\x01\x03\x03\x02"
+                b"\x04\x03\x05\x05\x04\x04\x00\x00\x01}\x01\x02\x03\x00\x04\x11"
+                b"\x05\x12!1A\x06\x13Qa\x07\"q\x142\x81\x91\xa1\x08#B\xb1\xc1"
+                b"\x15R\xd1\xf0$3br\x82\t\n\x16\x17\x18\x19\x1a%&\'()*456789"
+                b":CDEFGHIJSTUVWXYZcdefghijstuvwxyz\x83\x84\x85\x86\x87\x88\x89"
+                b"\x8a\x92\x93\x94\x95\x96\x97\x98\x99\x9a\xa2\xa3\xa4\xa5\xa6"
+                b"\xa7\xa8\xa9\xaa\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xc2\xc3"
+                b"\xc4\xc5\xc6\xc7\xc8\xc9\xca\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9"
+                b"\xda\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xf1\xf2\xf3\xf4"
+                b"\xf5\xf6\xf7\xf8\xf9\xfa\xff\xda\x00\x08\x01\x01\x00\x00?\x00"
+                b"\xffd\x00\xff\xd9"
+            )
+            files["jpeg"] = ("test_image.jpg", jpeg_data, "image/jpeg")
+            files["png"] = ("test_image.png", jpeg_data, "image/jpeg")
 
-        # JPEG image
-        jpeg_data = (
-            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01"
-            b"\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07"
-            b"\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14"
-            b"\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.\' \",#\x1c\x1c(7),01444"
-            b"\x1f\'9=82<.342\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01"
-            b"\x11\x00\xff\xc4\x00\x1f\x00\x00\x01\x05\x01\x01\x01\x01\x01"
-            b"\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06"
-            b"\x07\x08\t\n\x0b\xff\xc4\x00\xb5\x10\x00\x02\x01\x03\x03\x02"
-            b"\x04\x03\x05\x05\x04\x04\x00\x00\x01}\x01\x02\x03\x00\x04\x11"
-            b"\x05\x12!1A\x06\x13Qa\x07\"q\x142\x81\x91\xa1\x08#B\xb1\xc1"
-            b"\x15R\xd1\xf0$3br\x82\t\n\x16\x17\x18\x19\x1a%&\'()*456789"
-            b":CDEFGHIJSTUVWXYZcdefghijstuvwxyz\x83\x84\x85\x86\x87\x88\x89"
-            b"\x8a\x92\x93\x94\x95\x96\x97\x98\x99\x9a\xa2\xa3\xa4\xa5\xa6"
-            b"\xa7\xa8\xa9\xaa\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xc2\xc3"
-            b"\xc4\xc5\xc6\xc7\xc8\xc9\xca\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9"
-            b"\xda\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xf1\xf2\xf3\xf4"
-            b"\xf5\xf6\xf7\xf8\xf9\xfa\xff\xda\x00\x08\x01\x01\x00\x00?\x00"
-            b"\xffd\x00\xff\xd9"
-        )
-        files["jpeg"] = ("test_image.jpg", jpeg_data, "image/jpeg")
+        # Load real MP4 video from fixtures
+        mp4_path = fixtures_dir / "sample.mp4"
+        if mp4_path.exists():
+            with open(mp4_path, "rb") as f:
+                mp4_data = f.read()
+            files["mp4"] = ("sample.mp4", mp4_data, "video/mp4")
+        else:
+            # Fallback to minimal MP4
+            mp4_data = (
+                b"\x00\x00\x00\x20ftypisom\x00\x00\x02\x00isomiso2avc1mp41"
+                b"\x00\x00\x00\x08free"
+            )
+            files["mp4"] = ("test_video.mp4", mp4_data, "video/mp4")
 
         # GPX file
         gpx_data = b"""<?xml version="1.0" encoding="UTF-8"?>
@@ -271,13 +287,6 @@ class TestCompleteUserWorkflow:
   </trk>
 </gpx>"""
         files["gpx"] = ("test_track.gpx", gpx_data, "application/gpx+xml")
-
-        # Video file (minimal MP4)
-        mp4_data = (
-            b"\x00\x00\x00\x20ftypisom\x00\x00\x02\x00isomiso2avc1mp41"
-            b"\x00\x00\x00\x08free"
-        )
-        files["mp4"] = ("test_video.mp4", mp4_data, "video/mp4")
 
         # PDF file
         pdf_data = b"""%PDF-1.4
