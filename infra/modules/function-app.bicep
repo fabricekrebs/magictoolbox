@@ -76,12 +76,8 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
     }
     siteConfig: {
       appSettings: [
-        // Azure Functions runtime configuration
-        // Even though runtime is in functionAppConfig, these settings are needed for worker indexing
-        {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'python'
-        }
+        // Azure Functions runtime configuration for Python v2 worker indexing
+        // Note: FUNCTIONS_WORKER_RUNTIME is set via functionAppConfig.runtime for Flex Consumption
         {
           name: 'FUNCTIONS_EXTENSION_VERSION'
           value: '~4'
