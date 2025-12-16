@@ -54,7 +54,6 @@ from azure.identity import DefaultAzureCredential
 
 DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
 AZURE_STORAGE_ACCOUNT_NAME = config("AZURE_STORAGE_ACCOUNT_NAME", default="")
-AZURE_ACCOUNT_NAME = AZURE_STORAGE_ACCOUNT_NAME  # Alias for django-storages compatibility
 # Use Managed Identity instead of account key
 AZURE_TOKEN_CREDENTIAL = DefaultAzureCredential()
 AZURE_CONTAINER = config("AZURE_STORAGE_CONTAINER_UPLOADS", default="uploads")

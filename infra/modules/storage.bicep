@@ -103,7 +103,7 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01'
   }
 }
 
-// Container for uploaded files
+// DEPRECATED: Generic containers (will be removed after full migration to tool-specific containers)
 resource uploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
   parent: blobService
   name: 'uploads'
@@ -112,7 +112,6 @@ resource uploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/contai
   }
 }
 
-// Container for processed files
 resource processedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
   parent: blobService
   name: 'processed'
@@ -139,7 +138,63 @@ resource deploymentsContainer 'Microsoft.Storage/storageAccounts/blobServices/co
   }
 }
 
-// Container for video uploads (input files)
+// ============================================================================
+// TOOL-SPECIFIC CONTAINERS (Recommended Architecture)
+// Each tool has dedicated upload and processed containers for better isolation
+// ============================================================================
+
+// PDF Tool Containers
+resource pdfUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'pdf-uploads'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource pdfProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'pdf-processed'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+// Image Tool Containers
+resource imageUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'image-uploads'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource imageProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'image-processed'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+// GPX Tool Containers
+resource gpxUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'gpx-uploads'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource gpxProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'gpx-processed'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+// Video Tool Containers
 resource videoUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
   parent: blobService
   name: 'video-uploads'
@@ -148,10 +203,26 @@ resource videoUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/c
   }
 }
 
-// Container for processed videos (output files)
 resource videoProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
   parent: blobService
   name: 'video-processed'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+// OCR Tool Containers
+resource ocrUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'ocr-uploads'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource ocrProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  parent: blobService
+  name: 'ocr-processed'
   properties: {
     publicAccess: 'None'
   }

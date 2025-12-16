@@ -176,14 +176,14 @@ class GPXMerger(BaseTool):
 
             for idx, input_file in enumerate(input_files):
                 file_ext = Path(input_file.name).suffix
-                blob_name = f"gpx/{execution_id}_{idx:03d}{file_ext}"
+                blob_name = f"{execution_id}_{idx:03d}{file_ext}"
                 
                 self.logger.info(f"📦 Uploading file {idx + 1}/{len(input_files)}: {input_file.name}")
                 self.logger.info(f"   Target blob: {blob_name}")
                 self.logger.info(f"   File size: {input_file.size:,} bytes")
 
                 blob_client = blob_service.get_blob_client(
-                    container="uploads",
+                    container="gpx-uploads",
                     blob=blob_name
                 )
 
@@ -232,7 +232,7 @@ class GPXMerger(BaseTool):
                     # Prepare payload with all blob names
                     payload = {
                         "execution_id": execution_id,
-                        "blob_names": [f"uploads/{blob}" for blob in uploaded_blobs],
+                        "blob_names": [f"gpx-uploads/{blob}" for blob in uploaded_blobs],
                         "merge_mode": merge_mode,
                         "output_name": output_name,
                         "file_count": len(input_files)

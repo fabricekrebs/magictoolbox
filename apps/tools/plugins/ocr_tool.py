@@ -232,7 +232,7 @@ class OCRTool(BaseTool):
 
             self.logger.info("✅ Image uploaded successfully to Azure Blob Storage")
             self.logger.info(f"   Blob name: {blob_name}")
-            self.logger.info(f"   Container: uploads")
+            self.logger.info(f"   Container: ocr-uploads")
             self.logger.info(f"   Size: {len(file_content):,} bytes")
             self.logger.info(f"   Execution ID: {execution_id}")
 
@@ -248,7 +248,7 @@ class OCRTool(BaseTool):
                     function_url = f"{base_url}/image/ocr"
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": f"uploads/{blob_name}",
+                        "blob_name": f"ocr-uploads/{blob_name}",
                         "language": metadata["language"],
                         "ocr_mode": metadata["ocr_mode"],
                         "preprocess": metadata["preprocess"],

@@ -169,8 +169,8 @@ class PdfDocxConverter(BaseTool):
         if execution_id is None:
             execution_id = str(uuid.uuid4())
 
-        # Create blob name
-        blob_name = f"pdf/{execution_id}.pdf"
+        # Create blob name (simplified - no subdirectory)
+        blob_name = f"{execution_id}.pdf"
         
         self.logger.info("=" * 80)
         self.logger.info("📤 STARTING PDF UPLOAD FOR ASYNC PROCESSING")
@@ -193,11 +193,11 @@ class PdfDocxConverter(BaseTool):
                 self.logger.info("✅ BlobServiceClient created successfully (Azurite)")
             else:
                 # Production with Azure Managed Identity
-                storage_account_name = getattr(settings, "AZURE_STORAGE_ACCOUNT_NAME", None) or getattr(settings, "AZURE_ACCOUNT_NAME", None)
+                storage_account_name = getattr(settings, "AZURE_STORAGE_ACCOUNT_NAME", None)
                 if not storage_account_name:
                     self.logger.error("❌ Storage account name not configured")
                     raise ToolExecutionError(
-                        "AZURE_STORAGE_ACCOUNT_NAME or AZURE_ACCOUNT_NAME not configured for production environment"
+                        "AZURE_STORAGE_ACCOUNT_NAME not configured for production environment"
                     )
 
                 account_url = f"https://{storage_account_name}.blob.core.windows.net"
@@ -222,8 +222,8 @@ class PdfDocxConverter(BaseTool):
                 self.logger.info("✅ BlobServiceClient created successfully")
 
             # Get blob client
-            self.logger.info(f"📦 Getting blob client for container: uploads, blob: {blob_name}")
-            blob_client = blob_service.get_blob_client(container="uploads", blob=blob_name)
+            self.logger.info(f"📦 Getting blob client for container: pdf-uploads, blob: {blob_name}")
+            blob_client = blob_service.get_blob_client(container="pdf-uploads", blob=blob_name)
             self.logger.info("✅ Blob client obtained")
 
             # Prepare metadata for Azure Function
@@ -246,7 +246,7 @@ class PdfDocxConverter(BaseTool):
             
             self.logger.info("✅ PDF uploaded successfully to Azure Blob Storage")
             self.logger.info(f"   Blob name: {blob_name}")
-            self.logger.info(f"   Container: uploads")
+            self.logger.info(f"   Container: pdf-uploads")
             self.logger.info(f"   Size: {len(file_content):,} bytes")
             self.logger.info(f"   Execution ID: {execution_id}")
 
@@ -262,7 +262,7 @@ class PdfDocxConverter(BaseTool):
                     function_url = f"{base_url}/pdf/convert"
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": f"uploads/{blob_name}"  # Full path: uploads/pdf/{uuid}.pdf
+                        "blob_name": f"pdf-uploads/{blob_name}"  # Full path: pdf-uploads/{uuid}.pdf
                     }
                     self.logger.info(f"   Function URL: {function_url}")
                     self.logger.info(f"   Payload: {payload}")

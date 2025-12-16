@@ -144,11 +144,11 @@ class GPXKMLConverter(BaseTool):
             # Get blob service client
             blob_service = self._get_blob_service_client()
 
-            # Upload to gpx container
+            # Upload to gpx-uploads container (tool-specific)
             file_ext = Path(input_file.name).suffix
-            blob_name = f"gpx/{execution_id}{file_ext}"
+            blob_name = f"{execution_id}{file_ext}"
             blob_client = blob_service.get_blob_client(
-                container="uploads",
+                container="gpx-uploads",
                 blob=blob_name
             )
 
@@ -174,7 +174,7 @@ class GPXKMLConverter(BaseTool):
 
             self.logger.info("✅ GPS file uploaded successfully to Azure Blob Storage")
             self.logger.info(f"   Blob name: {blob_name}")
-            self.logger.info(f"   Container: uploads")
+            self.logger.info(f"   Container: gpx-uploads")
             self.logger.info(f"   Size: {len(file_content):,} bytes")
 
             # Trigger Azure Function via HTTP (workaround for Flex Consumption blob trigger limitations)
@@ -190,7 +190,7 @@ class GPXKMLConverter(BaseTool):
                     function_url = f"{base_url}/gpx/convert"
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": f"uploads/{blob_name}",  # Full path: uploads/gpx/{uuid}.gpx
+                        "blob_name": f"gpx-uploads/{blob_name}",  # Full path: gpx-uploads/{uuid}.gpx
                         "conversion_type": conversion_type  # Add conversion type to payload
                     }
                     self.logger.info(f"   Function URL: {function_url}")

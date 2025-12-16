@@ -211,7 +211,7 @@ def rotate_video(req: func.HttpRequest) -> func.HttpResponse:
         
         # Extract container and blob path
         parts = blob_name.split('/', 1)
-        container_name = parts[0] if len(parts) > 1 else 'uploads'
+        container_name = parts[0] if len(parts) > 1 else 'video-uploads'
         blob_path = parts[1] if len(parts) > 1 else blob_name
         
         blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_path)
@@ -262,13 +262,13 @@ def rotate_video(req: func.HttpRequest) -> func.HttpResponse:
         output_size = os.path.getsize(temp_output_path)
         logger.info(f"✅ Rotated video: {output_size:,} bytes")
         
-        # Upload result to 'processed' container
-        output_blob_name = f"processed/video/{execution_id}.mp4"
+        # Upload result to 'video-processed' container
+        output_blob_name = f"video-processed/{execution_id}.mp4"
         logger.info(f"📤 Uploading to: {output_blob_name}")
         
         output_blob_client = blob_service_client.get_blob_client(
-            container='processed',
-            blob=f"video/{execution_id}.mp4"
+            container='video-processed',
+            blob=f"{execution_id}.mp4"
         )
         
         with open(temp_output_path, 'rb') as f:
@@ -399,7 +399,7 @@ def convert_pdf_to_docx(req: func.HttpRequest) -> func.HttpResponse:
         blob_service = get_blob_service_client()
         
         parts = blob_name.split('/', 1)
-        container_name = parts[0] if len(parts) > 1 else 'uploads'
+        container_name = parts[0] if len(parts) > 1 else 'pdf-uploads'
         blob_path = parts[1] if len(parts) > 1 else blob_name
         
         blob_client = blob_service.get_blob_client(container=container_name, blob=blob_path)
@@ -424,12 +424,12 @@ def convert_pdf_to_docx(req: func.HttpRequest) -> func.HttpResponse:
         logger.info(f"✅ Converted: {docx_size:,} bytes")
         
         # Upload result
-        output_blob_name = f"processed/docx/{execution_id}.docx"
+        output_blob_name = f"pdf-processed/{execution_id}.docx"
         logger.info(f"📤 Uploading to: {output_blob_name}")
         
         output_blob_client = blob_service.get_blob_client(
-            container='processed',
-            blob=f"docx/{execution_id}.docx"
+            container='pdf-processed',
+            blob=f"{execution_id}.docx"
         )
         
         with open(temp_docx_path, 'rb') as f:
@@ -661,7 +661,7 @@ def convert_gpx_kml(req: func.HttpRequest) -> func.HttpResponse:
         blob_service = get_blob_service_client()
         
         parts = blob_name.split('/', 1)
-        container_name = parts[0] if len(parts) > 1 else 'uploads'
+        container_name = parts[0] if len(parts) > 1 else 'gpx-uploads'
         blob_path = parts[1] if len(parts) > 1 else blob_name
         
         blob_client = blob_service.get_blob_client(container=container_name, blob=blob_path)
@@ -695,12 +695,12 @@ def convert_gpx_kml(req: func.HttpRequest) -> func.HttpResponse:
         logger.info(f"✅ Converted: {output_size:,} bytes")
         
         # Upload result
-        output_blob_name = f"processed/gpx/{execution_id}{output_ext}"
+        output_blob_name = f"gpx-processed/{execution_id}{output_ext}"
         logger.info(f"📤 Uploading to: {output_blob_name}")
         
         output_blob_client = blob_service.get_blob_client(
-            container='processed',
-            blob=f"gpx/{execution_id}{output_ext}"
+            container='gpx-processed',
+            blob=f"{execution_id}{output_ext}"
         )
         
         with open(temp_output_path, 'rb') as f:
@@ -835,10 +835,10 @@ def convert_image(req: func.HttpRequest) -> func.HttpResponse:
         
         # Download input image from blob storage
         input_ext = f".{input_format}" if input_format != 'jpeg' else '.jpg'
-        blob_path = f"image/{execution_id}{input_ext}"  # Path within the container (no "uploads/" prefix)
-        logger.info(f"📥 Downloading from blob: uploads/{blob_path}")
+        blob_path = f"{execution_id}{input_ext}"
+        logger.info(f"📥 Downloading from blob: image-uploads/{blob_path}")
         
-        blob_client = get_blob_client("uploads", blob_path)
+        blob_client = get_blob_client("image-uploads", blob_path)
         temp_input_path = f"/tmp/{execution_id}_input{input_ext}"
         
         with open(temp_input_path, "wb") as f:
@@ -895,10 +895,10 @@ def convert_image(req: func.HttpRequest) -> func.HttpResponse:
         logger.info(f"✅ Converted image: {os.path.getsize(temp_output_path)} bytes")
         
         # Upload to processed container
-        output_blob_path = f"image/{execution_id}{output_ext}"  # Path within the container (no "processed/" prefix)
-        logger.info(f"📤 Uploading to blob: processed/{output_blob_path}")
+        output_blob_path = f"{execution_id}{output_ext}"
+        logger.info(f"📤 Uploading to blob: image-processed/{output_blob_path}")
         
-        output_blob_client = get_blob_client("processed", output_blob_path)
+        output_blob_client = get_blob_client("image-processed", output_blob_path)
         with open(temp_output_path, "rb") as f:
             output_blob_client.upload_blob(f, overwrite=True)
         logger.info("✅ Uploaded converted image")
@@ -1010,10 +1010,10 @@ def modify_gpx_speed(req: func.HttpRequest) -> func.HttpResponse:
             logger.warning(f"⚠️  Database update failed: {db_error}")
         
         # Download input GPX from blob storage
-        blob_path = f"gpx/{execution_id}.gpx"
-        logger.info(f"📥 Downloading from blob: uploads/{blob_path}")
+        blob_path = f"{execution_id}.gpx"
+        logger.info(f"📥 Downloading from blob: gpx-uploads/{blob_path}")
         
-        blob_client = get_blob_client("uploads", blob_path)
+        blob_client = get_blob_client("gpx-uploads", blob_path)
         temp_input_path = f"/tmp/{execution_id}_input.gpx"
         
         with open(temp_input_path, "wb") as f:
@@ -1036,10 +1036,10 @@ def modify_gpx_speed(req: func.HttpRequest) -> func.HttpResponse:
         logger.info(f"✅ Modified GPX: {os.path.getsize(temp_output_path)} bytes")
         
         # Upload to processed container
-        output_blob_path = f"gpx/{execution_id}.gpx"
-        logger.info(f"📤 Uploading to blob: processed/{output_blob_path}")
+        output_blob_path = f"{execution_id}.gpx"
+        logger.info(f"📤 Uploading to blob: gpx-processed/{output_blob_path}")
         
-        output_blob_client = get_blob_client("processed", output_blob_path)
+        output_blob_client = get_blob_client("gpx-processed", output_blob_path)
         with open(temp_output_path, "rb") as f:
             output_blob_client.upload_blob(f, overwrite=True)
         logger.info("✅ Uploaded modified GPX")
@@ -1233,10 +1233,10 @@ def extract_text_ocr(req: func.HttpRequest) -> func.HttpResponse:
         
         # Download input image from blob storage
         input_ext = f".{input_format}"
-        blob_path = f"image/{execution_id}{input_ext}"
-        logger.info(f"📥 Downloading from blob: uploads/{blob_path}")
+        blob_path = f"{execution_id}{input_ext}"
+        logger.info(f"📥 Downloading from blob: ocr-uploads/{blob_path}")
         
-        blob_client = get_blob_client("uploads", blob_path)
+        blob_client = get_blob_client("ocr-uploads", blob_path)
         temp_input_path = f"/tmp/{execution_id}_input{input_ext}"
         
         with open(temp_input_path, "wb") as f:
@@ -1271,10 +1271,10 @@ def extract_text_ocr(req: func.HttpRequest) -> func.HttpResponse:
         logger.info(f"✅ Saved text: {os.path.getsize(temp_output_path)} bytes")
         
         # Upload to processed container
-        output_blob_path = f"image/{execution_id}.txt"
-        logger.info(f"📤 Uploading to blob: processed/{output_blob_path}")
+        output_blob_path = f"{execution_id}.txt"
+        logger.info(f"📤 Uploading to blob: ocr-processed/{output_blob_path}")
         
-        output_blob_client = get_blob_client("processed", output_blob_path)
+        output_blob_client = get_blob_client("ocr-processed", output_blob_path)
         with open(temp_output_path, "rb") as f:
             output_blob_client.upload_blob(f, overwrite=True)
         logger.info("✅ Uploaded OCR result")
@@ -1387,10 +1387,10 @@ def merge_gpx_files(req: func.HttpRequest) -> func.HttpResponse:
         
         gpx_roots = []
         for i in range(file_count):
-            blob_path = f"gpx/{execution_id}_{i:03d}.gpx"
-            logger.info(f"📥 Downloading [{i+1}/{file_count}]: uploads/{blob_path}")
+            blob_path = f"{execution_id}_{i:03d}.gpx"
+            logger.info(f"📥 Downloading [{i+1}/{file_count}]: gpx-uploads/{blob_path}")
             
-            blob_client = get_blob_client("uploads", blob_path)
+            blob_client = get_blob_client("gpx-uploads", blob_path)
             temp_path = f"/tmp/{execution_id}_input_{i}.gpx"
             temp_files.append(temp_path)
             
@@ -1425,10 +1425,10 @@ def merge_gpx_files(req: func.HttpRequest) -> func.HttpResponse:
         logger.info(f"✅ Merged GPX: {os.path.getsize(temp_output_path)} bytes")
         
         # Upload to processed container
-        output_blob_path = f"gpx/{execution_id}.gpx"
-        logger.info(f"📤 Uploading to blob: processed/{output_blob_path}")
+        output_blob_path = f"{execution_id}.gpx"
+        logger.info(f"📤 Uploading to blob: gpx-processed/{output_blob_path}")
         
-        output_blob_client = get_blob_client("processed", output_blob_path)
+        output_blob_client = get_blob_client("gpx-processed", output_blob_path)
         with open(temp_output_path, "rb") as f:
             output_blob_client.upload_blob(f, overwrite=True)
         logger.info("✅ Uploaded merged GPX")

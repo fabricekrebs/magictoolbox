@@ -145,7 +145,7 @@ class VideoRotation(BaseTool):
             blob_service = self._get_blob_service_client()
 
             # Upload to video-uploads container
-            blob_name = f"video/{execution_id}{Path(input_file.name).suffix}"
+            blob_name = f"{execution_id}{Path(input_file.name).suffix}"
             blob_client = blob_service.get_blob_client(
                 container="video-uploads",
                 blob=blob_name
@@ -197,11 +197,11 @@ class VideoRotation(BaseTool):
             return BlobServiceClient.from_connection_string(connection_string)
 
         # Production: Use Managed Identity / DefaultAzureCredential
-        storage_account_name = getattr(settings, "AZURE_STORAGE_ACCOUNT_NAME", None) or getattr(settings, "AZURE_ACCOUNT_NAME", None)
+        storage_account_name = getattr(settings, "AZURE_STORAGE_ACCOUNT_NAME", None)
         if not storage_account_name:
             self.logger.error("❌ Storage account name not configured")
             raise ToolExecutionError(
-                "AZURE_STORAGE_ACCOUNT_NAME or AZURE_ACCOUNT_NAME not configured for production environment"
+                "AZURE_STORAGE_ACCOUNT_NAME not configured for production environment"
             )
 
         account_url = f"https://{storage_account_name}.blob.core.windows.net"

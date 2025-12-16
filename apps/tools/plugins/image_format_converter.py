@@ -257,7 +257,7 @@ class ImageFormatConverter(BaseTool):
 
             self.logger.info("✅ Image uploaded successfully to Azure Blob Storage")
             self.logger.info(f"   Blob name: {blob_name}")
-            self.logger.info(f"   Container: uploads")
+            self.logger.info(f"   Container: image-uploads")
             self.logger.info(f"   Size: {len(file_content):,} bytes")
 
             # Trigger Azure Function via HTTP (workaround for Flex Consumption blob trigger limitations)
@@ -273,7 +273,7 @@ class ImageFormatConverter(BaseTool):
                     function_url = f"{base_url}/image/convert"
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": f"uploads/{blob_name}",  # Full path: uploads/image/{uuid}.ext
+                        "blob_name": f"image-uploads/{blob_name}",  # Full path: image-uploads/{uuid}.ext
                         "input_format": input_format,  # Add input format from file extension
                         "output_format": output_format,
                         "quality": quality
