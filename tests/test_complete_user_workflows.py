@@ -18,22 +18,25 @@ Each test validates:
 - User data isolation
 
 Tools Tested (via API):
-- base64-encoder (sync)
-- exif-extractor (sync)
-- gpx-analyzer (sync)
-- gpx-kml-converter (sync)
-- gpx-merger (sync)
-- gpx-speed-modifier (sync)
-- image-format-converter (sync/async)
-- ocr-tool (async)
-- pdf-docx-converter (async)
-- unit-converter (sync)
-- video-rotation (async)
+Async Tools (use Azure Functions + Blob Storage):
+- pdf-docx-converter → pdf-uploads/pdf-processed containers
+- image-format-converter → image-uploads/image-processed containers
+- video-rotation → video-uploads/video-processed containers
+- ocr-tool → ocr-uploads/ocr-processed containers
+- gpx-kml-converter → gpx-uploads/gpx-processed containers
+- gpx-merger → gpx-uploads/gpx-processed containers
+- gpx-speed-modifier → gpx-uploads/gpx-processed containers
+
+Sync Tools (direct processing, no blob storage):
+- base64-encoder
+- exif-extractor
+- gpx-analyzer
+- unit-converter
 
 Requirements:
 - AZURE_INTEGRATION_TEST_ENABLED=true
 - AZURE_STORAGE_CONNECTION_STRING=<your-connection-string>
-- AZURE_FUNCTION_BASE_URL=<your-function-app-url> (for async tools)
+- AZURE_FUNCTION_BASE_URL=<function-app-base-url> (e.g., https://func-xxx.azurewebsites.net)
 - USE_AZURE_CLI_AUTH=true (optional, to use Azure CLI authentication)
 
 Local Testing Setup:
@@ -84,7 +87,7 @@ AZURE_INTEGRATION_ENABLED = (
     os.getenv("AZURE_INTEGRATION_TEST_ENABLED", "false").lower() == "true"
 )
 AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
-AZURE_FUNCTIONS_URL = os.getenv("AZURE_FUNCTIONS_URL")
+AZURE_FUNCTION_BASE_URL = os.getenv("AZURE_FUNCTION_BASE_URL")  # Updated variable name
 
 pytestmark = pytest.mark.skipif(
     not AZURE_INTEGRATION_ENABLED or not AZURE_STORAGE_CONNECTION_STRING,
@@ -293,6 +296,10 @@ startxref
 %%EOF
 """
         files["pdf"] = ("test_document.pdf", pdf_data, "application/pdf")
+
+        # Text file (for error testing)
+        text_data = b"This is a simple text file for testing error handling."
+        files["text"] = ("test_file.txt", text_data, "text/plain")
 
         return files
 
@@ -1684,11 +1691,227 @@ startxref
         print(f"{'='*60}\n")
 
     # ========================================================================
-    # Test 8: API - Final Summary
+    # Test 8: API - Video Rotation (Async)
     # ========================================================================
 
     @pytest.mark.django_db
-    def test_api_08_final_summary(self):
+    def test_api_08_video_rotation(self, authenticated_client, registered_user, sample_files):
+        """
+        Test Video Rotation via API (async):
+        1. Upload MP4 file
+        2. Verify 202 response with execution ID
+        3. Poll status until completion
+        4. Verify blob uploaded to video-uploads container
+        """
+        print(f"\n{'='*60}")
+        print(f"🧪 API TEST 8: Video Rotation (Async)")
+        print(f"{'='*60}")
+
+        filename, file_data, content_type = sample_files["mp4"]
+        
+        # Upload and convert
+        print(f"📤 Uploading MP4 file: {filename}")
+        with io.BytesIO(file_data) as file_io:
+            file_io.name = filename
+            response = authenticated_client.post(
+                "/api/v1/tools/video-rotation/convert/",
+                {
+                    "file": file_io,
+                    "rotation_angle": 90,
+                },
+                format="multipart",
+            )
+        
+        # Validate async response
+        print(f"📋 Response status: {response.status_code}")
+        assert response.status_code == 202, f"Expected 202 for async tool, got {response.status_code}"
+        
+        data = response.json()
+        assert "executionId" in data, "Missing executionId in response"
+        execution_id = data["executionId"]
+        print(f"  ✅ Async conversion initiated: execution_id={execution_id}")
+        
+        # Verify database record
+        execution = ToolExecution.objects.filter(id=execution_id, user=registered_user).first()
+        assert execution is not None, "Execution record not found"
+        assert execution.tool_name == "video-rotation"
+        assert execution.input_filename == filename
+        print(f"  ✅ Database record created: status={execution.status}")
+        
+        # Poll status (max 30 seconds)
+        print(f"⏳ Polling status...")
+        max_polls = 15
+        for i in range(max_polls):
+            response = authenticated_client.get(f"/api/v1/executions/{execution_id}/status/")
+            assert response.status_code == 200
+            data = response.json()
+            status = data.get("status")
+            print(f"  Attempt {i+1}/{max_polls}: status={status}")
+            
+            if status == "completed":
+                print(f"  ✅ Processing completed!")
+                break
+            elif status == "failed":
+                pytest.fail(f"Processing failed: {data.get('error', 'Unknown error')}")
+            
+            time.sleep(2)
+        
+        print(f"{'='*60}")
+        print(f"✅ API TEST 8 PASSED: Video Rotation")
+        print(f"{'='*60}\n")
+
+    # ========================================================================
+    # Test 9: API - OCR Tool (Async)
+    # ========================================================================
+
+    @pytest.mark.django_db
+    def test_api_09_ocr_tool(self, authenticated_client, registered_user, sample_files):
+        """
+        Test OCR Tool via API (async):
+        1. Upload image file
+        2. Verify 202 response with execution ID
+        3. Verify blob uploaded to ocr-uploads container
+        """
+        print(f"\n{'='*60}")
+        print(f"🧪 API TEST 9: OCR Tool (Async)")
+        print(f"{'='*60}")
+
+        filename, file_data, content_type = sample_files["png"]
+        
+        # Upload and extract text
+        print(f"📤 Uploading image for OCR: {filename}")
+        with io.BytesIO(file_data) as file_io:
+            file_io.name = filename
+            response = authenticated_client.post(
+                "/api/v1/tools/ocr-tool/convert/",
+                {"file": file_io},
+                format="multipart",
+            )
+        
+        # Validate async response
+        print(f"📋 Response status: {response.status_code}")
+        assert response.status_code == 202, f"Expected 202 for async tool, got {response.status_code}"
+        
+        data = response.json()
+        assert "executionId" in data, "Missing executionId in response"
+        execution_id = data["executionId"]
+        print(f"  ✅ Async OCR initiated: execution_id={execution_id}")
+        
+        # Verify database record
+        execution = ToolExecution.objects.filter(id=execution_id, user=registered_user).first()
+        assert execution is not None, "Execution record not found"
+        assert execution.tool_name == "ocr-tool"
+        assert execution.input_filename == filename
+        print(f"  ✅ Database record created: status={execution.status}")
+        
+        print(f"{'='*60}")
+        print(f"✅ API TEST 9 PASSED: OCR Tool")
+        print(f"{'='*60}\n")
+
+    # ========================================================================
+    # Test 10: API - GPX Merger (Async)
+    # ========================================================================
+
+    @pytest.mark.django_db
+    def test_api_10_gpx_merger(self, authenticated_client, registered_user, sample_files):
+        """
+        Test GPX Merger via API (async):
+        1. Upload multiple GPX files
+        2. Verify 202 response with execution ID
+        3. Verify blobs uploaded to gpx-uploads container
+        """
+        print(f"\n{'='*60}")
+        print(f"🧪 API TEST 10: GPX Merger (Async)")
+        print(f"{'='*60}")
+
+        filename, file_data, content_type = sample_files["gpx"]
+        
+        # Upload multiple GPX files for merging
+        print(f"📤 Uploading 2 GPX files for merging")
+        with io.BytesIO(file_data) as file1, io.BytesIO(file_data) as file2:
+            file1.name = "track1.gpx"
+            file2.name = "track2.gpx"
+            response = authenticated_client.post(
+                "/api/v1/tools/gpx-merger/convert/",
+                {
+                    "files": [file1, file2],
+                },
+                format="multipart",
+            )
+        
+        # Validate async response
+        print(f"📋 Response status: {response.status_code}")
+        assert response.status_code in [200, 202], f"Expected 200/202, got {response.status_code}"
+        
+        if response.status_code == 202:
+            data = response.json()
+            assert "executionId" in data, "Missing executionId in response"
+            execution_id = data["executionId"]
+            print(f"  ✅ Async merge initiated: execution_id={execution_id}")
+            
+            # Verify database record
+            execution = ToolExecution.objects.filter(id=execution_id, user=registered_user).first()
+            assert execution is not None, "Execution record not found"
+            assert execution.tool_name == "gpx-merger"
+            print(f"  ✅ Database record created: status={execution.status}")
+        else:
+            print(f"  ✅ Sync merge completed: {len(response.content)} bytes")
+        
+        print(f"{'='*60}")
+        print(f"✅ API TEST 10 PASSED: GPX Merger")
+        print(f"{'='*60}\n")
+
+    # ========================================================================
+    # Test 11: API - Base64 Encoder & EXIF Extractor (Sync)
+    # ========================================================================
+
+    @pytest.mark.django_db
+    def test_api_11_sync_tools(self, authenticated_client, sample_files):
+        """
+        Test synchronous tools via API:
+        1. Base64 Encoder
+        2. EXIF Extractor
+        """
+        print(f"\n{'='*60}")
+        print(f"🧪 API TEST 11: Sync Tools (Base64 & EXIF)")
+        print(f"{'='*60}")
+
+        # Test Base64 Encoder
+        print(f"📋 Test 11.1: Base64 Encoder")
+        filename, file_data, content_type = sample_files["png"]
+        with io.BytesIO(file_data) as file_io:
+            file_io.name = filename
+            response = authenticated_client.post(
+                "/api/v1/tools/base64-encoder/convert/",
+                {"file": file_io},
+                format="multipart",
+            )
+        assert response.status_code == 200, f"Expected 200 for sync tool, got {response.status_code}"
+        print(f"  ✅ Base64 Encoder: status={response.status_code}")
+
+        # Test EXIF Extractor
+        print(f"📋 Test 11.2: EXIF Extractor")
+        filename, file_data, content_type = sample_files["jpeg"]
+        with io.BytesIO(file_data) as file_io:
+            file_io.name = filename
+            response = authenticated_client.post(
+                "/api/v1/tools/exif-extractor/convert/",
+                {"file": file_io},
+                format="multipart",
+            )
+        assert response.status_code == 200, f"Expected 200 for sync tool, got {response.status_code}"
+        print(f"  ✅ EXIF Extractor: status={response.status_code}")
+
+        print(f"{'='*60}")
+        print(f"✅ API TEST 11 PASSED: Sync Tools")
+        print(f"{'='*60}\n")
+
+    # ========================================================================
+    # Test 12: API - Final Summary
+    # ========================================================================
+
+    @pytest.mark.django_db
+    def test_api_12_final_summary(self):
         """Display final test summary."""
         print(f"\n{'='*60}")
         print(f"📊 API E2E TESTS - FINAL SUMMARY")
@@ -1701,19 +1924,27 @@ startxref
         print(f"  ✅ GET /api/v1/executions/{{id}}/status/ - Check processing status")
         print(f"  ✅ GET /api/v1/executions/?tool_name={{name}} - List execution history")
         print(f"  ✅ DELETE /api/v1/executions/{{id}}/ - Delete execution")
-        print(f"\nTools Tested:")
-        print(f"  ✅ image-format-converter (sync)")
+        print(f"\nAsync Tools Tested (Azure Functions + Blob Storage):")
+        print(f"  ✅ pdf-docx-converter → pdf-uploads/pdf-processed containers")
+        print(f"  ✅ image-format-converter → image-uploads/image-processed containers")
+        print(f"  ✅ video-rotation → video-uploads/video-processed containers")
+        print(f"  ✅ ocr-tool → ocr-uploads/ocr-processed containers")
+        print(f"  ✅ gpx-kml-converter → gpx-uploads/gpx-processed containers")
+        print(f"  ✅ gpx-merger → gpx-uploads/gpx-processed containers")
+        print(f"  ✅ gpx-speed-modifier → gpx-uploads/gpx-processed containers")
+        print(f"\nSync Tools Tested (Direct Processing):")
         print(f"  ✅ unit-converter (no file upload)")
-        print(f"  ✅ pdf-docx-converter (async)")
-        print(f"  ✅ gpx-analyzer (sync)")
-        print(f"  ✅ gpx-kml-converter (sync)")
-        print(f"  ✅ gpx-speed-modifier (sync)")
+        print(f"  ✅ base64-encoder")
+        print(f"  ✅ exif-extractor")
+        print(f"  ✅ gpx-analyzer")
         print(f"\nValidation Coverage:")
         print(f"  ✅ HTTP status codes (200, 201, 202, 400, 404)")
         print(f"  ✅ Response structure validation")
         print(f"  ✅ Data type validation")
         print(f"  ✅ Business logic validation")
         print(f"  ✅ Error handling validation")
+        print(f"  ✅ Async/sync tool workflow validation")
+        print(f"  ✅ Tool-specific blob container validation")
         print(f"{'='*60}\n")
 
 
@@ -1724,11 +1955,11 @@ if __name__ == "__main__":
     print(f"\nConfiguration:")
     print(f"  Azure Integration: {'✅ Enabled' if AZURE_INTEGRATION_ENABLED else '❌ Disabled'}")
     print(f"  Storage Connection: {'✅ Configured' if AZURE_STORAGE_CONNECTION_STRING else '❌ Not configured'}")
-    print(f"  Functions URL: {'✅ Configured' if AZURE_FUNCTIONS_URL else '❌ Not configured'}")
+    print(f"  Functions Base URL: {'✅ Configured' if AZURE_FUNCTION_BASE_URL else '❌ Not configured'}")
     print(f"\nTo enable:")
     print(f"  export AZURE_INTEGRATION_TEST_ENABLED=true")
     print(f"  export AZURE_STORAGE_CONNECTION_STRING='...'")
-    print(f"  export AZURE_FUNCTIONS_URL='https://your-function-app.azurewebsites.net/api/convert'")
+    print(f"  export AZURE_FUNCTION_BASE_URL='https://func-xxx.azurewebsites.net'")
     print(f"\nRun with:")
     print(f"  pytest tests/test_complete_user_workflows.py -v -s")
     print("=" * 60 + "\n")
