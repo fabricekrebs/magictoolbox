@@ -103,23 +103,6 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01'
   }
 }
 
-// DEPRECATED: Generic containers (will be removed after full migration to tool-specific containers)
-resource uploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
-  parent: blobService
-  name: 'uploads'
-  properties: {
-    publicAccess: 'None'
-  }
-}
-
-resource processedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
-  parent: blobService
-  name: 'processed'
-  properties: {
-    publicAccess: 'None'
-  }
-}
-
 // Container for static files
 resource staticContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
   parent: blobService
