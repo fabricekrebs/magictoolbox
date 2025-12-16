@@ -224,9 +224,9 @@ class ImageFormatConverter(BaseTool):
             input_format = file_ext.lstrip('.').lower() if file_ext else 'jpg'
             # Use normalized lowercase extension for blob storage path
             normalized_ext = f".{input_format}"
-            blob_name = f"image/{execution_id}{normalized_ext}"
+            blob_name = f"{execution_id}{normalized_ext}"
             blob_client = blob_service.get_blob_client(
-                container="uploads",
+                container="image-uploads",
                 blob=blob_name
             )
 

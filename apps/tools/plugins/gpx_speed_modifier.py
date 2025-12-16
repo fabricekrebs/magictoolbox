@@ -120,9 +120,9 @@ class GPXSpeedModifier(BaseTool):
             blob_service = self._get_blob_service_client()
 
             # Upload to gpx container
-            blob_name = f"gpx/{execution_id}.gpx"
+            blob_name = f"{execution_id}.gpx"
             blob_client = blob_service.get_blob_client(
-                container="uploads",
+                container="gpx-uploads",
                 blob=blob_name
             )
 

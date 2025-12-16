@@ -209,8 +209,8 @@ class OCRTool(BaseTool):
                 self.logger.info("✅ BlobServiceClient created successfully")
 
             # Get blob client
-            self.logger.info(f"📦 Getting blob client for container: uploads, blob: {blob_name}")
-            blob_client = blob_service.get_blob_client(container="uploads", blob=blob_name)
+            self.logger.info(f"📦 Getting blob client for container: ocr-uploads, blob: {blob_name}")
+            blob_client = blob_service.get_blob_client(container="ocr-uploads", blob=blob_name)
             self.logger.info("✅ Blob client obtained")
 
             # Prepare metadata for Azure Function
