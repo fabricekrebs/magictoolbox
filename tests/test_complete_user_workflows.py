@@ -1904,7 +1904,7 @@ startxref
 
         # Test EXIF Extractor
         print(f"📋 Test 11.2: EXIF Extractor")
-        filename, file_data, content_type = sample_files["jpeg"]
+        filename, file_data, content_type = sample_files["png"]  # Using sample.jpg (loaded as "png")
         with io.BytesIO(file_data) as file_io:
             file_io.name = filename
             response = authenticated_client.post(
