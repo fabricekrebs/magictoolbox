@@ -246,9 +246,12 @@ class OCRTool(BaseTool):
                 if base_url:
                     # Construct full URL by appending endpoint
                     function_url = f"{base_url}/image/ocr"
+                    # Extract input format from file extension (remove leading dot)
+                    input_format = file_ext.lstrip('.')
                     payload = {
                         "execution_id": execution_id,
                         "blob_name": f"ocr-uploads/{blob_name}",
+                        "input_format": input_format,
                         "language": metadata["language"],
                         "ocr_mode": metadata["ocr_mode"],
                         "preprocess": metadata["preprocess"],

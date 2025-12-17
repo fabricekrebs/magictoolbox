@@ -591,8 +591,14 @@ class ToolViewSet(viewsets.ViewSet):
         if request.data.get("rotation"):
             parameters["rotation"] = request.data.get("rotation")
 
-        # Special handling for async tools (PDF converter, Video rotation, Image converter, GPX tools)
-        if pk in ["pdf-docx-converter", "video-rotation", "image-format-converter", "gpx-kml-converter", "gpx-speed-modifier"]:
+        # OCR parameters
+        if request.data.get("language"):
+            parameters["language"] = request.data.get("language")
+        if request.data.get("preprocess"):
+            parameters["preprocess"] = request.data.get("preprocess")
+
+        # Special handling for async tools (PDF converter, Video rotation, Image converter, GPX tools, OCR)
+        if pk in ["pdf-docx-converter", "video-rotation", "image-format-converter", "gpx-kml-converter", "gpx-speed-modifier", "ocr-tool"]:
             # Handle single file upload for async processing
             if len(files) == 1:
                 file = files[0]
@@ -609,12 +615,14 @@ class ToolViewSet(viewsets.ViewSet):
                     
                     # Create ToolExecution record BEFORE processing
                     # Determine container prefix based on tool type
+                    # Note: prefix format is "container/subfolder" - used to construct input_blob_path
                     container_prefixes = {
                         "pdf-docx-converter": "uploads/pdf",
                         "video-rotation": "video-uploads/video",
                         "image-format-converter": "uploads/image",
                         "gpx-kml-converter": "uploads/gpx",
                         "gpx-speed-modifier": "uploads/gpx",
+                        "ocr-tool": "ocr-uploads/image",
                     }
                     container_prefix = container_prefixes.get(pk, "uploads")
                     file_ext = Path(file.name).suffix
@@ -1566,6 +1574,7 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
                 #   - processed/image/{uuid}.png
                 #   - processed/gpx/{uuid}.gpx
                 #   - video-processed/video/{uuid}.mp4
+                #   - ocr-processed/text/{uuid}.txt
                 path_parts = execution.output_blob_path.split("/", 1)
                 if len(path_parts) == 2:
                     container_name = path_parts[0]
@@ -1594,6 +1603,10 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
                     blob_name = f"image/{execution.id}.png"  # Default extension
                 elif execution.tool_name in ["gpx-kml-converter", "gpx-speed-modifier"]:
                     blob_name = f"gpx/{execution.id}.gpx"
+                elif execution.tool_name == "ocr-tool":
+                    # OCR output is stored directly in ocr-processed container
+                    container_name = "ocr-processed"
+                    blob_name = f"{execution.id}.txt"
                 else:
                     return Response(
                         {"error": "Cannot determine output file location"},
@@ -1651,6 +1664,8 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
                     output_filename = "converted.png"
                 elif execution.tool_name in ["gpx-kml-converter", "gpx-speed-modifier"]:
                     output_filename = "track.gpx"
+                elif execution.tool_name == "ocr-tool":
+                    output_filename = "extracted_text.txt"
                 else:
                     output_filename = "download.bin"
             

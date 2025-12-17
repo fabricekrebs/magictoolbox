@@ -1233,7 +1233,7 @@ def extract_text_ocr(req: func.HttpRequest) -> func.HttpResponse:
         
         # Download input image from blob storage
         input_ext = f".{input_format}"
-        blob_path = f"{execution_id}{input_ext}"
+        blob_path = f"image/{execution_id}{input_ext}"
         logger.info(f"📥 Downloading from blob: ocr-uploads/{blob_path}")
         
         blob_client = get_blob_client("ocr-uploads", blob_path)
@@ -1272,7 +1272,8 @@ def extract_text_ocr(req: func.HttpRequest) -> func.HttpResponse:
         
         # Upload to processed container
         output_blob_path = f"{execution_id}.txt"
-        logger.info(f"📤 Uploading to blob: ocr-processed/{output_blob_path}")
+        full_output_blob_path = f"ocr-processed/{output_blob_path}"
+        logger.info(f"📤 Uploading to blob: {full_output_blob_path}")
         
         output_blob_client = get_blob_client("ocr-processed", output_blob_path)
         with open(temp_output_path, "rb") as f:
@@ -1287,9 +1288,11 @@ def extract_text_ocr(req: func.HttpRequest) -> func.HttpResponse:
                 UPDATE tool_executions
                 SET status = 'completed',
                     output_file = %s,
+                    output_blob_path = %s,
+                    output_filename = %s,
                     updated_at = NOW()
                 WHERE id = %s
-            """, (f"{execution_id}.txt", execution_id))
+            """, (f"{execution_id}.txt", full_output_blob_path, f"{execution_id}.txt", execution_id))
             conn.commit()
             cursor.close()
             conn.close()
@@ -1301,7 +1304,9 @@ def extract_text_ocr(req: func.HttpRequest) -> func.HttpResponse:
             body=json.dumps({
                 "status": "success",
                 "message": "OCR extraction completed",
-                "text_length": text_length
+                "text_length": text_length,
+                "output_blob": full_output_blob_path,
+                "output_size_bytes": os.path.getsize(temp_output_path)
             }),
             mimetype="application/json",
             status_code=200
