@@ -42,6 +42,8 @@ This index provides quick access to all documentation organized by topic.
 
 ### Infrastructure Setup
 - **[AZURE_DEPLOYMENT_README.md](AZURE_DEPLOYMENT_README.md)** - Complete deployment guide (Bicep, Container Apps, Functions)
+- **[PRODUCTION_SUBSCRIPTION_DEPLOYMENT.md](PRODUCTION_SUBSCRIPTION_DEPLOYMENT.md)** - **NEW** Step-by-step guide for deploying production to a new Azure subscription
+- **[PRODUCTION_DEPLOYMENT_CHECKLIST.md](PRODUCTION_DEPLOYMENT_CHECKLIST.md)** - **NEW** Quick reference checklist for production deployment
 - **[GITHUB_SECRETS_SETUP.md](GITHUB_SECRETS_SETUP.md)** - CI/CD configuration and GitHub Actions secrets
 - **[DEPLOYMENT_MONITORING.md](DEPLOYMENT_MONITORING.md)** - Application Insights, logging, and monitoring
 
