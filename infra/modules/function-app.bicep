@@ -76,6 +76,21 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
     }
     siteConfig: {
       appSettings: [
+        // Azure Functions runtime configuration for Python v2 worker indexing
+        // Note: FUNCTIONS_WORKER_RUNTIME is set via functionAppConfig.runtime for Flex Consumption
+        {
+          name: 'FUNCTIONS_EXTENSION_VERSION'
+          value: '~4'
+        }
+        {
+          name: 'PYTHON_ISOLATE_WORKER_DEPENDENCIES'
+          value: '1'
+        }
+        {
+          name: 'AzureWebJobsFeatureFlags'
+          value: 'EnableWorkerIndexing'
+        }
+        
         // Identity-based storage connection (no shared key needed)
         {
           name: 'AzureWebJobsStorage__accountName'

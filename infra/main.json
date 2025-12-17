@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "7547244177578502635"
+      "templateHash": "5594166978181329138"
     }
   },
   "parameters": {
@@ -494,7 +494,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "13762185476295914192"
+              "templateHash": "9932305914129585195"
             }
           },
           "parameters": {
@@ -562,7 +562,7 @@
                 "enableSoftDelete": true,
                 "softDeleteRetentionInDays": "[if(equals(parameters('environment'), 'prod'), 90, 7)]",
                 "enableRbacAuthorization": true,
-                "publicNetworkAccess": "Disabled",
+                "publicNetworkAccess": "Enabled",
                 "sku": {
                   "family": "A",
                   "name": "standard"
@@ -705,7 +705,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "13222151540537876993"
+              "templateHash": "17163603696582191483"
             }
           },
           "parameters": {
@@ -848,6 +848,28 @@
               "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
               "apiVersion": "2023-01-01",
               "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'deployments')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', take(toLower(variables('storageAccountName')), 24), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'video-uploads')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', take(toLower(variables('storageAccountName')), 24), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'video-processed')]",
               "properties": {
                 "publicAccess": "None"
               },
@@ -1173,6 +1195,9 @@
           },
           "keyVaultName": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault-deployment'), '2025-04-01').outputs.keyVaultName.value]"
+          },
+          "functionAppsSubnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'network-deployment'), '2025-04-01').outputs.functionAppsSubnetId.value]"
           }
         },
         "template": {
@@ -1182,7 +1207,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "14533985214857678482"
+              "templateHash": "9645945936501139336"
             }
           },
           "parameters": {
@@ -1214,6 +1239,9 @@
               "type": "string"
             },
             "applicationInsightsInstrumentationKey": {
+              "type": "string"
+            },
+            "functionAppsSubnetId": {
               "type": "string"
             },
             "keyVaultName": {
@@ -1344,11 +1372,15 @@
                     },
                     {
                       "name": "DB_PASSWORD",
-                      "value": "[format('@Microsoft.KeyVault(SecretUri=https://{0}.vault.{1}/secrets/postgres-password/)', parameters('keyVaultName'), environment().suffixes.keyvaultDns)]"
+                      "value": "[format('@Microsoft.KeyVault(SecretUri=https://{0}{1}/secrets/postgres-password/)', parameters('keyVaultName'), environment().suffixes.keyvaultDns)]"
                     },
                     {
                       "name": "DB_PORT",
                       "value": "5432"
+                    },
+                    {
+                      "name": "DB_SSLMODE",
+                      "value": "require"
                     }
                   ],
                   "ftpsState": "Disabled",
@@ -1359,7 +1391,9 @@
                     ]
                   }
                 },
-                "httpsOnly": true
+                "httpsOnly": true,
+                "virtualNetworkSubnetId": "[parameters('functionAppsSubnetId')]",
+                "publicNetworkAccess": "Enabled"
               },
               "dependsOn": [
                 "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]"
@@ -1417,6 +1451,7 @@
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deployments', 'keyvault-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'monitoring-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'network-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'postgresql-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'storage-deployment')]"
       ]
@@ -1445,9 +1480,6 @@
           },
           "functionAppsSubnetId": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'network-deployment'), '2025-04-01').outputs.functionAppsSubnetId.value]"
-          },
-          "functionAppResourceId": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'function-app-deployment'), '2025-04-01').outputs.functionAppId.value]"
           }
         },
         "template": {
@@ -1457,7 +1489,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "11557692952486690667"
+              "templateHash": "17141715771000931674"
             }
           },
           "parameters": {
@@ -1474,9 +1506,6 @@
               "type": "string"
             },
             "functionAppsSubnetId": {
-              "type": "string"
-            },
-            "functionAppResourceId": {
               "type": "string"
             }
           },
@@ -1523,12 +1552,6 @@
                       "id": "[parameters('functionAppsSubnetId')]",
                       "action": "Allow"
                     }
-                  ],
-                  "resourceAccessRules": [
-                    {
-                      "tenantId": "[subscription().tenantId]",
-                      "resourceId": "[parameters('functionAppResourceId')]"
-                    }
                   ]
                 }
               }
@@ -1543,7 +1566,6 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'function-app-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'network-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'storage-deployment')]"
       ]
@@ -1632,7 +1654,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "13815471288628123572"
+              "templateHash": "1126290263120802866"
             }
           },
           "parameters": {
@@ -1784,7 +1806,7 @@
                       "passwordSecretRef": "acr-password"
                     }
                   ],
-                  "secrets": "[if(parameters('useKeyVaultReferences'), createArray(createObject('name', 'acr-password', 'value', parameters('acrPassword')), createObject('name', 'django-secret-key', 'keyVaultUrl', format('{0}secrets/django-secret-key', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'postgres-password', 'keyVaultUrl', format('{0}secrets/postgres-password', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'redis-access-key', 'keyVaultUrl', format('{0}secrets/redis-access-key', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'storage-account-key', 'keyVaultUrl', format('{0}secrets/storage-account-key', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'appinsights-connection-string', 'keyVaultUrl', format('{0}secrets/appinsights-connection-string', parameters('keyVaultUri')), 'identity', 'system')), createArray(createObject('name', 'acr-password', 'value', parameters('acrPassword')), createObject('name', 'django-secret-key', 'value', parameters('djangoSecretKey')), createObject('name', 'postgres-password', 'value', parameters('postgresPassword')), createObject('name', 'redis-access-key', 'value', parameters('redisAccessKey')), createObject('name', 'storage-account-key', 'value', parameters('storageAccountKey')), createObject('name', 'appinsights-connection-string', 'value', parameters('appInsightsConnectionString'))))]"
+                  "secrets": "[if(parameters('useKeyVaultReferences'), createArray(createObject('name', 'acr-password', 'value', parameters('acrPassword')), createObject('name', 'django-secret-key', 'keyVaultUrl', format('{0}secrets/django-secret-key', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'postgres-password', 'keyVaultUrl', format('{0}secrets/postgres-password', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'redis-access-key', 'keyVaultUrl', format('{0}secrets/redis-access-key', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'redis-url', 'value', format('rediss://:{0}@{1}:6380/0?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))), createObject('name', 'celery-broker-url', 'value', format('rediss://:{0}@{1}:6380/1?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))), createObject('name', 'celery-result-backend', 'value', format('rediss://:{0}@{1}:6380/1?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))), createObject('name', 'storage-account-key', 'keyVaultUrl', format('{0}secrets/storage-account-key', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'appinsights-connection-string', 'keyVaultUrl', format('{0}secrets/appinsights-connection-string', parameters('keyVaultUri')), 'identity', 'system')), createArray(createObject('name', 'acr-password', 'value', parameters('acrPassword')), createObject('name', 'django-secret-key', 'value', parameters('djangoSecretKey')), createObject('name', 'postgres-password', 'value', parameters('postgresPassword')), createObject('name', 'redis-access-key', 'value', parameters('redisAccessKey')), createObject('name', 'redis-url', 'value', format('rediss://:{0}@{1}:6380/0?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))), createObject('name', 'celery-broker-url', 'value', format('rediss://:{0}@{1}:6380/1?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))), createObject('name', 'celery-result-backend', 'value', format('rediss://:{0}@{1}:6380/1?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))), createObject('name', 'storage-account-key', 'value', parameters('storageAccountKey')), createObject('name', 'appinsights-connection-string', 'value', parameters('appInsightsConnectionString'))))]"
                 },
                 "template": {
                   "containers": [
@@ -1837,6 +1859,10 @@
                           "value": "5432"
                         },
                         {
+                          "name": "DB_SSLMODE",
+                          "value": "require"
+                        },
+                        {
                           "name": "REDIS_HOST",
                           "value": "[parameters('redisHostName')]"
                         },
@@ -1846,15 +1872,15 @@
                         },
                         {
                           "name": "REDIS_URL",
-                          "value": "[format('rediss://default@{0}:6380/0?ssl_cert_reqs=required', parameters('redisHostName'))]"
+                          "secretRef": "redis-url"
                         },
                         {
                           "name": "CELERY_BROKER_URL",
-                          "value": "[format('rediss://default@{0}:6380/1?ssl_cert_reqs=required', parameters('redisHostName'))]"
+                          "secretRef": "celery-broker-url"
                         },
                         {
                           "name": "CELERY_RESULT_BACKEND",
-                          "value": "[format('rediss://default@{0}:6380/1?ssl_cert_reqs=required', parameters('redisHostName'))]"
+                          "secretRef": "celery-result-backend"
                         },
                         {
                           "name": "AZURE_STORAGE_ACCOUNT_NAME",
@@ -1907,6 +1933,10 @@
                         {
                           "name": "AZURE_FUNCTION_PDF_CONVERT_URL",
                           "value": "[parameters('functionAppUrl')]"
+                        },
+                        {
+                          "name": "AZURE_FUNCTION_VIDEO_ROTATE_URL",
+                          "value": "[format('{0}/video/rotate', parameters('functionAppUrl'))]"
                         },
                         {
                           "name": "AZURE_STORAGE_ACCOUNT_NAME",
@@ -2033,6 +2063,9 @@
           },
           "keyVaultId": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault-deployment'), '2025-04-01').outputs.keyVaultId.value]"
+          },
+          "functionAppId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'function-app-deployment'), '2025-04-01').outputs.functionAppId.value]"
           }
         },
         "template": {
@@ -2042,7 +2075,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "14640320863656963482"
+              "templateHash": "9399602480826516401"
             }
           },
           "parameters": {
@@ -2072,6 +2105,10 @@
             },
             "keyVaultId": {
               "type": "string"
+            },
+            "functionAppId": {
+              "type": "string",
+              "defaultValue": ""
             }
           },
           "variables": {
@@ -2164,6 +2201,30 @@
               },
               "dependsOn": [
                 "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.vaultcore.azure.net')]"
+              ]
+            },
+            {
+              "condition": "[not(empty(parameters('functionAppId')))]",
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "privatelink.azurewebsites.net",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "condition": "[not(empty(parameters('functionAppId')))]",
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}/{1}', 'privatelink.azurewebsites.net', 'vnet-link-functionapp')]",
+              "location": "global",
+              "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                  "id": "[parameters('vnetId')]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.azurewebsites.net')]"
               ]
             },
             {
@@ -2333,12 +2394,60 @@
                 "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.vaultcore.azure.net')]",
                 "[resourceId('Microsoft.Network/privateEndpoints', format('pe-{0}-{1}-kv-01', variables('locationAbbr'), parameters('namingPrefix')))]"
               ]
+            },
+            {
+              "condition": "[not(empty(parameters('functionAppId')))]",
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2023-05-01",
+              "name": "[format('pe-{0}-{1}-func-01', variables('locationAbbr'), parameters('namingPrefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "subnet": {
+                  "id": "[parameters('privateEndpointsSubnetId')]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "functionapp-connection",
+                    "properties": {
+                      "privateLinkServiceId": "[parameters('functionAppId')]",
+                      "groupIds": [
+                        "sites"
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "condition": "[not(empty(parameters('functionAppId')))]",
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', format('pe-{0}-{1}-func-01', variables('locationAbbr'), parameters('namingPrefix')), 'default')]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "privatelink-azurewebsites-net",
+                    "properties": {
+                      "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.azurewebsites.net')]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.azurewebsites.net')]",
+                "[resourceId('Microsoft.Network/privateEndpoints', format('pe-{0}-{1}-func-01', variables('locationAbbr'), parameters('namingPrefix')))]"
+              ]
             }
           ],
           "outputs": {
             "postgresPrivateEndpointId": {
               "type": "string",
               "value": "[resourceId('Microsoft.Network/privateEndpoints', format('pe-{0}-{1}-psql-01', variables('locationAbbr'), parameters('namingPrefix')))]"
+            },
+            "functionAppPrivateEndpointId": {
+              "type": "string",
+              "value": "[if(not(empty(parameters('functionAppId'))), resourceId('Microsoft.Network/privateEndpoints', format('pe-{0}-{1}-func-01', variables('locationAbbr'), parameters('namingPrefix'))), '')]"
             },
             "redisPrivateEndpointId": {
               "type": "string",
@@ -2357,6 +2466,7 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deployments', 'container-apps-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'function-app-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'keyvault-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'network-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'postgresql-deployment')]",

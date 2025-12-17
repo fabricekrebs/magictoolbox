@@ -1,0 +1,551 @@
+{% extends 'base.html' %}
+{% load static crispy_forms_tags %}
+
+{% block title %}{{ tool.display_name }} - MagicToolbox{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/tool-history.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-5">
+  <!-- Tool Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'tools:tool_list' %}">Tools</a></li>
+          <li class="breadcrumb-item active" aria-current="page">{{ tool.display_name }}</li>
+        </ol>
+      </nav>
+      <div>
+        <h1 class="display-5 fw-bold mb-2">
+          <i class="bi bi-link-45deg text-primary me-2"></i>
+          {{ tool.display_name }}
+        </h1>
+        <p class="lead text-muted mb-0">{{ tool.description }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Left Column: Upload & Status (8 columns) -->
+    <div class="col-lg-8 mb-4">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-upload me-2"></i>Upload & Merge GPX Files
+          </h5>
+        </div>
+        <div class="card-body">
+          <form id="gpxMergerForm" enctype="multipart/form-data">
+            <div class="mb-3">
+              <label for="gpxFiles" class="form-label">
+                Select GPX Files <span class="badge bg-info">Required: 2-20 files</span>
+              </label>
+              <input type="file" class="form-control" id="gpxFiles" name="files" accept=".gpx,application/gpx+xml" multiple required>
+              <div class="form-text">
+                <i class="bi bi-info-circle me-1"></i>
+                Select multiple GPX files to merge into a single track (max 50MB each)
+              </div>
+            </div>
+
+            <!-- File List -->
+            <div id="fileListSection" class="mb-3" style="display: none;">
+              <label class="form-label">Selected Files:</label>
+              <div id="fileList" class="list-group"></div>
+              <div class="form-text mt-2">
+                <i class="bi bi-check-circle text-success me-1"></i>
+                <span id="fileCount">0</span> files selected
+              </div>
+            </div>
+
+            <!-- Merge Options -->
+            <div class="card bg-light mb-3">
+              <div class="card-body">
+                <h6 class="card-title">
+                  <i class="bi bi-gear me-2"></i>Merge Options
+                </h6>
+                
+                <div class="mb-3">
+                  <label for="mergeMode" class="form-label">Merge Mode</label>
+                  <select class="form-select" id="mergeMode" name="merge_mode">
+                    <option value="chronological" selected>Chronological Order (by timestamp)</option>
+                    <option value="sequential">Sequential Order (by upload order)</option>
+                    <option value="preserve_order">Preserve File Order</option>
+                  </select>
+                  <small class="form-text text-muted">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <span id="mergeModeHelp">Tracks will be sorted by their timestamps</span>
+                  </small>
+                </div>
+
+                <div class="mb-0">
+                  <label for="outputName" class="form-label">Output File Name</label>
+                  <input type="text" class="form-control" id="outputName" name="output_name" value="merged_track" placeholder="merged_track">
+                  <small class="form-text text-muted">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Name for the merged GPX file (without extension)
+                  </small>
+                </div>
+              </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary btn-lg" id="mergeBtn">
+                <i class="bi bi-link-45deg me-2"></i>Merge GPX Files
+              </button>
+            </div>
+          </form>
+
+          <!-- Merge Status Section -->
+          <div id="statusSection" class="mt-4" style="display: none;">
+            <h5 class="mb-3">
+              <i class="bi bi-hourglass-split me-2"></i>Merge Status
+            </h5>
+            
+            <div class="card" id="mergeStatusCard">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <h6 class="mb-1">
+                      <i class="bi bi-link-45deg text-primary me-2"></i>
+                      <span id="statusFilename">Merging files...</span>
+                    </h6>
+                    <span id="statusBadge" class="badge bg-secondary">Pending</span>
+                  </div>
+                </div>
+                
+                <div class="progress mt-2" style="height: 25px;" id="statusProgress">
+                  <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                       role="progressbar" 
+                       id="statusProgressBar"
+                       style="width: 25%">
+                    <span id="statusProgressText">Uploading...</span>
+                  </div>
+                </div>
+                
+                <div id="downloadSection" class="mt-3" style="display: none;">
+                  <a href="#" class="btn btn-success btn-lg w-100" id="downloadBtn" download>
+                    <i class="bi bi-download me-2"></i>Download Merged GPX
+                  </a>
+                </div>
+                
+                <div id="errorSection" class="alert alert-danger mt-3" style="display: none;">
+                  <i class="bi bi-exclamation-triangle me-2"></i>
+                  <span id="errorMessage"></span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="d-grid gap-2 mt-3">
+              <button type="button" class="btn btn-outline-primary" onclick="location.reload()">
+                <i class="bi bi-arrow-clockwise me-2"></i>Merge More Files
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Instructions Card -->
+      <div class="card shadow-sm mt-4">
+        <div class="card-header bg-light">
+          <h5 class="mb-0">
+            <i class="bi bi-info-circle me-2"></i>How It Works
+          </h5>
+        </div>
+        <div class="card-body">
+          <ol class="mb-0">
+            <li class="mb-2"><strong>Select Files:</strong> Choose 2 or more GPX files to merge</li>
+            <li class="mb-2"><strong>Choose Merge Mode:</strong>
+              <ul class="mt-1">
+                <li><em>Chronological:</em> Orders tracks by their timestamps (earliest first)</li>
+                <li><em>Sequential:</em> Orders tracks by the order you uploaded them</li>
+                <li><em>Preserve Order:</em> Keeps tracks in their original order from each file</li>
+              </ul>
+            </li>
+            <li class="mb-2"><strong>Set Output Name:</strong> Name your merged track</li>
+            <li class="mb-2"><strong>Merge:</strong> Click "Merge GPX Files" and wait for processing</li>
+            <li class="mb-0"><strong>Download:</strong> Get your unified GPX file with all tracks, routes, and waypoints</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: History Sidebar (4 columns) -->
+    <div class="col-lg-4">
+      <div class="history-sidebar">
+        <div class="card shadow-sm">
+          <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+              <i class="bi bi-clock-history me-2"></i>Merge History
+            </h6>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="refreshHistoryBtn" title="Refresh history">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+          </div>
+          
+          <!-- Search Filter -->
+          <div class="history-search">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text">
+                <i class="bi bi-search"></i>
+              </span>
+              <input type="text" 
+                     class="form-control" 
+                     id="historySearchInput" 
+                     placeholder="Search by filename..."
+                     aria-label="Search history">
+            </div>
+          </div>
+          
+          <div class="card-body p-0">
+            <!-- Loading state -->
+            <div id="historyLoading" class="text-center py-4" style="display: none;">
+              <div class="spinner-border spinner-border-sm text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <p class="text-muted small mt-2 mb-0">Loading history...</p>
+            </div>
+            
+            <!-- Empty state -->
+            <div id="historyEmpty" class="text-center py-4" style="display: none;">
+              <i class="bi bi-inbox text-muted" style="font-size: 2rem;"></i>
+              <p class="text-muted small mt-2 mb-0">No merge history yet</p>
+            </div>
+            
+            <!-- History list -->
+            <div id="historyList" class="list-group list-group-flush"></div>
+          </div>
+        </div>
+        
+        <!-- Use Cases Card -->
+        <div class="card shadow-sm mt-3">
+          <div class="card-header bg-light">
+            <h6 class="mb-0">
+              <i class="bi bi-lightbulb me-2"></i>Perfect For
+            </h6>
+          </div>
+          <div class="card-body">
+            <ul class="small mb-0">
+              <li class="mb-2"><i class="bi bi-bicycle text-primary me-1"></i> Multi-day cycling tours</li>
+              <li class="mb-2"><i class="bi bi-person-walking text-success me-1"></i> Segmented hiking trails</li>
+              <li class="mb-2"><i class="bi bi-geo-alt text-danger me-1"></i> Combining daily GPS logs</li>
+              <li class="mb-2"><i class="bi bi-map text-info me-1"></i> Creating complete route maps</li>
+              <li class="mb-0"><i class="bi bi-trophy text-warning me-1"></i> Combining workout segments</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Global state
+let executionId = null;
+let statusPollInterval = null;
+
+// Show selected files
+const fileInput = document.getElementById('gpxFiles');
+const fileListSection = document.getElementById('fileListSection');
+const fileList = document.getElementById('fileList');
+const fileCount = document.getElementById('fileCount');
+
+fileInput.addEventListener('change', function() {
+  const files = Array.from(fileInput.files);
+  
+  if (files.length === 0) {
+    fileListSection.style.display = 'none';
+    return;
+  }
+
+  fileListSection.style.display = 'block';
+  fileList.innerHTML = '';
+  fileCount.textContent = files.length;
+  
+  files.forEach((file, index) => {
+    const fileItem = document.createElement('div');
+    fileItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+    fileItem.innerHTML = `
+      <div>
+        <span class="badge bg-secondary me-2">${index + 1}</span>
+        <i class="bi bi-geo-alt text-primary me-2"></i>
+        <strong>${file.name}</strong>
+      </div>
+      <span class="badge bg-light text-dark">${MagicToolbox.formatFileSize(file.size)}</span>
+    `;
+    fileList.appendChild(fileItem);
+  });
+  
+  // Validate file count
+  const mergeBtn = document.getElementById('mergeBtn');
+  if (files.length < 2) {
+    mergeBtn.disabled = true;
+    MagicToolbox.showNotification('Please select at least 2 GPX files', 'warning');
+  } else if (files.length > 20) {
+    mergeBtn.disabled = true;
+    MagicToolbox.showNotification('Maximum 20 files allowed', 'warning');
+  } else {
+    mergeBtn.disabled = false;
+  }
+});
+
+// Update merge mode help text
+document.getElementById('mergeMode').addEventListener('change', function() {
+  const helpText = document.getElementById('mergeModeHelp');
+  const mode = this.value;
+  
+  if (mode === 'chronological') {
+    helpText.textContent = 'Tracks will be sorted by their timestamps (earliest first)';
+  } else if (mode === 'sequential') {
+    helpText.textContent = 'Tracks will be ordered by the sequence you uploaded the files';
+  } else {
+    helpText.textContent = 'Tracks will preserve their original order from each file';
+  }
+});
+
+// Handle form submission
+document.getElementById('gpxMergerForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const files = Array.from(fileInput.files);
+  
+  if (files.length < 2) {
+    MagicToolbox.showNotification('Please select at least 2 GPX files', 'error');
+    return;
+  }
+  
+  if (files.length > 20) {
+    MagicToolbox.showNotification('Maximum 20 files allowed', 'error');
+    return;
+  }
+
+  const formData = new FormData();
+  
+  // Add all files
+  files.forEach(file => {
+    formData.append('files[]', file);
+  });
+  
+  // Add merge parameters
+  const mergeMode = document.getElementById('mergeMode').value;
+  const outputName = document.getElementById('outputName').value || 'merged_track';
+  
+  formData.append('merge_mode', mergeMode);
+  formData.append('output_name', outputName);
+  
+  const mergeBtn = document.getElementById('mergeBtn');
+  const statusSection = document.getElementById('statusSection');
+  const statusFilename = document.getElementById('statusFilename');
+  
+  // Disable submit button
+  mergeBtn.disabled = true;
+  
+  // Show status section
+  statusSection.style.display = 'block';
+  statusFilename.textContent = `Merging ${files.length} files into ${outputName}.gpx`;
+  
+  try {
+    // Get CSRF token
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                      document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+    
+    // Call the API to upload files
+    const response = await fetch('/api/v1/tools/gpx-merger/merge/', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrftoken,
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Upload failed');
+    }
+    
+    const data = await response.json();
+    
+    // Store execution ID
+    if (data.executions && data.executions.length > 0) {
+      executionId = data.executions[0].executionId;
+    } else if (data.executionId) {
+      executionId = data.executionId;
+    }
+    
+    // Update status display
+    updateStatusBadge('processing');
+    updateProgressBar(50, 'Processing merge...');
+    
+    // Immediately refresh history after upload
+    if (typeof ToolHistory !== 'undefined') {
+      ToolHistory.loadHistory('gpx-merger');
+    }
+    
+    // Start polling for status updates
+    startStatusPolling();
+    
+  } catch (error) {
+    showError('Upload failed: ' + error.message);
+    statusSection.style.display = 'none';
+    mergeBtn.disabled = false;
+  }
+});
+
+// Update status badge
+function updateStatusBadge(status) {
+  const statusBadge = document.getElementById('statusBadge');
+  
+  if (status === 'pending') {
+    statusBadge.className = 'badge bg-secondary';
+    statusBadge.innerHTML = 'Pending';
+  } else if (status === 'processing') {
+    statusBadge.className = 'badge bg-primary';
+    statusBadge.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Processing';
+  } else if (status === 'completed') {
+    statusBadge.className = 'badge bg-success';
+    statusBadge.innerHTML = '<i class="bi bi-check-circle me-1"></i>Completed';
+  } else if (status === 'failed') {
+    statusBadge.className = 'badge bg-danger';
+    statusBadge.innerHTML = '<i class="bi bi-x-circle me-1"></i>Failed';
+  }
+}
+
+// Update progress bar
+function updateProgressBar(percentage, text) {
+  const progressBar = document.getElementById('statusProgressBar');
+  const progressText = document.getElementById('statusProgressText');
+  
+  progressBar.style.width = percentage + '%';
+  progressText.textContent = text;
+  
+  if (percentage >= 100) {
+    progressBar.classList.remove('progress-bar-animated');
+  }
+}
+
+// Start status polling
+function startStatusPolling() {
+  if (!executionId) return;
+  
+  // Clear any existing interval
+  if (statusPollInterval) {
+    clearInterval(statusPollInterval);
+  }
+  
+  // Poll every 2 seconds
+  statusPollInterval = setInterval(checkStatus, 2000);
+  
+  // Also refresh history every 5 seconds
+  const historyPollInterval = setInterval(() => {
+    if (typeof ToolHistory !== 'undefined') {
+      ToolHistory.loadHistory('gpx-merger');
+    }
+  }, 5000);
+  
+  // Store interval ID for cleanup
+  window._gpxMergerHistoryPollInterval = historyPollInterval;
+  
+  // Check immediately
+  checkStatus();
+}
+
+// Check merge status
+async function checkStatus() {
+  if (!executionId) return;
+  
+  try {
+    const response = await fetch(`/api/v1/executions/${executionId}/status/`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to check status');
+    }
+    
+    const data = await response.json();
+    
+    updateStatusBadge(data.status);
+    
+    if (data.status === 'completed') {
+      // Stop polling
+      clearInterval(statusPollInterval);
+      statusPollInterval = null;
+      if (window._gpxMergerHistoryPollInterval) {
+        clearInterval(window._gpxMergerHistoryPollInterval);
+        window._gpxMergerHistoryPollInterval = null;
+      }
+      
+      // Show download button
+      updateProgressBar(100, 'Completed');
+      showDownloadButton(data.downloadUrl, data.outputFilename);
+      
+      // Refresh history
+      if (typeof ToolHistory !== 'undefined') {
+        ToolHistory.loadHistory('gpx-merger');
+      }
+      
+    } else if (data.status === 'failed') {
+      // Stop polling
+      clearInterval(statusPollInterval);
+      statusPollInterval = null;
+      if (window._gpxMergerHistoryPollInterval) {
+        clearInterval(window._gpxMergerHistoryPollInterval);
+        window._gpxMergerHistoryPollInterval = null;
+      }
+      
+      // Show error
+      showError(data.error || 'Merge failed');
+      
+    } else if (data.status === 'processing') {
+      updateProgressBar(75, 'Merging tracks...');
+    }
+    
+  } catch (error) {
+    console.error('Status check failed:', error);
+  }
+}
+
+// Show download button
+function showDownloadButton(downloadUrl, filename) {
+  const downloadSection = document.getElementById('downloadSection');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const errorSection = document.getElementById('errorSection');
+  
+  downloadBtn.href = downloadUrl;
+  downloadBtn.download = filename || 'merged_track.gpx';
+  
+  downloadSection.style.display = 'block';
+  errorSection.style.display = 'none';
+  
+  MagicToolbox.showNotification('Merge completed successfully!', 'success');
+}
+
+// Show error message
+function showError(message) {
+  const errorSection = document.getElementById('errorSection');
+  const errorMessage = document.getElementById('errorMessage');
+  const downloadSection = document.getElementById('downloadSection');
+  
+  errorMessage.textContent = message;
+  errorSection.style.display = 'block';
+  downloadSection.style.display = 'none';
+  
+  updateProgressBar(100, 'Failed');
+  
+  MagicToolbox.showNotification('Merge failed: ' + message, 'error');
+}
+
+// Load history when page loads
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof ToolHistory !== 'undefined') {
+    ToolHistory.loadHistory('gpx-merger');
+  }
+});
+</script>
+
+<!-- Tool History Script (shared component) -->
+<script src="{% static 'js/tool-history.js' %}"></script>
+{% endblock %}

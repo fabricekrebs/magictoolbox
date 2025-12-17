@@ -46,8 +46,15 @@ python-decouple>=3.8,<3.9
 Pillow>=10.2,<11.0
 pillow-heif>=0.15.0
 
+# EXIF extraction (optional enhanced library)
+exifread>=3.0.0
+
 # Document conversion
 pdf2docx>=0.5.8
+
+# OCR (for text extraction from images)
+pytesseract>=0.3.10
+opencv-python>=4.8.0  # For image preprocessing in OCR
 
 # Validation
 pydantic>=2.5,<2.6

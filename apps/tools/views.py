@@ -591,8 +591,14 @@ class ToolViewSet(viewsets.ViewSet):
         if request.data.get("rotation"):
             parameters["rotation"] = request.data.get("rotation")
 
-        # Special handling for async tools (PDF converter, Video rotation, Image converter, GPX tools)
-        if pk in ["pdf-docx-converter", "video-rotation", "image-format-converter", "gpx-kml-converter", "gpx-speed-modifier"]:
+        # OCR parameters
+        if request.data.get("language"):
+            parameters["language"] = request.data.get("language")
+        if request.data.get("preprocess"):
+            parameters["preprocess"] = request.data.get("preprocess")
+
+        # Special handling for async tools (PDF converter, Video rotation, Image converter, GPX tools, OCR)
+        if pk in ["pdf-docx-converter", "video-rotation", "image-format-converter", "gpx-kml-converter", "gpx-speed-modifier", "ocr-tool"]:
             # Handle single file upload for async processing
             if len(files) == 1:
                 file = files[0]
@@ -609,12 +615,14 @@ class ToolViewSet(viewsets.ViewSet):
                     
                     # Create ToolExecution record BEFORE processing
                     # Determine container prefix based on tool type
+                    # Note: prefix format is "container/subfolder" - used to construct input_blob_path
                     container_prefixes = {
                         "pdf-docx-converter": "uploads/pdf",
                         "video-rotation": "video-uploads/video",
                         "image-format-converter": "uploads/image",
                         "gpx-kml-converter": "uploads/gpx",
                         "gpx-speed-modifier": "uploads/gpx",
+                        "ocr-tool": "ocr-uploads/image",
                     }
                     container_prefix = container_prefixes.get(pk, "uploads")
                     file_ext = Path(file.name).suffix
@@ -918,6 +926,109 @@ class ToolViewSet(viewsets.ViewSet):
                 logger.error(f"Image conversion failed: {e}")
                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @action(detail=True, methods=["post"], url_path="merge")
+    def merge_files(self, request, pk=None):
+        """
+        Merge multiple GPX files into a single file.
+
+        POST /api/v1/tools/{tool_name}/merge/
+
+        For gpx-merger:
+        - files[]: Multiple GPX files to merge (minimum 2)
+        - merge_mode: chronological|sequential|preserve_order (optional, default: chronological)
+        - output_name: Name for merged file without extension (optional, default: merged_track)
+        """
+        tool_instance = tool_registry.get_tool_instance(pk)
+        if not tool_instance:
+            return Response({"error": "Tool not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Only support tools with process_multiple method
+        if not hasattr(tool_instance, "process_multiple"):
+            return Response(
+                {"error": "Tool does not support merging multiple files"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Get files from request
+        files = request.FILES.getlist("files[]") or request.FILES.getlist("files")
+        if not files:
+            return Response({"error": "No files provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get merge parameters
+        parameters = {
+            "merge_mode": request.data.get("merge_mode", "chronological"),
+            "output_name": request.data.get("output_name", "merged_track"),
+        }
+
+        # Validate using validate_multiple if available
+        if hasattr(tool_instance, "validate_multiple"):
+            is_valid, error_msg = tool_instance.validate_multiple(files, parameters)
+            if not is_valid:
+                return Response({"error": error_msg}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            # Fallback: validate each file individually
+            for file in files:
+                is_valid, error_msg = tool_instance.validate(file, parameters)
+                if not is_valid:
+                    return Response(
+                        {"error": f"File '{file.name}' validation failed: {error_msg}"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+        # Process files
+        try:
+            # Call process_multiple which returns list of (execution_id, filename) tuples
+            results = tool_instance.process_multiple(files, parameters)
+
+            # For merge operations, we expect a single result
+            if results and len(results) > 0:
+                execution_id, output_filename = results[0]
+
+                # Create ToolExecution record
+                total_size = sum(f.size for f in files)
+                input_filenames = ", ".join(f.name for f in files)
+
+                _execution = ToolExecution.objects.create(
+                    id=execution_id,
+                    user=request.user,
+                    tool_name=pk,
+                    input_filename=input_filenames,
+                    output_filename=output_filename,
+                    input_size=total_size,
+                    parameters=parameters,
+                    status="pending",
+                    azure_function_invoked=True,
+                    function_execution_id=execution_id,
+                    input_blob_path=f"uploads/gpx/{execution_id}_*.gpx",
+                )
+
+                return Response(
+                    {
+                        "executions": [
+                            {
+                                "executionId": execution_id,
+                                "filename": output_filename,
+                                "status": "pending",
+                                "statusUrl": f"/api/v1/executions/{execution_id}/status/",
+                            }
+                        ],
+                        "message": f"{len(files)} files uploaded for merging",
+                    },
+                    status=status.HTTP_202_ACCEPTED,
+                )
+            else:
+                return Response(
+                    {"error": "No results returned from merge operation"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+        except Exception as e:
+            logger.error(f"Merge failed: {e}", exc_info=True)
+            return Response(
+                {"error": f"Merge failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
     @action(detail=False, methods=["post"])
     def process(self, request):
         """
@@ -1152,19 +1263,35 @@ class ToolViewSet(viewsets.ViewSet):
             if base_url:
                 function_url = f"{base_url}/video/rotate"
                 try:
+                    # Convert rotation string to integer for Azure Function
+                    rotation_map = {
+                        "90_cw": 90,
+                        "90_ccw": 270,
+                        "180": 180
+                    }
+                    rotation_degrees = rotation_map.get(rotation, 90)
+                    
+                    # Fix blob_name to include container name
+                    # blob_name format: "video/xxxxx.mp4" from video-uploads container
+                    # Azure Function expects: "video-uploads/video/xxxxx.mp4"
+                    full_blob_path = f"video-uploads/{blob_name}" if not blob_name.startswith("video-uploads/") else blob_name
+                    
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": blob_name,
-                        "rotation": rotation
+                        "blob_name": full_blob_path,
+                        "rotation": rotation_degrees
                     }
-                    logger.info(f"Triggering video rotation: {function_url}")
+                    logger.info(f"🚀 Triggering video rotation (async): {function_url}")
                     logger.info(f"Payload: {payload}")
-                    response = requests.post(function_url, json=payload, timeout=10)
-                    logger.info(f"Azure Function response: {response.status_code}")
-                    if response.status_code not in [200, 202]:
-                        logger.error(f"Azure Function error: {response.text}")
+                    # Fire-and-forget: trigger the function without waiting for completion
+                    # Frontend will poll status endpoint to check progress
+                    response = requests.post(function_url, json=payload, timeout=5)
+                    logger.info(f"✅ Azure Function triggered: {response.status_code}")
+                except requests.exceptions.Timeout:
+                    # Expected for async operations - function is processing in background
+                    logger.info(f"⏱️ Azure Function processing asynchronously (timeout OK)")
                 except Exception as func_error:
-                    logger.error(f"Failed to trigger Azure Function: {func_error}", exc_info=True)
+                    logger.error(f"❌ Failed to trigger Azure Function: {func_error}", exc_info=True)
             
             return Response({
                 "execution_id": execution_id,
@@ -1447,6 +1574,7 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
                 #   - processed/image/{uuid}.png
                 #   - processed/gpx/{uuid}.gpx
                 #   - video-processed/video/{uuid}.mp4
+                #   - ocr-processed/text/{uuid}.txt
                 path_parts = execution.output_blob_path.split("/", 1)
                 if len(path_parts) == 2:
                     container_name = path_parts[0]
@@ -1472,9 +1600,17 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
                 elif execution.tool_name == "pdf-docx-converter":
                     blob_name = f"docx/{execution.id}.docx"
                 elif execution.tool_name == "image-format-converter":
-                    blob_name = f"image/{execution.id}.png"  # Default extension
+                    # Image converter uses image-processed container directly (no subfolder)
+                    container_name = "image-processed"
+                    # Try to get format from parameters
+                    output_format = execution.parameters.get("output_format", "png")
+                    blob_name = f"{execution.id}.{output_format}"
                 elif execution.tool_name in ["gpx-kml-converter", "gpx-speed-modifier"]:
                     blob_name = f"gpx/{execution.id}.gpx"
+                elif execution.tool_name == "ocr-tool":
+                    # OCR output is stored directly in ocr-processed container
+                    container_name = "ocr-processed"
+                    blob_name = f"{execution.id}.txt"
                 else:
                     return Response(
                         {"error": "Cannot determine output file location"},
@@ -1532,6 +1668,8 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
                     output_filename = "converted.png"
                 elif execution.tool_name in ["gpx-kml-converter", "gpx-speed-modifier"]:
                     output_filename = "track.gpx"
+                elif execution.tool_name == "ocr-tool":
+                    output_filename = "extracted_text.txt"
                 else:
                     output_filename = "download.bin"
             

@@ -220,9 +220,13 @@ class ImageFormatConverter(BaseTool):
 
             # Upload to image uploads container
             file_ext = Path(input_file.name).suffix
-            blob_name = f"image/{execution_id}{file_ext}"
+            # Extract input format from file extension (remove the dot and normalize to lowercase)
+            input_format = file_ext.lstrip('.').lower() if file_ext else 'jpg'
+            # Use normalized lowercase extension for blob storage path
+            normalized_ext = f".{input_format}"
+            blob_name = f"{execution_id}{normalized_ext}"
             blob_client = blob_service.get_blob_client(
-                container="uploads",
+                container="image-uploads",
                 blob=blob_name
             )
 
@@ -230,6 +234,7 @@ class ImageFormatConverter(BaseTool):
             metadata = {
                 "execution_id": execution_id,
                 "original_filename": input_file.name,
+                "input_format": input_format,  # Include input format
                 "output_format": output_format,
                 "quality": str(quality),
                 "file_size": str(input_file.size),
@@ -252,7 +257,7 @@ class ImageFormatConverter(BaseTool):
 
             self.logger.info("✅ Image uploaded successfully to Azure Blob Storage")
             self.logger.info(f"   Blob name: {blob_name}")
-            self.logger.info(f"   Container: uploads")
+            self.logger.info(f"   Container: image-uploads")
             self.logger.info(f"   Size: {len(file_content):,} bytes")
 
             # Trigger Azure Function via HTTP (workaround for Flex Consumption blob trigger limitations)
@@ -268,15 +273,16 @@ class ImageFormatConverter(BaseTool):
                     function_url = f"{base_url}/image/convert"
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": f"uploads/{blob_name}",  # Full path: uploads/image/{uuid}.ext
+                        "blob_name": f"image-uploads/{blob_name}",  # Full path: image-uploads/{uuid}.ext
+                        "input_format": input_format,  # Add input format from file extension
                         "output_format": output_format,
                         "quality": quality
                     }
                     # Add optional resize parameters if provided
                     if resize_width:
-                        payload["width"] = resize_width
+                        payload["resize_width"] = int(resize_width)
                     if resize_height:
-                        payload["height"] = resize_height
+                        payload["resize_height"] = int(resize_height)
                     self.logger.info(f"   Function URL: {function_url}")
                     self.logger.info(f"   Payload: {payload}")
                     self.logger.info(f"   Sending async POST request...")

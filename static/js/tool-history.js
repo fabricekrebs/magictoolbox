@@ -9,7 +9,7 @@
 // CONFIGURATION
 // ============================================================================
 const HISTORY_CONFIG = {
-  pollInterval: 2500, // 2.5 seconds
+  pollInterval: 5000, // 5 seconds (user requirement)
   maxItems: 10,
   apiBase: '/api/v1'
 };
@@ -142,7 +142,7 @@ function renderHistoryItems(items, container) {
   container.innerHTML = items.map(item => {
     const statusBadge = getStatusBadge(item.status);
     const timeAgo = formatTimeAgo(item.created_at);
-    const canDownload = item.status === 'completed';
+    const canDownload = item.status === 'completed' && item.download_url;
     
     return `
       <div class="border-bottom p-2 history-item" 
@@ -157,7 +157,7 @@ function renderHistoryItems(items, container) {
           </div>
           <div class="btn-group" role="group">
             ${canDownload ? `
-              <a href="${HISTORY_CONFIG.apiBase}/executions/${item.id}/download/" 
+              <a href="${item.download_url}" 
                  class="btn btn-sm btn-outline-success" 
                  download="${item.output_filename || 'file'}"
                  title="Download">
@@ -178,19 +178,19 @@ function renderHistoryItems(items, container) {
         </div>
         
         <!-- Input Filename (inline) -->
-        <div class="mb-1">
-          <small class="text-muted">In:</small>
-          <span class="text-truncate d-inline-block" style="max-width: 80%;" title="${item.input_filename || 'N/A'}">
+        <div class="mb-1 small">
+          <span class="text-muted">In:</span>
+          <span class="text-truncate d-inline" style="max-width: 75%;" title="${item.input_filename || 'N/A'}">
             <i class="bi bi-file-earmark"></i>
-            <strong>${truncateFilename(item.input_filename, 25)}</strong>
+            ${truncateFilename(item.input_filename, 25)}
           </span>
         </div>
         
         <!-- Output Filename (inline) -->
         ${item.output_filename ? `
-          <div>
-            <small class="text-muted">Out:</small>
-            <span class="text-truncate d-inline-block" style="max-width: 80%;" title="${item.output_filename}">
+          <div class="small">
+            <span class="text-muted">Out:</span>
+            <span class="text-truncate d-inline" style="max-width: 75%;" title="${item.output_filename}">
               <i class="bi bi-file-earmark-check"></i>
               ${truncateFilename(item.output_filename, 25)}
             </span>

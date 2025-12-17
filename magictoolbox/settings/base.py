@@ -276,10 +276,9 @@ USE_AZURE_FUNCTIONS_PDF_CONVERSION = config(
 
 # Azure Storage Configuration
 # For local development, use connection string to Azurite
-# For production, use AZURE_ACCOUNT_NAME with Managed Identity
+# For production, use AZURE_STORAGE_ACCOUNT_NAME with Managed Identity
 AZURE_STORAGE_CONNECTION_STRING = config("AZURE_STORAGE_CONNECTION_STRING", default="")
 AZURE_STORAGE_ACCOUNT_NAME = config("AZURE_STORAGE_ACCOUNT_NAME", default="")
-AZURE_ACCOUNT_NAME = config("AZURE_ACCOUNT_NAME", default="")
 
 # Logging Configuration
 LOGGING = {

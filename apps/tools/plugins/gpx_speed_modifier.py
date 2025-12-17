@@ -120,9 +120,9 @@ class GPXSpeedModifier(BaseTool):
             blob_service = self._get_blob_service_client()
 
             # Upload to gpx container
-            blob_name = f"gpx/{execution_id}.gpx"
+            blob_name = f"{execution_id}.gpx"
             blob_client = blob_service.get_blob_client(
-                container="uploads",
+                container="gpx-uploads",
                 blob=blob_name
             )
 
@@ -147,7 +147,7 @@ class GPXSpeedModifier(BaseTool):
 
             self.logger.info("✅ GPX file uploaded successfully to Azure Blob Storage")
             self.logger.info(f"   Blob name: {blob_name}")
-            self.logger.info(f"   Container: uploads")
+            self.logger.info(f"   Container: gpx-uploads")
             self.logger.info(f"   Size: {len(file_content):,} bytes")
 
             # Trigger Azure Function via HTTP (workaround for Flex Consumption blob trigger limitations)
@@ -163,7 +163,7 @@ class GPXSpeedModifier(BaseTool):
                     function_url = f"{base_url}/gpx/speed"
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": f"uploads/{blob_name}",  # Full path: uploads/gpx/{uuid}.gpx
+                        "blob_name": f"gpx-uploads/{blob_name}",  # Full path: gpx-uploads/{uuid}.gpx
                         "speed_multiplier": speed_multiplier  # Add speed multiplier to payload
                     }
                     self.logger.info(f"   Function URL: {function_url}")

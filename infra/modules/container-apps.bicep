@@ -37,11 +37,8 @@ param postgresAdminUsername string
 @description('Subnet ID for Container Apps VNet integration')
 param containerAppsSubnetId string
 
-@description('Azure Function App URL for PDF conversion')
+@description('Azure Function App base URL')
 param functionAppUrl string = ''
-
-@description('Azure Function App URL for video rotation')
-param videoRotateUrl string = ''
 
 // Location abbreviation for naming (Container Apps have 32 char limit)
 var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
@@ -137,6 +134,18 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
           identity: 'system'
         }
         {
+          name: 'redis-url'
+          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/0?ssl_cert_reqs=required'
+        }
+        {
+          name: 'celery-broker-url'
+          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/1?ssl_cert_reqs=required'
+        }
+        {
+          name: 'celery-result-backend'
+          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/1?ssl_cert_reqs=required'
+        }
+        {
           name: 'storage-account-key'
           keyVaultUrl: '${keyVaultUri}secrets/storage-account-key'
           identity: 'system'
@@ -162,6 +171,18 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
         {
           name: 'redis-access-key'
           value: redisAccessKey
+        }
+        {
+          name: 'redis-url'
+          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/0?ssl_cert_reqs=required'
+        }
+        {
+          name: 'celery-broker-url'
+          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/1?ssl_cert_reqs=required'
+        }
+        {
+          name: 'celery-result-backend'
+          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/1?ssl_cert_reqs=required'
         }
         {
           name: 'storage-account-key'
@@ -237,15 +258,15 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             }
             {
               name: 'REDIS_URL'
-              value: 'rediss://default@${redisHostName}:6380/0?ssl_cert_reqs=required'
+              secretRef: 'redis-url'
             }
             {
               name: 'CELERY_BROKER_URL'
-              value: 'rediss://default@${redisHostName}:6380/1?ssl_cert_reqs=required'
+              secretRef: 'celery-broker-url'
             }
             {
               name: 'CELERY_RESULT_BACKEND'
-              value: 'rediss://default@${redisHostName}:6380/1?ssl_cert_reqs=required'
+              secretRef: 'celery-result-backend'
             }
             {
               name: 'AZURE_STORAGE_ACCOUNT_NAME'
@@ -296,12 +317,8 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: 'true'
             }
             {
-              name: 'AZURE_FUNCTION_PDF_CONVERT_URL'
+              name: 'AZURE_FUNCTION_BASE_URL'
               value: functionAppUrl
-            }
-            {
-              name: 'AZURE_FUNCTION_VIDEO_ROTATE_URL'
-              value: videoRotateUrl
             }
             {
               name: 'AZURE_STORAGE_ACCOUNT_NAME'

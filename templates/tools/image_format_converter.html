@@ -416,6 +416,10 @@ async function checkStatus() {
     } else if (data.status === 'completed') {
       clearInterval(statusPollInterval);
       statusPollInterval = null;
+      if (window._imageHistoryPollInterval) {
+        clearInterval(window._imageHistoryPollInterval);
+        window._imageHistoryPollInterval = null;
+      }
       
       if (progressBar) {
         progressBar.style.width = '100%';
@@ -439,6 +443,10 @@ async function checkStatus() {
       
     } else if (data.status === 'failed') {
       clearInterval(statusPollInterval);
+      if (window._imageHistoryPollInterval) {
+        clearInterval(window._imageHistoryPollInterval);
+        window._imageHistoryPollInterval = null;
+      }
       statusPollInterval = null;
       
       if (statusMessage) statusMessage.textContent = 'Conversion failed';
@@ -531,6 +539,16 @@ document.getElementById('imageConverterForm').addEventListener('submit', async f
     
     // Start polling for status
     statusPollInterval = setInterval(checkStatus, 2000);
+    
+    // Also refresh history every 5 seconds
+    const historyPollInterval = setInterval(() => {
+      if (typeof ToolHistory !== 'undefined') {
+        ToolHistory.loadHistory('image-format-converter');
+      }
+    }, 5000);
+    
+    // Store interval ID for cleanup
+    window._imageHistoryPollInterval = historyPollInterval;
     
   } catch (error) {
     alert('Error: ' + error.message);
