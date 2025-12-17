@@ -32,6 +32,12 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2025-05-01' = {
                 location
               ]
             }
+            {
+              service: 'Microsoft.KeyVault'
+              locations: [
+                '*'
+              ]
+            }
           ]
         }
       }
