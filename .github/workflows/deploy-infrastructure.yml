@@ -18,6 +18,7 @@ on:
   push:
     branches:
       - develop
+      - main
     paths:
       - 'infra/**'
       - '.github/workflows/deploy-infrastructure.yml'
@@ -45,7 +46,11 @@ jobs:
         id: set_env
         run: |
           if [[ "${{ github.event_name }}" == "push" ]]; then
-            echo "environment=dev" >> $GITHUB_OUTPUT
+            if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+              echo "environment=prod" >> $GITHUB_OUTPUT
+            else
+              echo "environment=dev" >> $GITHUB_OUTPUT
+            fi
           else
             echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
           fi
