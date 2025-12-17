@@ -280,9 +280,9 @@ class ImageFormatConverter(BaseTool):
                     }
                     # Add optional resize parameters if provided
                     if resize_width:
-                        payload["width"] = resize_width
+                        payload["resize_width"] = int(resize_width)
                     if resize_height:
-                        payload["height"] = resize_height
+                        payload["resize_height"] = int(resize_height)
                     self.logger.info(f"   Function URL: {function_url}")
                     self.logger.info(f"   Payload: {payload}")
                     self.logger.info(f"   Sending async POST request...")

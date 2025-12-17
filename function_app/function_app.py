@@ -1143,21 +1143,47 @@ def modify_gpx_speed(req: func.HttpRequest) -> func.HttpResponse:
             output_blob_client.upload_blob(f, overwrite=True)
         logger.info("✅ Uploaded modified GPX")
         
-        # Update database with success
+        # Get input filename for output naming
+        input_filename = None
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
             cursor.execute("""
+                SELECT input_filename FROM tool_executions WHERE id = %s
+            """, (execution_id,))
+            result = cursor.fetchone()
+            if result:
+                input_filename = result[0]
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            logger.warning(f"⚠️  Failed to get input filename: {e}")
+        
+        # Determine output filename (preserve original name)
+        if input_filename:
+            output_filename = input_filename
+        else:
+            output_filename = f"{execution_id}.gpx"
+        
+        # Update database with success
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            output_blob_full_path = f"gpx-processed/{execution_id}.gpx"
+            cursor.execute("""
                 UPDATE tool_executions
                 SET status = 'completed',
                     output_file = %s,
+                    output_blob_path = %s,
+                    output_filename = %s,
+                    completed_at = NOW(),
                     updated_at = NOW()
                 WHERE id = %s
-            """, (f"{execution_id}.gpx", execution_id))
+            """, (f"{execution_id}.gpx", output_blob_full_path, output_filename, execution_id))
             conn.commit()
             cursor.close()
             conn.close()
-            logger.info("✅ Updated database with completed status")
+            logger.info(f"✅ Updated database with completed status, output_filename={output_filename}")
         except Exception as db_error:
             logger.warning(f"⚠️  Database update failed: {db_error}")
         
@@ -1586,17 +1612,43 @@ def merge_gpx_files(req: func.HttpRequest) -> func.HttpResponse:
             output_blob_client.upload_blob(f, overwrite=True)
         logger.info("✅ Uploaded merged GPX")
         
-        # Update database with success
+        # Get input filename for output naming
+        input_filename = None
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
             cursor.execute("""
+                SELECT input_filename FROM tool_executions WHERE id = %s
+            """, (execution_id,))
+            result = cursor.fetchone()
+            if result:
+                input_filename = result[0]
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            logger.warning(f"⚠️  Failed to get input filename: {e}")
+        
+        # Determine output filename
+        if input_filename:
+            output_filename = 'merged_' + input_filename
+        else:
+            output_filename = f"merged_{execution_id}.gpx"
+        
+        # Update database with success
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            output_blob_full_path = f"gpx-processed/{execution_id}.gpx"
+            cursor.execute("""
                 UPDATE tool_executions
                 SET status = 'completed',
                     output_file = %s,
+                    output_blob_path = %s,
+                    output_filename = %s,
+                    completed_at = NOW(),
                     updated_at = NOW()
                 WHERE id = %s
-            """, (f"{execution_id}.gpx", execution_id))
+            """, (f"{execution_id}.gpx", output_blob_full_path, output_filename, execution_id))
             conn.commit()
             cursor.close()
             conn.close()
