@@ -10,8 +10,8 @@ param functionAppResourceId string = '' // Optional: Function App resource ID fo
 var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
 
 // Storage account name must be 3-24 lowercase alphanumeric characters (no hyphens)
-// Format: sa{locationAbbr}{app}{env}01
-var storageAccountName = 'sa${locationAbbr}${replace(namingPrefix, '-', '')}01'
+// Format: sa{locationAbbr}{app}{env}02
+var storageAccountName = 'sa${locationAbbr}${replace(namingPrefix, '-', '')}02'
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: take(toLower(storageAccountName), 24)
@@ -97,8 +97,10 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01'
       ]
     }
     deleteRetentionPolicy: {
-      enabled: true
-      days: 7 // Increase for production
+      enabled: false // Disabled: No soft delete for blobs
+    }
+    containerDeleteRetentionPolicy: {
+      enabled: false // Disabled: No soft delete for containers
     }
   }
 }
