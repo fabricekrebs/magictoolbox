@@ -188,6 +188,23 @@ def rotate_video(req: func.HttpRequest) -> func.HttpResponse:
                 status_code=400
             )
         
+        # Get input filename from database
+        input_filename = None
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT input_filename FROM tool_executions WHERE id = %s
+            """, (execution_id,))
+            result = cursor.fetchone()
+            if result:
+                input_filename = result[0]
+            cursor.close()
+            conn.close()
+            logger.info(f"📝 Input filename: {input_filename}")
+        except Exception as e:
+            logger.warning(f"⚠️  Failed to get input filename: {e}")
+        
         # Update database status to 'processing'
         try:
             conn = get_db_connection()
@@ -276,6 +293,12 @@ def rotate_video(req: func.HttpRequest) -> func.HttpResponse:
         
         logger.info(f"✅ Upload complete: {output_blob_name}")
         
+        # Determine output filename (preserve original name, keep .mp4 extension)
+        if input_filename:
+            output_filename = Path(input_filename).stem + '.mp4'
+        else:
+            output_filename = f"{execution_id}.mp4"
+        
         # Update database status to 'completed'
         try:
             conn = get_db_connection()
@@ -284,14 +307,15 @@ def rotate_video(req: func.HttpRequest) -> func.HttpResponse:
                 UPDATE tool_executions
                 SET status = 'completed',
                     output_blob_path = %s,
+                    output_filename = %s,
                     completed_at = NOW(),
                     updated_at = NOW()
                 WHERE id = %s
-            """, (output_blob_name, execution_id))
+            """, (output_blob_name, output_filename, execution_id))
             conn.commit()
             cursor.close()
             conn.close()
-            logger.info(f"✅ Database updated: status=completed")
+            logger.info(f"✅ Database updated: status=completed, output_filename={output_filename}")
         except Exception as db_error:
             logger.warning(f"⚠️  Database update failed: {db_error}")
         
@@ -378,6 +402,23 @@ def convert_pdf_to_docx(req: func.HttpRequest) -> func.HttpResponse:
         if not all([execution_id, blob_name]):
             raise ValueError("Missing required parameters")
         
+        # Get input filename from database
+        input_filename = None
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT input_filename FROM tool_executions WHERE id = %s
+            """, (execution_id,))
+            result = cursor.fetchone()
+            if result:
+                input_filename = result[0]
+            cursor.close()
+            conn.close()
+            logger.info(f"📝 Input filename: {input_filename}")
+        except Exception as e:
+            logger.warning(f"⚠️  Failed to get input filename: {e}")
+        
         # Update database: processing
         try:
             conn = get_db_connection()
@@ -437,6 +478,12 @@ def convert_pdf_to_docx(req: func.HttpRequest) -> func.HttpResponse:
         
         logger.info("✅ Upload complete")
         
+        # Determine output filename (preserve original name, change extension)
+        if input_filename:
+            output_filename = Path(input_filename).stem + '.docx'
+        else:
+            output_filename = f"{execution_id}.docx"
+        
         # Update database: completed
         try:
             conn = get_db_connection()
@@ -445,14 +492,15 @@ def convert_pdf_to_docx(req: func.HttpRequest) -> func.HttpResponse:
                 UPDATE tool_executions
                 SET status = 'completed',
                     output_blob_path = %s,
+                    output_filename = %s,
                     completed_at = NOW(),
                     updated_at = NOW()
                 WHERE id = %s
-            """, (output_blob_name, execution_id))
+            """, (output_blob_name, output_filename, execution_id))
             conn.commit()
             cursor.close()
             conn.close()
-            logger.info("✅ Database updated: completed")
+            logger.info(f"✅ Database updated: completed, output_filename={output_filename}")
         except Exception as e:
             logger.warning(f"⚠️  Database update failed: {e}")
         
@@ -640,6 +688,23 @@ def convert_gpx_kml(req: func.HttpRequest) -> func.HttpResponse:
         if conversion_type not in ('gpx_to_kml', 'kml_to_gpx'):
             raise ValueError(f"Invalid conversion type: {conversion_type}")
         
+        # Get input filename from database
+        input_filename = None
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT input_filename FROM tool_executions WHERE id = %s
+            """, (execution_id,))
+            result = cursor.fetchone()
+            if result:
+                input_filename = result[0]
+            cursor.close()
+            conn.close()
+            logger.info(f"📝 Input filename: {input_filename}")
+        except Exception as e:
+            logger.warning(f"⚠️  Failed to get input filename: {e}")
+        
         # Update database: processing
         try:
             conn = get_db_connection()
@@ -708,6 +773,12 @@ def convert_gpx_kml(req: func.HttpRequest) -> func.HttpResponse:
         
         logger.info("✅ Upload complete")
         
+        # Determine output filename (preserve original name, change extension)
+        if input_filename:
+            output_filename = Path(input_filename).stem + output_ext
+        else:
+            output_filename = f"{execution_id}{output_ext}"
+        
         # Update database: completed
         try:
             conn = get_db_connection()
@@ -716,14 +787,15 @@ def convert_gpx_kml(req: func.HttpRequest) -> func.HttpResponse:
                 UPDATE tool_executions
                 SET status = 'completed',
                     output_blob_path = %s,
+                    output_filename = %s,
                     completed_at = NOW(),
                     updated_at = NOW()
                 WHERE id = %s
-            """, (output_blob_name, execution_id))
+            """, (output_blob_name, output_filename, execution_id))
             conn.commit()
             cursor.close()
             conn.close()
-            logger.info("✅ Database updated: completed")
+            logger.info(f"✅ Database updated: completed, output_filename={output_filename}")
         except Exception as e:
             logger.warning(f"⚠️  Database update failed: {e}")
         
@@ -816,6 +888,23 @@ def convert_image(req: func.HttpRequest) -> func.HttpResponse:
                 status_code=400
             )
         
+        # Get input filename from database
+        input_filename = None
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT input_filename FROM tool_executions WHERE id = %s
+            """, (execution_id,))
+            result = cursor.fetchone()
+            if result:
+                input_filename = result[0]
+            cursor.close()
+            conn.close()
+            logger.info(f"📝 Input filename: {input_filename}")
+        except Exception as e:
+            logger.warning(f"⚠️  Failed to get input filename: {e}")
+        
         # Update status to processing
         try:
             conn = get_db_connection()
@@ -903,6 +992,12 @@ def convert_image(req: func.HttpRequest) -> func.HttpResponse:
             output_blob_client.upload_blob(f, overwrite=True)
         logger.info("✅ Uploaded converted image")
         
+        # Determine output filename (preserve original name, change extension)
+        if input_filename:
+            output_filename = Path(input_filename).stem + output_ext
+        else:
+            output_filename = f"{execution_id}{output_ext}"
+        
         # Update database with success
         try:
             conn = get_db_connection()
@@ -917,11 +1012,11 @@ def convert_image(req: func.HttpRequest) -> func.HttpResponse:
                     output_filename = %s,
                     updated_at = NOW()
                 WHERE id = %s
-            """, (f"{execution_id}{output_ext}", output_blob_full_path, f"converted{output_ext}", execution_id))
+            """, (f"{execution_id}{output_ext}", output_blob_full_path, output_filename, execution_id))
             conn.commit()
             cursor.close()
             conn.close()
-            logger.info(f"✅ Updated database with completed status, output_blob_path={output_blob_full_path}")
+            logger.info(f"✅ Updated database with completed status, output_filename={output_filename}")
         except Exception as db_error:
             logger.warning(f"⚠️  Database update failed: {db_error}")
         
@@ -1311,6 +1406,28 @@ def extract_text_ocr(req: func.HttpRequest) -> func.HttpResponse:
             output_blob_client.upload_blob(f, overwrite=True)
         logger.info("✅ Uploaded OCR result")
         
+        # Get input filename for output naming
+        input_filename = None
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT input_filename FROM tool_executions WHERE id = %s
+            """, (execution_id,))
+            result = cursor.fetchone()
+            if result:
+                input_filename = result[0]
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            logger.warning(f"⚠️  Failed to get input filename: {e}")
+        
+        # Determine output filename (preserve original name, change extension to .txt)
+        if input_filename:
+            output_filename = Path(input_filename).stem + '.txt'
+        else:
+            output_filename = f"{execution_id}.txt"
+        
         # Update database with success
         try:
             conn = get_db_connection()
@@ -1323,11 +1440,11 @@ def extract_text_ocr(req: func.HttpRequest) -> func.HttpResponse:
                     output_filename = %s,
                     updated_at = NOW()
                 WHERE id = %s
-            """, (f"{execution_id}.txt", full_output_blob_path, f"{execution_id}.txt", execution_id))
+            """, (f"{execution_id}.txt", full_output_blob_path, output_filename, execution_id))
             conn.commit()
             cursor.close()
             conn.close()
-            logger.info("✅ Updated database with completed status")
+            logger.info(f"✅ Updated database with completed status, output_filename={output_filename}")
         except Exception as db_error:
             logger.warning(f"⚠️  Database update failed: {db_error}")
         
