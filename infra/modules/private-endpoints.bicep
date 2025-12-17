@@ -12,7 +12,7 @@ param keyVaultId string
 param functionAppId string = ''
 
 // Location abbreviation for naming
-var locationAbbr = location == 'westeurope' ? 'westeurope' : location == 'northeurope' ? 'northeurope' : location == 'eastus' ? 'eastus' : location == 'eastus2' ? 'eastus2' : location
+var locationAbbr = location == 'westeurope' ? 'westeurope' : location == 'northeurope' ? 'northeurope' : location == 'italynorth' ? 'italynorth' : location == 'eastus' ? 'eastus' : location == 'eastus2' ? 'eastus2' : location
 
 // ========== Private DNS Zones ==========
 

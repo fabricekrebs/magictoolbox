@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "996591638487037725"
+      "templateHash": "4718352954051621575"
     }
   },
   "parameters": {
@@ -103,7 +103,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "12462208592524147867"
+              "templateHash": "1208665477813178178"
             }
           },
           "parameters": {
@@ -118,7 +118,7 @@
             }
           },
           "variables": {
-            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'westeurope', if(equals(parameters('location'), 'northeurope'), 'northeurope', if(equals(parameters('location'), 'eastus'), 'eastus', if(equals(parameters('location'), 'eastus2'), 'eastus2', parameters('location')))))]",
+            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'westeurope', if(equals(parameters('location'), 'northeurope'), 'northeurope', if(equals(parameters('location'), 'italynorth'), 'italynorth', if(equals(parameters('location'), 'eastus'), 'eastus', if(equals(parameters('location'), 'eastus2'), 'eastus2', parameters('location'))))))]",
             "vnetName": "[format('vnet-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))]"
           },
           "resources": [
@@ -248,7 +248,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "15741049890537305389"
+              "templateHash": "1311772081266907336"
             }
           },
           "parameters": {
@@ -263,7 +263,7 @@
             }
           },
           "variables": {
-            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'westeurope', if(equals(parameters('location'), 'northeurope'), 'northeurope', if(equals(parameters('location'), 'eastus'), 'eastus', if(equals(parameters('location'), 'eastus2'), 'eastus2', parameters('location')))))]"
+            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'westeurope', if(equals(parameters('location'), 'northeurope'), 'northeurope', if(equals(parameters('location'), 'italynorth'), 'italynorth', if(equals(parameters('location'), 'eastus'), 'eastus', if(equals(parameters('location'), 'eastus2'), 'eastus2', parameters('location'))))))]"
           },
           "resources": [
             {
@@ -362,7 +362,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "4757135636606631714"
+              "templateHash": "4934062688370128333"
             }
           },
           "parameters": {
@@ -377,7 +377,7 @@
             }
           },
           "variables": {
-            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'we', if(equals(parameters('location'), 'northeurope'), 'ne', if(equals(parameters('location'), 'eastus'), 'eu', if(equals(parameters('location'), 'eastus2'), 'eu2', 'we'))))]",
+            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'we', if(equals(parameters('location'), 'northeurope'), 'ne', if(equals(parameters('location'), 'italynorth'), 'in', if(equals(parameters('location'), 'eastus'), 'eu', if(equals(parameters('location'), 'eastus2'), 'eu2', 'we')))))]",
             "acrName": "[format('acr{0}{1}01', variables('locationAbbr'), replace(parameters('namingPrefix'), '-', ''))]"
           },
           "resources": [
@@ -491,7 +491,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "2491299700586156608"
+              "templateHash": "17565958076793753826"
             }
           },
           "parameters": {
@@ -538,7 +538,7 @@
             }
           },
           "variables": {
-            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'we', if(equals(parameters('location'), 'northeurope'), 'ne', if(equals(parameters('location'), 'eastus'), 'eu', if(equals(parameters('location'), 'eastus2'), 'eu2', 'we'))))]",
+            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'we', if(equals(parameters('location'), 'northeurope'), 'ne', if(equals(parameters('location'), 'italynorth'), 'in', if(equals(parameters('location'), 'eastus'), 'eu', if(equals(parameters('location'), 'eastus2'), 'eu2', 'we')))))]",
             "keyVaultName": "[format('kv{0}{1}01', variables('locationAbbr'), replace(parameters('namingPrefix'), '-', ''))]"
           },
           "resources": [
@@ -987,7 +987,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "6684245436406378394"
+              "templateHash": "4874553644090512606"
             }
           },
           "parameters": {
@@ -1011,7 +1011,7 @@
             }
           },
           "variables": {
-            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'westeurope', if(equals(parameters('location'), 'northeurope'), 'northeurope', if(equals(parameters('location'), 'eastus'), 'eastus', if(equals(parameters('location'), 'eastus2'), 'eastus2', parameters('location')))))]",
+            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'westeurope', if(equals(parameters('location'), 'northeurope'), 'northeurope', if(equals(parameters('location'), 'italynorth'), 'italynorth', if(equals(parameters('location'), 'eastus'), 'eastus', if(equals(parameters('location'), 'eastus2'), 'eastus2', parameters('location'))))))]",
             "postgresServerName": "[format('psql-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))]",
             "databaseName": "magictoolbox",
             "skuTier": "Burstable",
@@ -1612,7 +1612,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "5933113503228330510"
+              "templateHash": "17708276745865901994"
             }
           },
           "parameters": {
@@ -1693,7 +1693,7 @@
             }
           },
           "variables": {
-            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'we', if(equals(parameters('location'), 'northeurope'), 'ne', if(equals(parameters('location'), 'eastus'), 'eu', if(equals(parameters('location'), 'eastus2'), 'eu2', 'we'))))]",
+            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'we', if(equals(parameters('location'), 'northeurope'), 'ne', if(equals(parameters('location'), 'italynorth'), 'in', if(equals(parameters('location'), 'eastus'), 'eu', if(equals(parameters('location'), 'eastus2'), 'eu2', 'we')))))]",
             "containerAppsEnvironmentName": "[format('env-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))]",
             "containerAppName": "[format('app-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))]",
             "imageTag": "[if(equals(parameters('environment'), 'prod'), 'main', 'develop')]",
@@ -1998,7 +1998,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "4987819420765551813"
+              "templateHash": "17624592706980247070"
             }
           },
           "parameters": {
@@ -2032,7 +2032,7 @@
             }
           },
           "variables": {
-            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'westeurope', if(equals(parameters('location'), 'northeurope'), 'northeurope', if(equals(parameters('location'), 'eastus'), 'eastus', if(equals(parameters('location'), 'eastus2'), 'eastus2', parameters('location')))))]"
+            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'westeurope', if(equals(parameters('location'), 'northeurope'), 'northeurope', if(equals(parameters('location'), 'italynorth'), 'italynorth', if(equals(parameters('location'), 'eastus'), 'eastus', if(equals(parameters('location'), 'eastus2'), 'eastus2', parameters('location'))))))]"
           },
           "resources": [
             {

@@ -29,8 +29,7 @@ For resources with length constraints, we use abbreviated location codes:
 | Full Location | Abbreviation |
 |---------------|--------------|
 | `westeurope` | `we` |
-| `northeurope` | `ne` |
-| `eastus` | `eu` |
+| `northeurope` | `ne` || `italynorth` | `in` || `eastus` | `eu` |
 | `eastus2` | `eu2` |
 | `westus` | `wu` |
 | `westus2` | `wu2` |
@@ -144,20 +143,21 @@ Storage Account:          sawemagictoolboxsta01
 
 **Note**: "staging" is shortened to "sta" for resources with 32-character limits.
 
-### Production Environment (westeurope)
+### Production Environment (italynorth)
 
 ```yaml
-Resource Group:           rg-westeurope-magictoolbox-prod-01
-Container Apps Env:       env-westeurope-magictoolbox-prod-01
-Container App:            app-westeurope-magictoolbox-prod-01
-Container Registry:       acrwemagictoolboxprod01
-Key Vault:                kvwemagictoolboxprod01
-Application Insights:     ai-westeurope-magictoolbox-prod-01
-Log Analytics Workspace:  law-westeurope-magictoolbox-prod-01
-Redis Cache:              red-westeurope-magictoolbox-prod-01
-PostgreSQL Server:        psql-westeurope-magictoolbox-prod-01
-Storage Account:          sawemagictoolboxprod01
+Resource Group:           rg-italynorth-magictoolbox-prod-01
+Container Apps Env:       env-italynorth-magictoolbox-prod-01
+Container App:            app-italynorth-magictoolbox-prod-01
+Container Registry:       acrinmagictoolboxprod01
+Key Vault:                kvinmagictoolboxprod01
+Application Insights:     ai-italynorth-magictoolbox-prod-01
+Log Analytics Workspace:  law-italynorth-magictoolbox-prod-01
+PostgreSQL Server:        psql-italynorth-magictoolbox-prod-01
+Storage Account:          sainmagictoolboxprod01
 ```
+
+**Note**: Redis Cache has been removed from the infrastructure.
 
 ## Azure Resource Naming Rules & Constraints
 

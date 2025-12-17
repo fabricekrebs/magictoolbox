@@ -5,7 +5,7 @@ param tags object
 param tenantId string
 
 // Location abbreviation for naming (shortened for KeyVault 24 char limit)
-var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
+var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'italynorth' ? 'in' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
 
 // Key Vault name must be 3-24 alphanumeric characters (no hyphens for brevity)
 // Format: kv{locationAbbr}{app}{env}01

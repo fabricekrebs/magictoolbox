@@ -4,7 +4,7 @@ param namingPrefix string
 param tags object
 
 // Location abbreviation for naming (shortened for ACR constraints)
-var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
+var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'italynorth' ? 'in' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
 
 // ACR name must be alphanumeric and globally unique (5-50 chars)
 // Format: acr{locationAbbr}{app}{env}01
