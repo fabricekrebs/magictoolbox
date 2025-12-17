@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.38.33.27573",
-      "templateHash": "5594166978181329138"
+      "version": "0.39.26.7824",
+      "templateHash": "996591638487037725"
     }
   },
   "parameters": {
@@ -102,8 +102,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.38.33.27573",
-              "templateHash": "2366664014038270251"
+              "version": "0.39.26.7824",
+              "templateHash": "12462208592524147867"
             }
           },
           "parameters": {
@@ -247,8 +247,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.38.33.27573",
-              "templateHash": "2755792109478559420"
+              "version": "0.39.26.7824",
+              "templateHash": "15741049890537305389"
             }
           },
           "parameters": {
@@ -361,8 +361,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.38.33.27573",
-              "templateHash": "15186360104646469413"
+              "version": "0.39.26.7824",
+              "templateHash": "4757135636606631714"
             }
           },
           "parameters": {
@@ -471,9 +471,6 @@
           "postgresAdminPassword": {
             "value": "[parameters('postgresAdminPassword')]"
           },
-          "redisAccessKey": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'redis-deployment'), '2025-04-01').outputs.accessKey.value]"
-          },
           "storageAccountKey": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage-deployment'), '2025-04-01').outputs.storageAccountKey.value]"
           },
@@ -493,8 +490,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.38.33.27573",
-              "templateHash": "9932305914129585195"
+              "version": "0.39.26.7824",
+              "templateHash": "2491299700586156608"
             }
           },
           "parameters": {
@@ -528,9 +525,6 @@
               "type": "securestring"
             },
             "postgresAdminPassword": {
-              "type": "securestring"
-            },
-            "redisAccessKey": {
               "type": "securestring"
             },
             "storageAccountKey": {
@@ -602,18 +596,6 @@
             {
               "type": "Microsoft.KeyVault/vaults/secrets",
               "apiVersion": "2023-02-01",
-              "name": "[format('{0}/{1}', variables('keyVaultName'), 'redis-access-key')]",
-              "properties": {
-                "value": "[parameters('redisAccessKey')]",
-                "contentType": "text/plain"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
-              ]
-            },
-            {
-              "type": "Microsoft.KeyVault/vaults/secrets",
-              "apiVersion": "2023-02-01",
               "name": "[format('{0}/{1}', variables('keyVaultName'), 'storage-account-key')]",
               "properties": {
                 "value": "[parameters('storageAccountKey')]",
@@ -668,7 +650,6 @@
         "[resourceId('Microsoft.Resources/deployments', 'acr-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'monitoring-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'network-deployment')]",
-        "[resourceId('Microsoft.Resources/deployments', 'redis-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'storage-deployment')]"
       ]
     },
@@ -704,8 +685,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.38.33.27573",
-              "templateHash": "17163603696582191483"
+              "version": "0.39.26.7824",
+              "templateHash": "16248774652324100184"
             }
           },
           "parameters": {
@@ -732,7 +713,7 @@
             }
           },
           "variables": {
-            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'we', if(equals(parameters('location'), 'northeurope'), 'ne', if(equals(parameters('location'), 'eastus'), 'eu', if(equals(parameters('location'), 'eastus2'), 'eu2', 'we'))))]",
+            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'we', if(equals(parameters('location'), 'northeurope'), 'ne', if(equals(parameters('location'), 'eastus'), 'eu', if(equals(parameters('location'), 'eastus2'), 'eu2', if(equals(parameters('location'), 'italynorth'), 'in', 'we')))))]",
             "storageAccountName": "[format('sa{0}{1}01', variables('locationAbbr'), replace(parameters('namingPrefix'), '-', ''))]"
           },
           "resources": [
@@ -803,34 +784,14 @@
                   ]
                 },
                 "deleteRetentionPolicy": {
-                  "enabled": true,
-                  "days": 7
+                  "enabled": false
+                },
+                "containerDeleteRetentionPolicy": {
+                  "enabled": false
                 }
               },
               "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts', take(toLower(variables('storageAccountName')), 24))]"
-              ]
-            },
-            {
-              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
-              "apiVersion": "2023-01-01",
-              "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'uploads')]",
-              "properties": {
-                "publicAccess": "None"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', take(toLower(variables('storageAccountName')), 24), 'default')]"
-              ]
-            },
-            {
-              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
-              "apiVersion": "2023-01-01",
-              "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'processed')]",
-              "properties": {
-                "publicAccess": "None"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', take(toLower(variables('storageAccountName')), 24), 'default')]"
               ]
             },
             {
@@ -858,6 +819,72 @@
             {
               "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
               "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'pdf-uploads')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', take(toLower(variables('storageAccountName')), 24), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'pdf-processed')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', take(toLower(variables('storageAccountName')), 24), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'image-uploads')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', take(toLower(variables('storageAccountName')), 24), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'image-processed')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', take(toLower(variables('storageAccountName')), 24), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'gpx-uploads')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', take(toLower(variables('storageAccountName')), 24), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'gpx-processed')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', take(toLower(variables('storageAccountName')), 24), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-01-01",
               "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'video-uploads')]",
               "properties": {
                 "publicAccess": "None"
@@ -870,6 +897,28 @@
               "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
               "apiVersion": "2023-01-01",
               "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'video-processed')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', take(toLower(variables('storageAccountName')), 24), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'ocr-uploads')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', take(toLower(variables('storageAccountName')), 24), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', take(toLower(variables('storageAccountName')), 24), 'default', 'ocr-processed')]",
               "properties": {
                 "publicAccess": "None"
               },
@@ -901,103 +950,6 @@
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deployments', 'network-deployment')]"
       ]
-    },
-    {
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "redis-deployment",
-      "properties": {
-        "expressionEvaluationOptions": {
-          "scope": "inner"
-        },
-        "mode": "Incremental",
-        "parameters": {
-          "location": {
-            "value": "[parameters('location')]"
-          },
-          "namingPrefix": {
-            "value": "[variables('namingPrefix')]"
-          },
-          "tags": {
-            "value": "[parameters('tags')]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "metadata": {
-            "_generator": {
-              "name": "bicep",
-              "version": "0.38.33.27573",
-              "templateHash": "4816300350362652556"
-            }
-          },
-          "parameters": {
-            "location": {
-              "type": "string"
-            },
-            "namingPrefix": {
-              "type": "string"
-            },
-            "tags": {
-              "type": "object"
-            }
-          },
-          "variables": {
-            "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'westeurope', if(equals(parameters('location'), 'northeurope'), 'northeurope', if(equals(parameters('location'), 'eastus'), 'eastus', if(equals(parameters('location'), 'eastus2'), 'eastus2', parameters('location')))))]",
-            "redisName": "[format('red-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))]"
-          },
-          "resources": [
-            {
-              "type": "Microsoft.Cache/redis",
-              "apiVersion": "2023-08-01",
-              "name": "[variables('redisName')]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]",
-              "properties": {
-                "sku": {
-                  "name": "Basic",
-                  "family": "C",
-                  "capacity": 0
-                },
-                "enableNonSslPort": false,
-                "minimumTlsVersion": "1.2",
-                "publicNetworkAccess": "Disabled",
-                "redisConfiguration": {
-                  "maxmemory-policy": "allkeys-lru"
-                },
-                "redisVersion": "6"
-              }
-            }
-          ],
-          "outputs": {
-            "redisId": {
-              "type": "string",
-              "value": "[resourceId('Microsoft.Cache/redis', variables('redisName'))]"
-            },
-            "redisName": {
-              "type": "string",
-              "value": "[variables('redisName')]"
-            },
-            "hostName": {
-              "type": "string",
-              "value": "[reference(resourceId('Microsoft.Cache/redis', variables('redisName')), '2023-08-01').hostName]"
-            },
-            "sslPort": {
-              "type": "int",
-              "value": "[reference(resourceId('Microsoft.Cache/redis', variables('redisName')), '2023-08-01').sslPort]"
-            },
-            "accessKey": {
-              "type": "string",
-              "value": "[listKeys(resourceId('Microsoft.Cache/redis', variables('redisName')), '2023-08-01').primaryKey]"
-            },
-            "connectionString": {
-              "type": "string",
-              "value": "[format('{0}:{1},password={2},ssl=True,abortConnect=False', reference(resourceId('Microsoft.Cache/redis', variables('redisName')), '2023-08-01').hostName, reference(resourceId('Microsoft.Cache/redis', variables('redisName')), '2023-08-01').sslPort, listKeys(resourceId('Microsoft.Cache/redis', variables('redisName')), '2023-08-01').primaryKey)]"
-            }
-          }
-        }
-      }
     },
     {
       "type": "Microsoft.Resources/deployments",
@@ -1034,8 +986,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.38.33.27573",
-              "templateHash": "4129982263834037363"
+              "version": "0.39.26.7824",
+              "templateHash": "6684245436406378394"
             }
           },
           "parameters": {
@@ -1062,8 +1014,8 @@
             "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'westeurope', if(equals(parameters('location'), 'northeurope'), 'northeurope', if(equals(parameters('location'), 'eastus'), 'eastus', if(equals(parameters('location'), 'eastus2'), 'eastus2', parameters('location')))))]",
             "postgresServerName": "[format('psql-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))]",
             "databaseName": "magictoolbox",
-            "skuTier": "[if(equals(parameters('environment'), 'prod'), 'GeneralPurpose', 'Burstable')]",
-            "skuName": "[if(equals(parameters('environment'), 'prod'), 'Standard_D2ds_v4', 'Standard_B1ms')]"
+            "skuTier": "Burstable",
+            "skuName": "Standard_B1ms"
           },
           "resources": [
             {
@@ -1081,15 +1033,15 @@
                 "administratorLoginPassword": "[parameters('administratorLoginPassword')]",
                 "version": "15",
                 "storage": {
-                  "storageSizeGB": "[if(equals(parameters('environment'), 'prod'), 128, 32)]",
+                  "storageSizeGB": 32,
                   "autoGrow": "Enabled"
                 },
                 "backup": {
-                  "backupRetentionDays": "[if(equals(parameters('environment'), 'prod'), 14, 7)]",
-                  "geoRedundantBackup": "[if(equals(parameters('environment'), 'prod'), 'Enabled', 'Disabled')]"
+                  "backupRetentionDays": 7,
+                  "geoRedundantBackup": "Disabled"
                 },
                 "highAvailability": {
-                  "mode": "[if(equals(parameters('environment'), 'prod'), 'ZoneRedundant', 'Disabled')]"
+                  "mode": "Disabled"
                 }
               }
             },
@@ -1206,8 +1158,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.38.33.27573",
-              "templateHash": "9645945936501139336"
+              "version": "0.39.26.7824",
+              "templateHash": "10743531998128548328"
             }
           },
           "parameters": {
@@ -1302,6 +1254,18 @@
                 },
                 "siteConfig": {
                   "appSettings": [
+                    {
+                      "name": "FUNCTIONS_EXTENSION_VERSION",
+                      "value": "~4"
+                    },
+                    {
+                      "name": "PYTHON_ISOLATE_WORKER_DEPENDENCIES",
+                      "value": "1"
+                    },
+                    {
+                      "name": "AzureWebJobsFeatureFlags",
+                      "value": "EnableWorkerIndexing"
+                    },
                     {
                       "name": "AzureWebJobsStorage__accountName",
                       "value": "[parameters('storageAccountName')]"
@@ -1488,8 +1452,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.38.33.27573",
-              "templateHash": "17141715771000931674"
+              "version": "0.39.26.7824",
+              "templateHash": "8742177967447754902"
             }
           },
           "parameters": {
@@ -1616,9 +1580,6 @@
           "postgresPassword": {
             "value": "[parameters('postgresAdminPassword')]"
           },
-          "redisAccessKey": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'redis-deployment'), '2025-04-01').outputs.accessKey.value]"
-          },
           "storageAccountKey": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage-deployment'), '2025-04-01').outputs.storageAccountKey.value]"
           },
@@ -1627,9 +1588,6 @@
           },
           "storageAccountName": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage-deployment'), '2025-04-01').outputs.storageAccountName.value]"
-          },
-          "redisHostName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'redis-deployment'), '2025-04-01').outputs.hostName.value]"
           },
           "postgresHost": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgresql-deployment'), '2025-04-01').outputs.fqdn.value]"
@@ -1644,7 +1602,7 @@
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'network-deployment'), '2025-04-01').outputs.containerAppsSubnetId.value]"
           },
           "functionAppUrl": {
-            "value": "[format('https://{0}/api/convert/pdf-to-docx', reference(resourceId('Microsoft.Resources/deployments', 'function-app-deployment'), '2025-04-01').outputs.functionAppHostName.value)]"
+            "value": "[format('https://{0}/api', reference(resourceId('Microsoft.Resources/deployments', 'function-app-deployment'), '2025-04-01').outputs.functionAppHostName.value)]"
           }
         },
         "template": {
@@ -1653,8 +1611,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.38.33.27573",
-              "templateHash": "1126290263120802866"
+              "version": "0.39.26.7824",
+              "templateHash": "5933113503228330510"
             }
           },
           "parameters": {
@@ -1700,10 +1658,6 @@
               "type": "securestring",
               "defaultValue": ""
             },
-            "redisAccessKey": {
-              "type": "securestring",
-              "defaultValue": ""
-            },
             "storageAccountKey": {
               "type": "securestring",
               "defaultValue": ""
@@ -1713,9 +1667,6 @@
               "defaultValue": ""
             },
             "storageAccountName": {
-              "type": "string"
-            },
-            "redisHostName": {
               "type": "string"
             },
             "postgresHost": {
@@ -1737,7 +1688,7 @@
               "type": "string",
               "defaultValue": "",
               "metadata": {
-                "description": "Azure Function App URL for PDF conversion"
+                "description": "Azure Function App base URL"
               }
             }
           },
@@ -1806,7 +1757,7 @@
                       "passwordSecretRef": "acr-password"
                     }
                   ],
-                  "secrets": "[if(parameters('useKeyVaultReferences'), createArray(createObject('name', 'acr-password', 'value', parameters('acrPassword')), createObject('name', 'django-secret-key', 'keyVaultUrl', format('{0}secrets/django-secret-key', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'postgres-password', 'keyVaultUrl', format('{0}secrets/postgres-password', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'redis-access-key', 'keyVaultUrl', format('{0}secrets/redis-access-key', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'redis-url', 'value', format('rediss://:{0}@{1}:6380/0?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))), createObject('name', 'celery-broker-url', 'value', format('rediss://:{0}@{1}:6380/1?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))), createObject('name', 'celery-result-backend', 'value', format('rediss://:{0}@{1}:6380/1?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))), createObject('name', 'storage-account-key', 'keyVaultUrl', format('{0}secrets/storage-account-key', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'appinsights-connection-string', 'keyVaultUrl', format('{0}secrets/appinsights-connection-string', parameters('keyVaultUri')), 'identity', 'system')), createArray(createObject('name', 'acr-password', 'value', parameters('acrPassword')), createObject('name', 'django-secret-key', 'value', parameters('djangoSecretKey')), createObject('name', 'postgres-password', 'value', parameters('postgresPassword')), createObject('name', 'redis-access-key', 'value', parameters('redisAccessKey')), createObject('name', 'redis-url', 'value', format('rediss://:{0}@{1}:6380/0?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))), createObject('name', 'celery-broker-url', 'value', format('rediss://:{0}@{1}:6380/1?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))), createObject('name', 'celery-result-backend', 'value', format('rediss://:{0}@{1}:6380/1?ssl_cert_reqs=required', parameters('redisAccessKey'), parameters('redisHostName'))), createObject('name', 'storage-account-key', 'value', parameters('storageAccountKey')), createObject('name', 'appinsights-connection-string', 'value', parameters('appInsightsConnectionString'))))]"
+                  "secrets": "[if(parameters('useKeyVaultReferences'), createArray(createObject('name', 'acr-password', 'value', parameters('acrPassword')), createObject('name', 'django-secret-key', 'keyVaultUrl', format('{0}secrets/django-secret-key', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'postgres-password', 'keyVaultUrl', format('{0}secrets/postgres-password', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'storage-account-key', 'keyVaultUrl', format('{0}secrets/storage-account-key', parameters('keyVaultUri')), 'identity', 'system'), createObject('name', 'appinsights-connection-string', 'keyVaultUrl', format('{0}secrets/appinsights-connection-string', parameters('keyVaultUri')), 'identity', 'system')), createArray(createObject('name', 'acr-password', 'value', parameters('acrPassword')), createObject('name', 'django-secret-key', 'value', parameters('djangoSecretKey')), createObject('name', 'postgres-password', 'value', parameters('postgresPassword')), createObject('name', 'storage-account-key', 'value', parameters('storageAccountKey')), createObject('name', 'appinsights-connection-string', 'value', parameters('appInsightsConnectionString'))))]"
                 },
                 "template": {
                   "containers": [
@@ -1863,26 +1814,6 @@
                           "value": "require"
                         },
                         {
-                          "name": "REDIS_HOST",
-                          "value": "[parameters('redisHostName')]"
-                        },
-                        {
-                          "name": "REDIS_ACCESS_KEY",
-                          "secretRef": "redis-access-key"
-                        },
-                        {
-                          "name": "REDIS_URL",
-                          "secretRef": "redis-url"
-                        },
-                        {
-                          "name": "CELERY_BROKER_URL",
-                          "secretRef": "celery-broker-url"
-                        },
-                        {
-                          "name": "CELERY_RESULT_BACKEND",
-                          "secretRef": "celery-result-backend"
-                        },
-                        {
                           "name": "AZURE_STORAGE_ACCOUNT_NAME",
                           "value": "[parameters('storageAccountName')]"
                         },
@@ -1931,12 +1862,8 @@
                           "value": "true"
                         },
                         {
-                          "name": "AZURE_FUNCTION_PDF_CONVERT_URL",
+                          "name": "AZURE_FUNCTION_BASE_URL",
                           "value": "[parameters('functionAppUrl')]"
-                        },
-                        {
-                          "name": "AZURE_FUNCTION_VIDEO_ROTATE_URL",
-                          "value": "[format('{0}/video/rotate', parameters('functionAppUrl'))]"
                         },
                         {
                           "name": "AZURE_STORAGE_ACCOUNT_NAME",
@@ -2023,7 +1950,6 @@
         "[resourceId('Microsoft.Resources/deployments', 'monitoring-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'network-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'postgresql-deployment')]",
-        "[resourceId('Microsoft.Resources/deployments', 'redis-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'storage-deployment')]"
       ]
     },
@@ -2055,9 +1981,6 @@
           "postgresServerId": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgresql-deployment'), '2025-04-01').outputs.postgresServerId.value]"
           },
-          "redisId": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'redis-deployment'), '2025-04-01').outputs.redisId.value]"
-          },
           "storageAccountId": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage-deployment'), '2025-04-01').outputs.storageAccountId.value]"
           },
@@ -2074,8 +1997,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.38.33.27573",
-              "templateHash": "9399602480826516401"
+              "version": "0.39.26.7824",
+              "templateHash": "4987819420765551813"
             }
           },
           "parameters": {
@@ -2095,9 +2018,6 @@
               "type": "string"
             },
             "postgresServerId": {
-              "type": "string"
-            },
-            "redisId": {
               "type": "string"
             },
             "storageAccountId": {
@@ -2135,28 +2055,6 @@
               },
               "dependsOn": [
                 "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.postgres.database.azure.com')]"
-              ]
-            },
-            {
-              "type": "Microsoft.Network/privateDnsZones",
-              "apiVersion": "2020-06-01",
-              "name": "privatelink.redis.cache.windows.net",
-              "location": "global",
-              "tags": "[parameters('tags')]"
-            },
-            {
-              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
-              "apiVersion": "2020-06-01",
-              "name": "[format('{0}/{1}', 'privatelink.redis.cache.windows.net', 'vnet-link-redis')]",
-              "location": "global",
-              "properties": {
-                "registrationEnabled": false,
-                "virtualNetwork": {
-                  "id": "[parameters('vnetId')]"
-                }
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.redis.cache.windows.net')]"
               ]
             },
             {
@@ -2267,48 +2165,6 @@
               "dependsOn": [
                 "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.postgres.database.azure.com')]",
                 "[resourceId('Microsoft.Network/privateEndpoints', format('pe-{0}-{1}-psql-01', variables('locationAbbr'), parameters('namingPrefix')))]"
-              ]
-            },
-            {
-              "type": "Microsoft.Network/privateEndpoints",
-              "apiVersion": "2023-05-01",
-              "name": "[format('pe-{0}-{1}-redis-01', variables('locationAbbr'), parameters('namingPrefix'))]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]",
-              "properties": {
-                "subnet": {
-                  "id": "[parameters('privateEndpointsSubnetId')]"
-                },
-                "privateLinkServiceConnections": [
-                  {
-                    "name": "redis-connection",
-                    "properties": {
-                      "privateLinkServiceId": "[parameters('redisId')]",
-                      "groupIds": [
-                        "redisCache"
-                      ]
-                    }
-                  }
-                ]
-              }
-            },
-            {
-              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
-              "apiVersion": "2023-05-01",
-              "name": "[format('{0}/{1}', format('pe-{0}-{1}-redis-01', variables('locationAbbr'), parameters('namingPrefix')), 'default')]",
-              "properties": {
-                "privateDnsZoneConfigs": [
-                  {
-                    "name": "privatelink-redis-cache-windows-net",
-                    "properties": {
-                      "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.redis.cache.windows.net')]"
-                    }
-                  }
-                ]
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.redis.cache.windows.net')]",
-                "[resourceId('Microsoft.Network/privateEndpoints', format('pe-{0}-{1}-redis-01', variables('locationAbbr'), parameters('namingPrefix')))]"
               ]
             },
             {
@@ -2449,10 +2305,6 @@
               "type": "string",
               "value": "[if(not(empty(parameters('functionAppId'))), resourceId('Microsoft.Network/privateEndpoints', format('pe-{0}-{1}-func-01', variables('locationAbbr'), parameters('namingPrefix'))), '')]"
             },
-            "redisPrivateEndpointId": {
-              "type": "string",
-              "value": "[resourceId('Microsoft.Network/privateEndpoints', format('pe-{0}-{1}-redis-01', variables('locationAbbr'), parameters('namingPrefix')))]"
-            },
             "storageBlobPrivateEndpointId": {
               "type": "string",
               "value": "[resourceId('Microsoft.Network/privateEndpoints', format('pe-{0}-{1}-blob-01', variables('locationAbbr'), parameters('namingPrefix')))]"
@@ -2470,7 +2322,6 @@
         "[resourceId('Microsoft.Resources/deployments', 'keyvault-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'network-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'postgresql-deployment')]",
-        "[resourceId('Microsoft.Resources/deployments', 'redis-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'storage-deployment')]"
       ]
     },
@@ -2506,8 +2357,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.38.33.27573",
-              "templateHash": "18251087062046708987"
+              "version": "0.39.26.7824",
+              "templateHash": "15841358126914444207"
             }
           },
           "parameters": {
@@ -2676,10 +2527,6 @@
     "storageAccountName": {
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage-deployment'), '2025-04-01').outputs.storageAccountName.value]"
-    },
-    "redisHostName": {
-      "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'redis-deployment'), '2025-04-01').outputs.hostName.value]"
     },
     "postgresHost": {
       "type": "string",
