@@ -321,6 +321,10 @@ async function checkStatus() {
     } else if (data.status === 'completed') {
       clearInterval(statusPollInterval);
       statusPollInterval = null;
+      if (window._gpxSpeedHistoryPollInterval) {
+        clearInterval(window._gpxSpeedHistoryPollInterval);
+        window._gpxSpeedHistoryPollInterval = null;
+      }
       
       if (progressBar) {
         progressBar.style.width = '100%';
@@ -344,6 +348,10 @@ async function checkStatus() {
       
     } else if (data.status === 'failed') {
       clearInterval(statusPollInterval);
+      if (window._gpxSpeedHistoryPollInterval) {
+        clearInterval(window._gpxSpeedHistoryPollInterval);
+        window._gpxSpeedHistoryPollInterval = null;
+      }
       statusPollInterval = null;
       
       if (statusMessage) statusMessage.textContent = 'Processing failed';
@@ -553,6 +561,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Start polling for status
         statusPollInterval = setInterval(checkStatus, 2000);
+        
+        // Also refresh history every 5 seconds
+        const historyPollInterval = setInterval(() => {
+          if (typeof ToolHistory !== 'undefined') {
+            ToolHistory.loadHistory('gpx-speed-modifier');
+          }
+        }, 5000);
+        
+        // Store interval ID for cleanup
+        window._gpxSpeedHistoryPollInterval = historyPollInterval;
         
       } catch (error) {
         alert('Error: ' + error.message);

@@ -440,6 +440,16 @@ function startStatusPolling() {
   // Poll every 2 seconds
   statusPollInterval = setInterval(checkStatus, 2000);
   
+  // Also refresh history every 5 seconds
+  const historyPollInterval = setInterval(() => {
+    if (typeof ToolHistory !== 'undefined') {
+      ToolHistory.loadHistory('gpx-merger');
+    }
+  }, 5000);
+  
+  // Store interval ID for cleanup
+  window._gpxMergerHistoryPollInterval = historyPollInterval;
+  
   // Check immediately
   checkStatus();
 }
@@ -463,6 +473,10 @@ async function checkStatus() {
       // Stop polling
       clearInterval(statusPollInterval);
       statusPollInterval = null;
+      if (window._gpxMergerHistoryPollInterval) {
+        clearInterval(window._gpxMergerHistoryPollInterval);
+        window._gpxMergerHistoryPollInterval = null;
+      }
       
       // Show download button
       updateProgressBar(100, 'Completed');
@@ -477,6 +491,10 @@ async function checkStatus() {
       // Stop polling
       clearInterval(statusPollInterval);
       statusPollInterval = null;
+      if (window._gpxMergerHistoryPollInterval) {
+        clearInterval(window._gpxMergerHistoryPollInterval);
+        window._gpxMergerHistoryPollInterval = null;
+      }
       
       // Show error
       showError(data.error || 'Merge failed');

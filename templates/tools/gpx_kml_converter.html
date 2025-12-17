@@ -375,6 +375,10 @@ async function checkStatus() {
     } else if (data.status === 'completed') {
       clearInterval(statusPollInterval);
       statusPollInterval = null;
+      if (window._gpxKmlHistoryPollInterval) {
+        clearInterval(window._gpxKmlHistoryPollInterval);
+        window._gpxKmlHistoryPollInterval = null;
+      }
       
       if (progressBar) {
         progressBar.style.width = '100%';
@@ -398,6 +402,10 @@ async function checkStatus() {
       
     } else if (data.status === 'failed') {
       clearInterval(statusPollInterval);
+      if (window._gpxKmlHistoryPollInterval) {
+        clearInterval(window._gpxKmlHistoryPollInterval);
+        window._gpxKmlHistoryPollInterval = null;
+      }
       statusPollInterval = null;
       
       if (statusMessage) statusMessage.textContent = 'Conversion failed';
@@ -488,6 +496,16 @@ document.getElementById('gpxKmlConverterForm').addEventListener('submit', async 
     
     // Start polling for status
     statusPollInterval = setInterval(checkStatus, 2000);
+    
+    // Also refresh history every 5 seconds
+    const historyPollInterval = setInterval(() => {
+      if (typeof ToolHistory !== 'undefined') {
+        ToolHistory.loadHistory('gpx-kml-converter');
+      }
+    }, 5000);
+    
+    // Store interval ID for cleanup
+    window._gpxKmlHistoryPollInterval = historyPollInterval;
     
   } catch (error) {
     alert('Error: ' + error.message);
