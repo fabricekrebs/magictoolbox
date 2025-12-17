@@ -8,6 +8,7 @@ Supports JSON and CSV export formats.
 import csv
 import io
 import json
+import os
 from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
@@ -236,7 +237,17 @@ class EXIFExtractor(BaseTool):
                 result["export_format"] = export_format
 
             self.logger.info(f"✅ Successfully extracted metadata from {input_file.name}")
-            return result, None
+            
+            # Save result to temp JSON file for API return
+            import tempfile
+            temp_fd, temp_path = tempfile.mkstemp(suffix=".json", prefix="exif_")
+            os.close(temp_fd)
+            
+            with open(temp_path, "w", encoding="utf-8") as f:
+                json.dump(result, f, indent=2, ensure_ascii=False)
+            
+            # Return path to JSON file and filename
+            return temp_path, "exif_data.json"
 
         except Exception as e:
             self.logger.error(f"❌ EXIF extraction failed: {str(e)}")

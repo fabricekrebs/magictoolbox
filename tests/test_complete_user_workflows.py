@@ -254,6 +254,16 @@ class TestCompleteUserWorkflow:
             )
             files["jpeg"] = ("test_image.jpg", jpeg_data, "image/jpeg")
             files["png"] = ("test_image.png", jpeg_data, "image/jpeg")
+        
+        # Load JPEG with EXIF data (for EXIF extractor testing)
+        jpeg_exif_path = fixtures_dir / "sample_with_exif.jpg"
+        if jpeg_exif_path.exists():
+            with open(jpeg_exif_path, "rb") as f:
+                jpeg_exif_data = f.read()
+            files["jpeg_exif"] = ("sample_with_exif.jpg", jpeg_exif_data, "image/jpeg")
+        else:
+            # Fallback to regular JPEG (may not have EXIF data)
+            files["jpeg_exif"] = files["jpeg"]
 
         # Load real MP4 video from fixtures
         mp4_path = fixtures_dir / "sample.mp4"
@@ -1248,7 +1258,10 @@ class TestCompleteAPIWorkflow:
     @pytest.fixture
     def sample_files(self):
         """Create sample test files for all tool types."""
+        from pathlib import Path
+        
         files = {}
+        fixtures_dir = Path(__file__).parent / "fixtures"
 
         # PNG image
         png_data = (
@@ -1257,6 +1270,16 @@ class TestCompleteAPIWorkflow:
             b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
         )
         files["png"] = ("test_image.png", png_data, "image/png")
+        
+        # JPEG with EXIF data (for EXIF extractor testing)
+        jpeg_exif_path = fixtures_dir / "sample_with_exif.jpg"
+        if jpeg_exif_path.exists():
+            with open(jpeg_exif_path, "rb") as f:
+                jpeg_exif_data = f.read()
+            files["jpeg_exif"] = ("sample_with_exif.jpg", jpeg_exif_data, "image/jpeg")
+        else:
+            # Fallback to PNG (will fail EXIF test but won't crash)
+            files["jpeg_exif"] = files["png"]
 
         # GPX file
         gpx_data = b"""<?xml version="1.0" encoding="UTF-8"?>
@@ -1904,7 +1927,7 @@ startxref
 
         # Test EXIF Extractor
         print(f"📋 Test 11.2: EXIF Extractor")
-        filename, file_data, content_type = sample_files["png"]  # Using sample.jpg (loaded as "png")
+        filename, file_data, content_type = sample_files["jpeg_exif"]  # Using sample_with_exif.jpg
         with io.BytesIO(file_data) as file_io:
             file_io.name = filename
             response = authenticated_client.post(

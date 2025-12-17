@@ -158,14 +158,27 @@ class Base64Encoder(BaseTool):
 
             self.logger.info(f"✅ Successfully {operation} {len(content)} characters")
 
-            # Return result as JSON (no file download for simple tools)
-            return {
+            # Return result as JSON (save to temp file for API return)
+            result_data = {
                 "result": result,
                 "mode": mode,
                 "operation": operation,
                 "input_length": len(content),
                 "output_length": len(result),
-            }, None
+            }
+            
+            import tempfile
+            import json
+            import os
+            
+            temp_fd, temp_path = tempfile.mkstemp(suffix=".json", prefix="base64_")
+            os.close(temp_fd)
+            
+            with open(temp_path, "w", encoding="utf-8") as f:
+                json.dump(result_data, f, indent=2, ensure_ascii=False)
+            
+            # Return path to JSON file and filename
+            return temp_path, "base64_result.json"
 
         except base64.binascii.Error as e:
             self.logger.error(f"❌ Base64 error: {str(e)}")
