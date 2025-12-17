@@ -87,7 +87,6 @@ module keyVault './modules/keyvault.bicep' = {
     postgresAdminPassword: postgresAdminPassword
     storageAccountKey: storage.outputs.storageAccountKey
     applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
-    acrPassword: acr.outputs.acrPassword
     functionAppsSubnetId: network.outputs.functionAppsSubnetId
   }
 }
@@ -159,8 +158,6 @@ module containerApps './modules/container-apps.bicep' = {
     environment: environment
     logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
     acrLoginServer: acr.outputs.loginServer
-    acrUsername: acr.outputs.acrUsername
-    acrPassword: acr.outputs.acrPassword
     useKeyVaultReferences: useKeyVaultReferences
     keyVaultUri: keyVault.outputs.keyVaultUri
     djangoSecretKey: djangoSecretKey

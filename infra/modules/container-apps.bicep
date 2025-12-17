@@ -8,9 +8,6 @@ param environment string
 param logAnalyticsWorkspaceId string
 
 param acrLoginServer string
-param acrUsername string
-@secure()
-param acrPassword string
 
 @description('Use Key Vault references for secrets (requires RBAC to be configured first)')
 param useKeyVaultReferences bool = false
@@ -106,15 +103,10 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
       registries: [
         {
           server: acrLoginServer
-          username: acrUsername
-          passwordSecretRef: 'acr-password'
+          identity: 'system' // Use managed identity instead of admin credentials
         }
       ]
       secrets: useKeyVaultReferences ? [
-        {
-          name: 'acr-password'
-          value: acrPassword
-        }
         {
           name: 'django-secret-key'
           keyVaultUrl: '${keyVaultUri}secrets/django-secret-key'
@@ -136,10 +128,6 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
           identity: 'system'
         }
       ] : [
-        {
-          name: 'acr-password'
-          value: acrPassword
-        }
         {
           name: 'django-secret-key'
           value: djangoSecretKey

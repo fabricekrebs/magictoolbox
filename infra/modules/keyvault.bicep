@@ -61,9 +61,6 @@ param storageAccountKey string
 @secure()
 param applicationInsightsConnectionString string
 
-@secure()
-param acrPassword string
-
 resource djangoSecretKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' = {
   parent: keyVault
   name: 'django-secret-key'
@@ -96,15 +93,6 @@ resource applicationInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/se
   name: 'appinsights-connection-string'
   properties: {
     value: applicationInsightsConnectionString
-    contentType: 'text/plain'
-  }
-}
-
-resource acrPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' = {
-  parent: keyVault
-  name: 'acr-password'
-  properties: {
-    value: acrPassword
     contentType: 'text/plain'
   }
 }
