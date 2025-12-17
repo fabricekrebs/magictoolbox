@@ -10,7 +10,7 @@ var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ?
 // Format: acr{locationAbbr}{app}{env}01
 var acrName = 'acr${locationAbbr}${replace(namingPrefix, '-', '')}01'
 
-resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-01-01-preview' = {
+resource containerRegistry 'Microsoft.ContainerRegistry/registries@2025-11-01' = {
   name: acrName
   location: location
   tags: tags

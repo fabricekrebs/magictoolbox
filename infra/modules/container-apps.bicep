@@ -56,7 +56,7 @@ var cpuCores = environment == 'prod' ? '1.0' : '0.5'
 var memorySize = environment == 'prod' ? '2Gi' : '1Gi'
 
 // Container Apps Environment
-resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01' = {
+resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2026-01-01' = {
   name: containerAppsEnvironmentName
   location: location
   tags: tags
@@ -64,8 +64,8 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01'
     appLogsConfiguration: {
       destination: 'log-analytics'
       logAnalyticsConfiguration: {
-        customerId: reference(logAnalyticsWorkspaceId, '2022-10-01').customerId
-        sharedKey: listKeys(logAnalyticsWorkspaceId, '2022-10-01').primarySharedKey
+        customerId: reference(logAnalyticsWorkspaceId, '2025-07-01').customerId
+        sharedKey: listKeys(logAnalyticsWorkspaceId, '2025-07-01').primarySharedKey
       }
     }
     vnetConfiguration: {
@@ -77,7 +77,7 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01'
 }
 
 // Container App
-resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
+resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
   name: containerAppName
   location: location
   tags: tags

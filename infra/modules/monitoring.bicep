@@ -7,7 +7,7 @@ param tags object
 var locationAbbr = location == 'westeurope' ? 'westeurope' : location == 'northeurope' ? 'northeurope' : location == 'italynorth' ? 'italynorth' : location == 'eastus' ? 'eastus' : location == 'eastus2' ? 'eastus2' : location
 
 // Log Analytics Workspace
-resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
+resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2025-07-01' = {
   name: 'law-${locationAbbr}-${namingPrefix}-01'
   location: location
   tags: tags

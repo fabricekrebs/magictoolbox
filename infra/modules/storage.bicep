@@ -13,7 +13,7 @@ var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ?
 // Format: sa{locationAbbr}{app}{env}01
 var storageAccountName = 'sa${locationAbbr}${replace(namingPrefix, '-', '')}01'
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2025-06-01' = {
   name: take(toLower(storageAccountName), 24)
   location: location
   tags: tags
@@ -69,7 +69,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
 }
 
 // Blob service
-resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' = {
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2025-06-01' = {
   parent: storageAccount
   name: 'default'
   properties: {
@@ -106,7 +106,7 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01'
 }
 
 // Container for static files
-resource staticContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+resource staticContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
   parent: blobService
   name: 'static'
   properties: {
@@ -115,7 +115,7 @@ resource staticContainer 'Microsoft.Storage/storageAccounts/blobServices/contain
 }
 
 // Container for Function App deployment packages (FlexConsumption requirement)
-resource deploymentsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+resource deploymentsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
   parent: blobService
   name: 'deployments'
   properties: {
@@ -129,7 +129,7 @@ resource deploymentsContainer 'Microsoft.Storage/storageAccounts/blobServices/co
 // ============================================================================
 
 // PDF Tool Containers
-resource pdfUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+resource pdfUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
   parent: blobService
   name: 'pdf-uploads'
   properties: {
@@ -137,7 +137,7 @@ resource pdfUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/con
   }
 }
 
-resource pdfProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+resource pdfProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
   parent: blobService
   name: 'pdf-processed'
   properties: {
@@ -146,7 +146,7 @@ resource pdfProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/c
 }
 
 // Image Tool Containers
-resource imageUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+resource imageUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
   parent: blobService
   name: 'image-uploads'
   properties: {
@@ -154,7 +154,7 @@ resource imageUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/c
   }
 }
 
-resource imageProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+resource imageProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
   parent: blobService
   name: 'image-processed'
   properties: {
@@ -163,7 +163,7 @@ resource imageProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices
 }
 
 // GPX Tool Containers
-resource gpxUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+resource gpxUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
   parent: blobService
   name: 'gpx-uploads'
   properties: {
@@ -171,7 +171,7 @@ resource gpxUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/con
   }
 }
 
-resource gpxProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+resource gpxProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
   parent: blobService
   name: 'gpx-processed'
   properties: {
@@ -180,7 +180,7 @@ resource gpxProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/c
 }
 
 // Video Tool Containers
-resource videoUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+resource videoUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
   parent: blobService
   name: 'video-uploads'
   properties: {
@@ -188,7 +188,7 @@ resource videoUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/c
   }
 }
 
-resource videoProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+resource videoProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
   parent: blobService
   name: 'video-processed'
   properties: {
@@ -197,7 +197,7 @@ resource videoProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices
 }
 
 // OCR Tool Containers
-resource ocrUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+resource ocrUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
   parent: blobService
   name: 'ocr-uploads'
   properties: {
@@ -205,7 +205,7 @@ resource ocrUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/con
   }
 }
 
-resource ocrProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+resource ocrProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
   parent: blobService
   name: 'ocr-processed'
   properties: {

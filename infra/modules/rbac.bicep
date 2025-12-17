@@ -15,15 +15,15 @@ var acrPullRoleId = '7f951dda-4ed3-4680-a7ca-43fe172d538d' // AcrPull role
 var keyVaultSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6' // Key Vault Secrets User
 
 // Reference existing resources
-resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' existing = {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2025-06-01' existing = {
   name: storageAccountName
 }
 
-resource acr 'Microsoft.ContainerRegistry/registries@2023-01-01-preview' existing = {
+resource acr 'Microsoft.ContainerRegistry/registries@2025-11-01' existing = {
   name: acrName
 }
 
-resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' existing = {
+resource keyVault 'Microsoft.KeyVault/vaults@2025-05-01' existing = {
   name: keyVaultName
 }
 
