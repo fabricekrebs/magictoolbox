@@ -1248,23 +1248,46 @@ def extract_text_ocr(req: func.HttpRequest) -> func.HttpResponse:
             f.write(blob_data.readall())
         logger.info(f"✅ Downloaded input image: {os.path.getsize(temp_input_path)} bytes")
         
-        # Perform OCR using pytesseract
+        # Perform OCR using EasyOCR
         logger.info(f"🔄 Extracting text with OCR...")
         
         try:
-            import pytesseract
+            import easyocr
+            
+            # Initialize EasyOCR reader (cached after first use)
+            # Map tesseract language codes to EasyOCR codes
+            lang_map = {
+                'eng': 'en',
+                'fra': 'fr',
+                'deu': 'de',
+                'spa': 'es',
+                'ita': 'it',
+                'por': 'pt',
+                'nld': 'nl',
+                'rus': 'ru',
+                'jpn': 'ja',
+                'kor': 'ko',
+                'chi_sim': 'ch_sim',
+                'chi_tra': 'ch_tra',
+                'ara': 'ar',
+            }
+            easyocr_lang = lang_map.get(language, 'en')
+            
+            logger.info(f"🔧 Initializing EasyOCR reader for language: {easyocr_lang}")
+            reader = easyocr.Reader([easyocr_lang], gpu=False)
             
             # Extract text
-            extracted_text = pytesseract.image_to_string(
-                Image.open(temp_input_path),
-                lang=language
-            )
+            logger.info(f"📖 Reading text from image...")
+            results = reader.readtext(temp_input_path)
+            
+            # Combine all detected text
+            extracted_text = '\n'.join([text for (_, text, _) in results])
             
             text_length = len(extracted_text)
-            logger.info(f"✅ Extracted {text_length} characters")
+            logger.info(f"✅ Extracted {text_length} characters from {len(results)} text regions")
             
         except ImportError:
-            raise Exception("pytesseract not installed. Install with: pip install pytesseract")
+            raise Exception("easyocr not installed. Install with: pip install easyocr")
         except Exception as ocr_err:
             raise Exception(f"OCR failed: {ocr_err}")
         
