@@ -69,14 +69,19 @@ jobs:
       
       - name: Create deployment package
         run: |
-          echo "📦 Creating deployment package..."
+          echo "📦 Creating deployment package with dependencies..."
           cd function_app
-          # Exclude unnecessary files
+          
+          # Install dependencies into .python_packages/lib/site-packages
+          # This is the standard location for Azure Functions Python
+          mkdir -p .python_packages/lib/site-packages
+          pip install --target=".python_packages/lib/site-packages" -r requirements.txt
+          
+          # Create zip with all code and dependencies
           zip -r ../function_app.zip . \
             -x "*.pyc" \
             -x "__pycache__/*" \
             -x ".venv/*" \
-            -x ".python_packages/*" \
             -x "local.settings.json" \
             -x "*.md" \
             -x "function_app_*.py" \
@@ -104,14 +109,12 @@ jobs:
           echo "🚀 Deploying to Flex Consumption Function App..."
           
           # Deploy ZIP package
-          # NOTE: For Flex Consumption plans, the health check often fails with
-          # "Failed to fetch host key" even when deployment succeeds.
-          # We'll ignore the error and verify functions in the next step.
+          # With pre-built dependencies, we use --build-remote false
           az functionapp deployment source config-zip \
             --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
             --name ${{ steps.get_function_app.outputs.function_app_name }} \
             --src function_app.zip \
-            --build-remote true \
+            --build-remote false \
             --timeout 600 2>&1 | tee deploy.log || {
               echo "⚠️  Deployment command exited with error (expected for Flex Consumption)"
               echo "   Checking if 'Deployment endpoint responded with status code 202'"
