@@ -22,14 +22,11 @@ param djangoSecretKey string = ''
 @secure()
 param postgresPassword string = ''
 @secure()
-param redisAccessKey string = ''
-@secure()
 param storageAccountKey string = ''
 @secure()
 param appInsightsConnectionString string = ''
 
 param storageAccountName string
-param redisHostName string
 param postgresHost string
 param postgresDatabase string
 param postgresAdminUsername string
@@ -129,23 +126,6 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
           identity: 'system'
         }
         {
-          name: 'redis-access-key'
-          keyVaultUrl: '${keyVaultUri}secrets/redis-access-key'
-          identity: 'system'
-        }
-        {
-          name: 'redis-url'
-          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/0?ssl_cert_reqs=required'
-        }
-        {
-          name: 'celery-broker-url'
-          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/1?ssl_cert_reqs=required'
-        }
-        {
-          name: 'celery-result-backend'
-          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/1?ssl_cert_reqs=required'
-        }
-        {
           name: 'storage-account-key'
           keyVaultUrl: '${keyVaultUri}secrets/storage-account-key'
           identity: 'system'
@@ -167,22 +147,6 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
         {
           name: 'postgres-password'
           value: postgresPassword
-        }
-        {
-          name: 'redis-access-key'
-          value: redisAccessKey
-        }
-        {
-          name: 'redis-url'
-          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/0?ssl_cert_reqs=required'
-        }
-        {
-          name: 'celery-broker-url'
-          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/1?ssl_cert_reqs=required'
-        }
-        {
-          name: 'celery-result-backend'
-          value: 'rediss://:${redisAccessKey}@${redisHostName}:6380/1?ssl_cert_reqs=required'
         }
         {
           name: 'storage-account-key'

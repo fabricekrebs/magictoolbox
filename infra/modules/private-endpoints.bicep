@@ -1,4 +1,4 @@
-// Private Endpoints and Private DNS Zones for ACR, PostgreSQL, Redis, Storage, and Key Vault
+// Private Endpoints and Private DNS Zones for PostgreSQL, Storage, and Key Vault
 param location string
 param namingPrefix string
 param tags object
@@ -7,7 +7,6 @@ param vnetId string
 
 // Resource IDs for private endpoints
 param postgresServerId string
-param redisId string
 param storageAccountId string
 param keyVaultId string
 param functionAppId string = ''
@@ -27,25 +26,6 @@ resource postgresPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' =
 resource postgresPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
   parent: postgresPrivateDnsZone
   name: 'vnet-link-postgres'
-  location: 'global'
-  properties: {
-    registrationEnabled: false
-    virtualNetwork: {
-      id: vnetId
-    }
-  }
-}
-
-// Redis Private DNS Zone
-resource redisPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
-  name: 'privatelink.redis.cache.windows.net'
-  location: 'global'
-  tags: tags
-}
-
-resource redisPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
-  parent: redisPrivateDnsZone
-  name: 'vnet-link-redis'
   location: 'global'
   properties: {
     registrationEnabled: false
@@ -146,44 +126,6 @@ resource postgresPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/private
         name: 'privatelink-postgres-database-azure-com'
         properties: {
           privateDnsZoneId: postgresPrivateDnsZone.id
-        }
-      }
-    ]
-  }
-}
-
-// Redis Private Endpoint
-resource redisPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
-  name: 'pe-${locationAbbr}-${namingPrefix}-redis-01'
-  location: location
-  tags: tags
-  properties: {
-    subnet: {
-      id: privateEndpointsSubnetId
-    }
-    privateLinkServiceConnections: [
-      {
-        name: 'redis-connection'
-        properties: {
-          privateLinkServiceId: redisId
-          groupIds: [
-            'redisCache'
-          ]
-        }
-      }
-    ]
-  }
-}
-
-resource redisPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-05-01' = {
-  parent: redisPrivateEndpoint
-  name: 'default'
-  properties: {
-    privateDnsZoneConfigs: [
-      {
-        name: 'privatelink-redis-cache-windows-net'
-        properties: {
-          privateDnsZoneId: redisPrivateDnsZone.id
         }
       }
     ]
@@ -307,6 +249,5 @@ resource functionAppPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/priv
 // Outputs
 output postgresPrivateEndpointId string = postgresPrivateEndpoint.id
 output functionAppPrivateEndpointId string = !empty(functionAppId) ? functionAppPrivateEndpoint.id : ''
-output redisPrivateEndpointId string = redisPrivateEndpoint.id
 output storageBlobPrivateEndpointId string = storageBlobPrivateEndpoint.id
 output keyVaultPrivateEndpointId string = keyVaultPrivateEndpoint.id

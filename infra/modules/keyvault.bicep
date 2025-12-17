@@ -56,9 +56,6 @@ param djangoSecretKey string
 param postgresAdminPassword string
 
 @secure()
-param redisAccessKey string
-
-@secure()
 param storageAccountKey string
 
 @secure()
@@ -81,15 +78,6 @@ resource postgresPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' =
   name: 'postgres-password'
   properties: {
     value: postgresAdminPassword
-    contentType: 'text/plain'
-  }
-}
-
-resource redisAccessKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' = {
-  parent: keyVault
-  name: 'redis-access-key'
-  properties: {
-    value: redisAccessKey
     contentType: 'text/plain'
   }
 }

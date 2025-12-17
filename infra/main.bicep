@@ -85,7 +85,6 @@ module keyVault './modules/keyvault.bicep' = {
     environment: environment
     djangoSecretKey: djangoSecretKey
     postgresAdminPassword: postgresAdminPassword
-    redisAccessKey: redis.outputs.accessKey
     storageAccountKey: storage.outputs.storageAccountKey
     applicationInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
     acrPassword: acr.outputs.acrPassword
@@ -102,16 +101,6 @@ module storage './modules/storage.bicep' = {
     tags: tags
     containerAppsSubnetId: network.outputs.containerAppsSubnetId
     functionAppsSubnetId: network.outputs.functionAppsSubnetId
-  }
-}
-
-// Azure Cache for Redis
-module redis './modules/redis.bicep' = {
-  name: 'redis-deployment'
-  params: {
-    location: location
-    namingPrefix: namingPrefix
-    tags: tags
   }
 }
 
@@ -176,11 +165,9 @@ module containerApps './modules/container-apps.bicep' = {
     keyVaultUri: keyVault.outputs.keyVaultUri
     djangoSecretKey: djangoSecretKey
     postgresPassword: postgresAdminPassword
-    redisAccessKey: redis.outputs.accessKey
     storageAccountKey: storage.outputs.storageAccountKey
     appInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
     storageAccountName: storage.outputs.storageAccountName
-    redisHostName: redis.outputs.hostName
     postgresHost: postgresql.outputs.fqdn
     postgresDatabase: postgresql.outputs.databaseName
     postgresAdminUsername: postgresAdminUsername
@@ -199,7 +186,6 @@ module privateEndpoints './modules/private-endpoints.bicep' = {
     vnetId: network.outputs.vnetId
     privateEndpointsSubnetId: network.outputs.privateEndpointsSubnetId
     postgresServerId: postgresql.outputs.postgresServerId
-    redisId: redis.outputs.redisId
     storageAccountId: storage.outputs.storageAccountId
     keyVaultId: keyVault.outputs.keyVaultId
     functionAppId: functionApp.outputs.functionAppId
@@ -227,7 +213,6 @@ output containerAppName string = containerApps.outputs.containerAppName
 output acrLoginServer string = acr.outputs.loginServer
 output keyVaultName string = keyVault.outputs.keyVaultName
 output storageAccountName string = storage.outputs.storageAccountName
-output redisHostName string = redis.outputs.hostName
 output postgresHost string = postgresql.outputs.fqdn
 output postgresDatabase string = postgresql.outputs.databaseName
 output logAnalyticsWorkspaceId string = monitoring.outputs.logAnalyticsWorkspaceId

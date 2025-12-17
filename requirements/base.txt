@@ -9,14 +9,6 @@ djangorestframework-simplejwt>=5.3,<5.4
 psycopg2-binary>=2.9,<3.0
 dj-database-url>=2.1,<2.2
 
-# Cache
-django-redis>=5.4,<5.5
-redis>=5.0,<5.1
-hiredis>=2.2,<2.3
-
-# Celery (async tasks)
-celery>=5.3,<5.4
-
 # File storage
 django-storages[azure]>=1.14,<1.15
 whitenoise>=6.6,<7.0
