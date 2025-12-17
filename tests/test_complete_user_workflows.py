@@ -1726,7 +1726,7 @@ startxref
                 "/api/v1/tools/video-rotation/convert/",
                 {
                     "file": file_io,
-                    "rotation": 90,
+                    "rotation": "90_cw",
                 },
                 format="multipart",
             )
@@ -1889,17 +1889,16 @@ startxref
 
         # Test Base64 Encoder
         print(f"📋 Test 11.1: Base64 Encoder")
-        filename, file_data, content_type = sample_files["png"]
-        with io.BytesIO(file_data) as file_io:
-            file_io.name = filename
-            response = authenticated_client.post(
-                "/api/v1/tools/base64-encoder/convert/",
-                {
-                    "file": file_io,
-                    "mode": "encode",
-                },
-                format="multipart",
-            )
+        # Note: Base64 encoder works with text input, not file uploads in typical use
+        # For this test, we send a small text to encode
+        response = authenticated_client.post(
+            "/api/v1/tools/base64-encoder/convert/",
+            {
+                "mode": "encode",
+                "text": "Hello, World!",
+            },
+            format="json",  # Use JSON format for text-based tool
+        )
         assert response.status_code == 200, f"Expected 200 for sync tool, got {response.status_code}"
         print(f"  ✅ Base64 Encoder: status={response.status_code}")
 
