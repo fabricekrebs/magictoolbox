@@ -1726,13 +1726,15 @@ startxref
                 "/api/v1/tools/video-rotation/convert/",
                 {
                     "file": file_io,
-                    "rotation_angle": 90,
+                    "rotation": 90,
                 },
                 format="multipart",
             )
         
         # Validate async response
         print(f"📋 Response status: {response.status_code}")
+        if response.status_code != 202:
+            print(f"❌ Error response: {response.json() if response.content else 'No content'}")
         assert response.status_code == 202, f"Expected 202 for async tool, got {response.status_code}"
         
         data = response.json()
@@ -1892,7 +1894,10 @@ startxref
             file_io.name = filename
             response = authenticated_client.post(
                 "/api/v1/tools/base64-encoder/convert/",
-                {"file": file_io},
+                {
+                    "file": file_io,
+                    "mode": "encode",
+                },
                 format="multipart",
             )
         assert response.status_code == 200, f"Expected 200 for sync tool, got {response.status_code}"
@@ -1908,6 +1913,8 @@ startxref
                 {"file": file_io},
                 format="multipart",
             )
+        if response.status_code != 200:
+            print(f"  ❌ Error response: {response.json() if response.content else 'No content'}")
         assert response.status_code == 200, f"Expected 200 for sync tool, got {response.status_code}"
         print(f"  ✅ EXIF Extractor: status={response.status_code}")
 
