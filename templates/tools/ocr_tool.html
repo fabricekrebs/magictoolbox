@@ -375,7 +375,7 @@ document.getElementById('ocrForm').addEventListener('submit', async function(e) 
                       document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
     
     // Call the API to upload file
-    const response = await fetch('/api/v1/tools/ocr-tool/extract/', {
+    const response = await fetch('/api/v1/tools/ocr-tool/convert/', {
       method: 'POST',
       headers: {
         'X-CSRFToken': csrftoken,
