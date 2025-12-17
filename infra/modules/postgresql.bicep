@@ -14,9 +14,9 @@ var locationAbbr = location == 'westeurope' ? 'westeurope' : location == 'northe
 var postgresServerName = 'psql-${locationAbbr}-${namingPrefix}-01'
 var databaseName = 'magictoolbox'
 
-// SKU tiers based on environment
-var skuTier = environment == 'prod' ? 'GeneralPurpose' : 'Burstable'
-var skuName = environment == 'prod' ? 'Standard_D2ds_v4' : 'Standard_B1ms'
+// Use same SKU for both dev and prod (cost-effective, reliable)
+var skuTier = 'Burstable'
+var skuName = 'Standard_B1ms'
 
 resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-03-01-preview' = {
   name: postgresServerName
@@ -31,15 +31,15 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-03-01-pr
     administratorLoginPassword: administratorLoginPassword
     version: '15' // PostgreSQL 15
     storage: {
-      storageSizeGB: environment == 'prod' ? 128 : 32
+      storageSizeGB: 32
       autoGrow: 'Enabled'
     }
     backup: {
-      backupRetentionDays: environment == 'prod' ? 14 : 7
-      geoRedundantBackup: environment == 'prod' ? 'Enabled' : 'Disabled'
+      backupRetentionDays: 7
+      geoRedundantBackup: 'Disabled' // Disabled to avoid region compatibility issues
     }
     highAvailability: {
-      mode: environment == 'prod' ? 'ZoneRedundant' : 'Disabled'
+      mode: 'Disabled'
     }
   }
 }
