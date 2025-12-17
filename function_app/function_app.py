@@ -1248,46 +1248,50 @@ def extract_text_ocr(req: func.HttpRequest) -> func.HttpResponse:
             f.write(blob_data.readall())
         logger.info(f"✅ Downloaded input image: {os.path.getsize(temp_input_path)} bytes")
         
-        # Perform OCR using EasyOCR
-        logger.info(f"🔄 Extracting text with OCR...")
+        # Perform OCR using PaddleOCR
+        logger.info(f"🔄 Extracting text with PaddleOCR...")
         
         try:
-            import easyocr
+            from paddleocr import PaddleOCR
             
-            # Initialize EasyOCR reader (cached after first use)
-            # Map tesseract language codes to EasyOCR codes
+            # Map tesseract language codes to PaddleOCR codes
             lang_map = {
                 'eng': 'en',
-                'fra': 'fr',
-                'deu': 'de',
-                'spa': 'es',
-                'ita': 'it',
-                'por': 'pt',
-                'nld': 'nl',
-                'rus': 'ru',
-                'jpn': 'ja',
-                'kor': 'ko',
-                'chi_sim': 'ch_sim',
-                'chi_tra': 'ch_tra',
-                'ara': 'ar',
+                'fra': 'french',
+                'deu': 'german',
+                'spa': 'spanish',
+                'ita': 'italian',
+                'por': 'portuguese',
+                'rus': 'russian',
+                'jpn': 'japan',
+                'kor': 'korean',
+                'chi_sim': 'ch',
+                'chi_tra': 'chinese_cht',
+                'ara': 'arabic',
             }
-            easyocr_lang = lang_map.get(language, 'en')
+            paddle_lang = lang_map.get(language, 'en')
             
-            logger.info(f"🔧 Initializing EasyOCR reader for language: {easyocr_lang}")
-            reader = easyocr.Reader([easyocr_lang], gpu=False)
+            logger.info(f"🔧 Initializing PaddleOCR for language: {paddle_lang}")
+            # Initialize PaddleOCR (use_angle_cls=True for better accuracy, use_gpu=False for CPU)
+            ocr = PaddleOCR(use_angle_cls=True, lang=paddle_lang, use_gpu=False, show_log=False)
             
-            # Extract text
+            # Perform OCR
             logger.info(f"📖 Reading text from image...")
-            results = reader.readtext(temp_input_path)
+            result = ocr.ocr(temp_input_path, cls=True)
             
-            # Combine all detected text
-            extracted_text = '\n'.join([text for (_, text, _) in results])
+            # Extract text from results
+            extracted_text = ""
+            if result and result[0]:
+                for line in result[0]:
+                    if line and len(line) > 1:
+                        text = line[1][0]  # line[1] is (text, confidence)
+                        extracted_text += text + "\n"
             
             text_length = len(extracted_text)
-            logger.info(f"✅ Extracted {text_length} characters from {len(results)} text regions")
+            logger.info(f"✅ Extracted {text_length} characters")
             
         except ImportError:
-            raise Exception("easyocr not installed. Install with: pip install easyocr")
+            raise Exception("paddleocr not installed. Install with: pip install paddleocr")
         except Exception as ocr_err:
             raise Exception(f"OCR failed: {ocr_err}")
         
