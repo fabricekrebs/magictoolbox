@@ -142,7 +142,7 @@ function renderHistoryItems(items, container) {
   container.innerHTML = items.map(item => {
     const statusBadge = getStatusBadge(item.status);
     const timeAgo = formatTimeAgo(item.created_at);
-    const canDownload = item.status === 'completed';
+    const canDownload = item.status === 'completed' && item.download_url;
     
     return `
       <div class="border-bottom p-2 history-item" 
@@ -157,7 +157,7 @@ function renderHistoryItems(items, container) {
           </div>
           <div class="btn-group" role="group">
             ${canDownload ? `
-              <a href="${HISTORY_CONFIG.apiBase}/executions/${item.id}/download/" 
+              <a href="${item.download_url}" 
                  class="btn btn-sm btn-outline-success" 
                  download="${item.output_filename || 'file'}"
                  title="Download">

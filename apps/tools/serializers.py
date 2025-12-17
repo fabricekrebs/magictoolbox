@@ -72,6 +72,8 @@ class ToolExecutionSerializer(serializers.ModelSerializer):
 
 class ToolExecutionListSerializer(serializers.ModelSerializer):
     """Simplified serializer for tool execution list."""
+    
+    download_url = serializers.SerializerMethodField()
 
     class Meta:
         model = ToolExecution
@@ -85,5 +87,18 @@ class ToolExecutionListSerializer(serializers.ModelSerializer):
             "input_size",
             "output_size",
             "created_at",
+            "download_url",
         ]
-        read_only_fields = fields
+        read_only_fields = ["id", "tool_name", "status", "input_filename", 
+                           "output_filename", "duration_seconds", "input_size", 
+                           "output_size", "created_at"]
+    
+    def get_download_url(self, obj):
+        """Return download URL only if execution is completed and has output."""
+        if obj.status == "completed":
+            # Check if we have output in blob storage (new async tools use output_blob_path)
+            # or in the legacy output_file field
+            has_output = bool(obj.output_blob_path) or bool(obj.output_file)
+            if has_output:
+                return f"/api/v1/executions/{obj.id}/download/"
+        return None
