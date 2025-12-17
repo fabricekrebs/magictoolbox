@@ -213,26 +213,6 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: 'require'
             }
             {
-              name: 'REDIS_HOST'
-              value: redisHostName
-            }
-            {
-              name: 'REDIS_ACCESS_KEY'
-              secretRef: 'redis-access-key'
-            }
-            {
-              name: 'REDIS_URL'
-              secretRef: 'redis-url'
-            }
-            {
-              name: 'CELERY_BROKER_URL'
-              secretRef: 'celery-broker-url'
-            }
-            {
-              name: 'CELERY_RESULT_BACKEND'
-              secretRef: 'celery-result-backend'
-            }
-            {
               name: 'AZURE_STORAGE_ACCOUNT_NAME'
               value: storageAccountName
             }
