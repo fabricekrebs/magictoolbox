@@ -29,7 +29,8 @@ jobs:
   deploy-infrastructure:
     name: Deploy Azure Infrastructure
     runs-on: ubuntu-latest
-    environment: ${{ (github.event.inputs.environment == 'prod' || github.ref == 'refs/heads/main') && 'Production' || 'Development' }}
+    environment:
+      name: ${{ (github.event.inputs.environment == 'prod' || github.ref == 'refs/heads/main') && 'Production' || 'Development' }}
     
     steps:
       - name: Checkout code
