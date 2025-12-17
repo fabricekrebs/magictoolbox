@@ -173,7 +173,7 @@ module containerApps './modules/container-apps.bicep' = {
   }
 }
 
-// Private Endpoints for ACR, PostgreSQL, Redis, Storage, and Key Vault
+// Private Endpoints for ACR, PostgreSQL, Storage, Key Vault, and Function App
 module privateEndpoints './modules/private-endpoints.bicep' = {
   name: 'private-endpoints-deployment'
   params: {
