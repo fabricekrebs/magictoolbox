@@ -973,14 +973,16 @@ def convert_image(req: func.HttpRequest) -> func.HttpResponse:
         
         # Save with appropriate settings
         save_kwargs = {}
+        pil_format = output_format.upper()
         if output_format in ['jpg', 'jpeg']:
+            pil_format = 'JPEG'  # PIL requires 'JPEG' not 'JPG'
             save_kwargs = {'quality': quality, 'optimize': True}
         elif output_format == 'png':
             save_kwargs = {'optimize': True}
         elif output_format == 'webp':
             save_kwargs = {'quality': quality}
         
-        img.save(temp_output_path, format=output_format.upper(), **save_kwargs)
+        img.save(temp_output_path, format=pil_format, **save_kwargs)
         logger.info(f"✅ Converted image: {os.path.getsize(temp_output_path)} bytes")
         
         # Upload to processed container
@@ -1010,6 +1012,7 @@ def convert_image(req: func.HttpRequest) -> func.HttpResponse:
                     output_file = %s,
                     output_blob_path = %s,
                     output_filename = %s,
+                    completed_at = NOW(),
                     updated_at = NOW()
                 WHERE id = %s
             """, (f"{execution_id}{output_ext}", output_blob_full_path, output_filename, execution_id))
