@@ -1600,7 +1600,11 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
                 elif execution.tool_name == "pdf-docx-converter":
                     blob_name = f"docx/{execution.id}.docx"
                 elif execution.tool_name == "image-format-converter":
-                    blob_name = f"image/{execution.id}.png"  # Default extension
+                    # Image converter uses image-processed container directly (no subfolder)
+                    container_name = "image-processed"
+                    # Try to get format from parameters
+                    output_format = execution.parameters.get("output_format", "png")
+                    blob_name = f"{execution.id}.{output_format}"
                 elif execution.tool_name in ["gpx-kml-converter", "gpx-speed-modifier"]:
                     blob_name = f"gpx/{execution.id}.gpx"
                 elif execution.tool_name == "ocr-tool":

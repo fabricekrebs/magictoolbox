@@ -907,17 +907,21 @@ def convert_image(req: func.HttpRequest) -> func.HttpResponse:
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
+            # Set output_blob_path to include container and blob path for download endpoint
+            output_blob_full_path = f"image-processed/{execution_id}{output_ext}"
             cursor.execute("""
                 UPDATE tool_executions
                 SET status = 'completed',
                     output_file = %s,
+                    output_blob_path = %s,
+                    output_filename = %s,
                     updated_at = NOW()
                 WHERE id = %s
-            """, (f"{execution_id}{output_ext}", execution_id))
+            """, (f"{execution_id}{output_ext}", output_blob_full_path, f"converted{output_ext}", execution_id))
             conn.commit()
             cursor.close()
             conn.close()
-            logger.info("✅ Updated database with completed status")
+            logger.info(f"✅ Updated database with completed status, output_blob_path={output_blob_full_path}")
         except Exception as db_error:
             logger.warning(f"⚠️  Database update failed: {db_error}")
         
