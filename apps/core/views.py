@@ -36,12 +36,13 @@ def readiness_check(request):
     """
     Readiness check endpoint that verifies critical services.
 
-    Checks database and cache connectivity before reporting ready.
+    Checks database, cache, and Azure Function connectivity before reporting ready.
     Used by Azure Container Apps readiness probes.
     """
     checks = {
         "database": False,
         "cache": False,
+        "azure_function": False,
     }
 
     # Check database connection
@@ -58,6 +59,22 @@ def readiness_check(request):
         checks["cache"] = cache.get("health_check") == "ok"
     except Exception as e:
         logger.error(f"Cache health check failed: {e}")
+
+    # Check Azure Function health
+    azure_function_url = getattr(settings, 'AZURE_FUNCTION_BASE_URL', None)
+    if azure_function_url:
+        try:
+            import requests
+            health_url = f"{azure_function_url}/health"
+            response = requests.get(health_url, timeout=5)
+            checks["azure_function"] = response.status_code == 200
+            if response.status_code != 200:
+                logger.warning(f"Azure Function health check returned {response.status_code}")
+        except Exception as e:
+            logger.error(f"Azure Function health check failed: {e}")
+    else:
+        # If no Azure Function configured, mark as true (not required)
+        checks["azure_function"] = True
 
     # Return 200 if all checks pass, 503 otherwise
     all_healthy = all(checks.values())

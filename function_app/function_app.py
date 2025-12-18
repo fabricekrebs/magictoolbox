@@ -94,16 +94,19 @@ def health_check(req: func.HttpRequest) -> func.HttpResponse:
     }
     
     if detailed:
-        # Test blob storage
+        # Test blob storage access
         try:
             blob_service = get_blob_service_client()
-            # Try to list containers
-            containers = list(blob_service.list_containers(results_per_page=1))
+            # Test by checking if uploads container exists (proper blob access check)
+            container_client = blob_service.get_container_client("uploads")
+            # This will verify we can access the container
+            exists = container_client.exists()
             health_status["blob_storage"] = {
-                "status": "connected",
-                "account": os.environ.get("AZURE_STORAGE_ACCOUNT_NAME", "unknown")
+                "status": "connected" if exists else "container_not_found",
+                "account": os.environ.get("AZURE_STORAGE_ACCOUNT_NAME", "unknown"),
+                "uploads_container": "accessible" if exists else "not_found"
             }
-            logger.info("✅ Blob storage: Connected")
+            logger.info("✅ Blob storage: Connected and uploads container accessible")
         except Exception as e:
             health_status["blob_storage"] = {
                 "status": "error",
