@@ -2,6 +2,176 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [5.0.0](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.7...v5.0.0) (2025-12-18)
+
+### ⚠ BREAKING CHANGES
+
+* Production deployments now triggered by semantic version tags instead of direct main branch pushes
+
+* fix(ci): disable GitHub plugin PR/issue comments to prevent 404 errors
+
+* feat(ci): trigger deployment workflow after semantic release
+
+* fix(ci): correct azure-deploy workflow YAML syntax
+
+* fix(ci): use semantic-release action to properly set outputs
+
+* debug: add output debugging to semantic release
+
+* chore(ci): standardize GitHub Actions workflows with environment-based secrets
+
+- Remove redundant workflows (release.yml, develop_func-*.yml)
+- Fix production function deployment to include dependencies
+- Migrate to environment-based secrets (Development/Production)
+- Remove all _DEV/_PROD suffixed repository secrets
+- Replace hardcoded resource names with environment secrets
+- Simplify ACR secret logic using GitHub environments
+- Remove unused ENV_UPPER variable
+* Workflows now require secrets to be configured in GitHub environments (Development/Production) instead of repository-level secrets with _DEV/_PROD suffixes.
+
+Closes #TBD
+
+* fix(ci): add environment context to build job for secret access
+
+* fix(ci): simplify Docker tagging to use commit SHA for non-main branches
+
+- Main branch with release: semantic version + latest
+- Everything else (develop, PRs, features): commit SHA (short)
+- Removes complex branch/PR tagging logic
+- Cleaner and more reliable
+
+* test: validate workflow with simplified Docker tagging
+
+- Test environment-based secrets
+- Verify commit SHA tagging works correctly
+- Validate build and push to development ACR
+
+* test: verify development ACR routing
+
+* test: verify ACR routing with actual file change
+
+* feat: implement environment-based ACR routing with separate registries
+
+- Development images pushed to development ACR (acrwemagictoolboxdev01)
+- Production images pushed to production ACR (acrinmagictoolboxprod01)
+- Simplified Docker tagging strategy (commit SHA for non-main, semantic version for main)
+- Migrated to GitHub environment-based secrets pattern
+- Cleaned up redundant workflows (release.yml, obsolete function deployment)
+* ACR credentials now require environment-specific GitHub secrets configuration
+
+* feat: add version tracking to core module
+* Environment-based ACR routing now requires separate GitHub secrets configuration for Development and Production environments
+* Production deployments now triggered by semantic version tags instead of direct main branch pushes
+
+* fix(ci): disable GitHub plugin PR/issue comments to prevent 404 errors
+
+* feat(ci): trigger deployment workflow after semantic release
+
+* fix(ci): correct azure-deploy workflow YAML syntax
+
+* fix(ci): use semantic-release action to properly set outputs
+
+* debug: add output debugging to semantic release
+
+* chore(ci): standardize GitHub Actions workflows with environment-based secrets
+
+- Remove redundant workflows (release.yml, develop_func-*.yml)
+- Fix production function deployment to include dependencies
+- Migrate to environment-based secrets (Development/Production)
+- Remove all _DEV/_PROD suffixed repository secrets
+- Replace hardcoded resource names with environment secrets
+- Simplify ACR secret logic using GitHub environments
+- Remove unused ENV_UPPER variable
+* Workflows now require secrets to be configured in GitHub environments (Development/Production) instead of repository-level secrets with _DEV/_PROD suffixes.
+
+Closes #TBD
+
+* fix(ci): add environment context to build job for secret access
+
+* fix(ci): simplify Docker tagging to use commit SHA for non-main branches
+
+- Main branch with release: semantic version + latest
+- Everything else (develop, PRs, features): commit SHA (short)
+- Removes complex branch/PR tagging logic
+- Cleaner and more reliable
+
+* test: validate workflow with simplified Docker tagging
+
+- Test environment-based secrets
+- Verify commit SHA tagging works correctly
+- Validate build and push to development ACR
+
+* test: verify development ACR routing
+
+* test: verify ACR routing with actual file change
+
+* feat: implement environment-based ACR routing with separate registries
+
+- Development images pushed to development ACR (acrwemagictoolboxdev01)
+- Production images pushed to production ACR (acrinmagictoolboxprod01)
+- Simplified Docker tagging strategy (commit SHA for non-main, semantic version for main)
+- Migrated to GitHub environment-based secrets pattern
+- Cleaned up redundant workflows (release.yml, obsolete function deployment)
+* ACR credentials now require environment-specific GitHub secrets configuration
+* Production deployments now triggered by semantic version tags instead of direct main branch pushes
+
+* fix(ci): disable GitHub plugin PR/issue comments to prevent 404 errors
+
+* feat(ci): trigger deployment workflow after semantic release
+
+* fix(ci): correct azure-deploy workflow YAML syntax
+
+* fix(ci): use semantic-release action to properly set outputs
+
+* debug: add output debugging to semantic release
+
+* chore(ci): standardize GitHub Actions workflows with environment-based secrets
+
+- Remove redundant workflows (release.yml, develop_func-*.yml)
+- Fix production function deployment to include dependencies
+- Migrate to environment-based secrets (Development/Production)
+- Remove all _DEV/_PROD suffixed repository secrets
+- Replace hardcoded resource names with environment secrets
+- Simplify ACR secret logic using GitHub environments
+- Remove unused ENV_UPPER variable
+* Workflows now require secrets to be configured in GitHub environments (Development/Production) instead of repository-level secrets with _DEV/_PROD suffixes.
+
+Closes #TBD
+
+* fix(ci): add environment context to build job for secret access
+
+* fix(ci): simplify Docker tagging to use commit SHA for non-main branches
+
+- Main branch with release: semantic version + latest
+- Everything else (develop, PRs, features): commit SHA (short)
+- Removes complex branch/PR tagging logic
+- Cleaner and more reliable
+
+* test: validate workflow with simplified Docker tagging
+
+- Test environment-based secrets
+- Verify commit SHA tagging works correctly
+- Validate build and push to development ACR
+
+* test: verify development ACR routing
+
+* test: verify ACR routing with actual file change
+
+* feat: implement environment-based ACR routing with separate registries
+
+- Development images pushed to development ACR (acrwemagictoolboxdev01)
+- Production images pushed to production ACR (acrinmagictoolboxprod01)
+- Simplified Docker tagging strategy (commit SHA for non-main, semantic version for main)
+- Migrated to GitHub environment-based secrets pattern
+- Cleaned up redundant workflows (release.yml, obsolete function deployment)
+* ACR credentials now require environment-specific GitHub secrets configuration
+
+### Features
+
+* add version tracking and finalize v5.0.0 release ([#12](https://github.com/fabricekrebs/magictoolbox/issues/12)) ([811f8f9](https://github.com/fabricekrebs/magictoolbox/commit/811f8f922da290a74317a028cce23b776104aa09))
+* environment-based ACR routing with separate registries ([#10](https://github.com/fabricekrebs/magictoolbox/issues/10)) ([a575eab](https://github.com/fabricekrebs/magictoolbox/commit/a575eabea895a9e1f929ca94a8ca5a1286826c4f))
+* environment-based ACR routing with separate registries ([#11](https://github.com/fabricekrebs/magictoolbox/issues/11)) ([71cbbea](https://github.com/fabricekrebs/magictoolbox/commit/71cbbea6eeb62c5e4da187ad8abacca545a7025c))
+
 ## [4.1.7](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.6...v4.1.7) (2025-12-18)
 
 ### Code Refactoring
