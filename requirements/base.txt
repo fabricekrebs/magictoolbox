@@ -1,35 +1,35 @@
 # Base Python dependencies for MagicToolbox
 
 # Django
-Django>=5.0,<5.1
-djangorestframework>=3.14,<3.15
-djangorestframework-simplejwt>=5.3,<5.4
+Django>=5.1,<5.2
+djangorestframework>=3.15,<3.16
+djangorestframework-simplejwt>=5.5,<5.6
 
 # Database
 psycopg2-binary>=2.9,<3.0
-dj-database-url>=2.1,<2.2
+dj-database-url>=3.0,<3.1
 
 # File storage
 django-storages[azure]>=1.14,<1.15
 whitenoise>=6.6,<7.0
 
 # Azure SDK
-azure-identity>=1.15,<1.16
-azure-keyvault-secrets>=4.7,<4.8
+azure-identity>=1.25,<1.26
+azure-keyvault-secrets>=4.10,<4.11
 azure-storage-blob>=12.19,<13.0  # For blob storage operations (async PDF conversion)
 
 # API Documentation
 drf-spectacular>=0.27,<0.28
 
 # Forms with Bootstrap
-django-crispy-forms>=2.1,<2.2
-crispy-bootstrap5>=2024.2
+django-crispy-forms>=2.3,<2.4
+crispy-bootstrap5>=2025.2
 
 # CORS
-django-cors-headers>=4.3,<4.4
+django-cors-headers>=4.9,<5.0
 
 # Filtering
-django-filter>=23.5,<24.0
+django-filter>=24.0,<25.0
 
 # Environment variables
 python-decouple>=3.8,<3.9
@@ -49,7 +49,7 @@ pytesseract>=0.3.10
 opencv-python>=4.8.0  # For image preprocessing in OCR
 
 # Validation
-pydantic>=2.5,<2.6
+pydantic>=2.10,<3.0
 
 # Utilities
 python-dateutil>=2.8,<2.9
