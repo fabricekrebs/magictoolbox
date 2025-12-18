@@ -42,6 +42,12 @@ jobs:
             @semantic-release/git
             conventional-changelog-conventionalcommits
       
+      - name: Debug outputs
+        run: |
+          echo "new_release_published: ${{ steps.semantic.outputs.new_release_published }}"
+          echo "new_release_version: ${{ steps.semantic.outputs.new_release_version }}"
+          echo "new_release_git_tag: ${{ steps.semantic.outputs.new_release_git_tag }}"
+      
       - name: Output release info
         if: steps.semantic.outputs.new-release-published == 'true'
         run: |
