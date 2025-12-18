@@ -35,7 +35,7 @@ param containerAppsSubnetId string
 param functionAppUrl string = ''
 
 @description('Container image tag (version) - can be semver tag like v1.2.3 or branch-based like develop-abc123')
-param imageTag string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+param imageTag string = 'latest'
 
 @description('User-Assigned Managed Identity resource ID for ACR pull and Key Vault access')
 param userAssignedIdentityId string
