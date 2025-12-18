@@ -37,11 +37,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Set environment variables
-        run: |
-          ENV_UPPER=$(echo "${{ github.event.inputs.environment }}" | tr '[:lower:]' '[:upper:]')
-          echo "ENV_UPPER=$ENV_UPPER" >> $GITHUB_ENV
-      
       - name: Set deployment environment
         id: set_env
         run: |

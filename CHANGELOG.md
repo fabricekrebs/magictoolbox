@@ -2,6 +2,54 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.1.6](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.5...v4.1.6) (2025-12-18)
+
+### Bug Fixes
+
+* **ci:** use ACR secret directly for deployment image path ([cf7325c](https://github.com/fabricekrebs/magictoolbox/commit/cf7325c6c80dee65e533ad3a7a4c2f12603d38e6))
+
+## [4.1.5](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.4...v4.1.5) (2025-12-18)
+
+### Bug Fixes
+
+* **ci:** use az containerapp update for deployment ([bac117b](https://github.com/fabricekrebs/magictoolbox/commit/bac117b2b8b51d314c62afb5d0f158613b4c4349))
+
+## [4.1.4](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.3...v4.1.4) (2025-12-18)
+
+### Bug Fixes
+
+* **ci:** use separate prod ACR secrets ([2f19341](https://github.com/fabricekrebs/magictoolbox/commit/2f19341927e172d9835d14b3ab81d498a7caa7db))
+
+## [4.1.3](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.2...v4.1.3) (2025-12-18)
+
+### Bug Fixes
+
+* **ci:** generate correct Docker tags for semantic versions ([ab00983](https://github.com/fabricekrebs/magictoolbox/commit/ab0098355e0299ea695b2f6c22709f6a7ffe46b6))
+
+## [4.1.2](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.1...v4.1.2) (2025-12-18)
+
+### Bug Fixes
+
+* **ci:** use correct ACR for production builds ([449444d](https://github.com/fabricekrebs/magictoolbox/commit/449444dad631d851e0fa30caf55e656b795b71c7))
+
+## [4.1.1](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.0...v4.1.1) (2025-12-18)
+
+### Bug Fixes
+
+* **ci:** manually capture semantic-release version outputs ([5dbcfda](https://github.com/fabricekrebs/magictoolbox/commit/5dbcfda91f089c9bdf5244b03fbc0e1157f73aee))
+
+## [4.1.0](https://github.com/fabricekrebs/magictoolbox/compare/v4.0.0...v4.1.0) (2025-12-18)
+
+### Features
+
+* **ci:** combine release and deployment into single workflow ([a29a4cb](https://github.com/fabricekrebs/magictoolbox/commit/a29a4cbf31422881170184b43bab017afd1a5076))
+
+### Bug Fixes
+
+* **ci:** allow build job to run when release is skipped ([3853ea0](https://github.com/fabricekrebs/magictoolbox/commit/3853ea0bdb865c904d5de75c4178e4a3be22d8cf))
+* **ci:** correct YAML syntax error in deploy-prod job ([741b210](https://github.com/fabricekrebs/magictoolbox/commit/741b210f4a78adce4af2414641da3c6dd442ae9c))
+* **ci:** remove duplicate keys in deploy-prod job ([0bf10e0](https://github.com/fabricekrebs/magictoolbox/commit/0bf10e05868827f5407bbb9db92c26bb1ce26ce4))
+
 ## [4.0.0](https://github.com/fabricekrebs/magictoolbox/compare/v3.0.1...v4.0.0) (2025-12-18)
 
 ### ⚠ BREAKING CHANGES

@@ -195,8 +195,26 @@ jobs:
       
       - name: Create deployment package
         run: |
+          echo "📦 Creating deployment package with dependencies..."
           cd function_app
-          zip -r ../function_app.zip . -x "*.pyc" -x "__pycache__/*" -x "local.settings.json" -x ".python_packages/*"
+          
+          # Install dependencies into .python_packages/lib/site-packages
+          # This is the standard location for Azure Functions Python
+          mkdir -p .python_packages/lib/site-packages
+          pip install --target=".python_packages/lib/site-packages" -r requirements.txt
+          
+          # Create zip with all code and dependencies
+          zip -r ../function_app.zip . \
+            -x "*.pyc" \
+            -x "__pycache__/*" \
+            -x ".venv/*" \
+            -x "local.settings.json" \
+            -x "*.md" \
+            -x "function_app_*.py" \
+            -x "*.sh"
+          echo "✅ Package created: $(du -h ../function_app.zip | cut -f1)"
+          echo "📋 Package contents:"
+          unzip -l ../function_app.zip | grep -E "(function_app\.py|host\.json|requirements\.txt)" || true
       
       - name: Temporarily enable storage public network access for deployment
         run: |
