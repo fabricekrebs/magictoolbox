@@ -4,13 +4,12 @@ on:
   push:
     branches:
       - develop
+    tags:
+      - 'v*.*.*'
     paths-ignore:
       - 'infra/**'
       - 'documentation/**'
       - '*.md'
-  push:
-    tags:
-      - 'v*.*.*'
   pull_request:
     branches:
       - main
