@@ -26,7 +26,6 @@ from .serializers import (
     ToolProcessRequestSerializer,
     ToolProcessResponseSerializer,
 )
-from .tasks import process_tool_async
 
 logger = logging.getLogger(__name__)
 
@@ -1029,55 +1028,23 @@ class ToolViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+    # NOTE: This endpoint is deprecated. Use tool-specific endpoints instead.
+    # All async processing now uses Azure Functions directly (PDF converter, video rotation, etc.)
     @action(detail=False, methods=["post"])
     def process(self, request):
         """
-        Process a file with specified tool.
-
-        POST /api/v1/tools/process/
-
-        Request body:
-        - toolName: Name of tool to use
-        - file: File to process
-        - parameters: Tool-specific parameters (optional)
+        DEPRECATED: Use tool-specific endpoints instead.
+        
+        This endpoint previously used Celery for async processing,
+        but has been replaced by Azure Functions integration.
         """
-        serializer = ToolProcessRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        tool_name = serializer.validated_data["toolName"]
-        file = serializer.validated_data["file"]
-        parameters = serializer.validated_data.get("parameters", {})
-
-        # Create execution record
-        execution = ToolExecution.objects.create(
-            user=request.user,
-            tool_name=tool_name,
-            input_filename=file.name,
-            input_size=file.size,
-            parameters=parameters,
-            status="pending",
+        return Response(
+            {
+                "error": "This endpoint is deprecated. Use tool-specific endpoints instead.",
+                "message": "For async tools like PDF converter or video rotation, use their dedicated endpoints."
+            },
+            status=status.HTTP_410_GONE
         )
-
-        # Save input file
-        execution.input_file = file
-        execution.save()
-
-        # Queue async processing
-        process_tool_async.delay(
-            execution_id=str(execution.id),
-            tool_name=tool_name,
-            input_file_path=execution.input_file.path,
-            parameters=parameters,
-        )
-
-        response_data = {
-            "executionId": str(execution.id),
-            "status": "pending",
-            "message": "Tool processing queued",
-        }
-
-        response_serializer = ToolProcessResponseSerializer(response_data)
-        return Response(response_serializer.data, status=status.HTTP_202_ACCEPTED)
 
     @action(detail=True, methods=["post"], url_path="upload-video")
     def upload_video(self, request, pk=None):

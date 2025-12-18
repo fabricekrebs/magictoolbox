@@ -12,10 +12,11 @@ echo "Checking database connectivity..."
 MAX_RETRIES=30
 RETRY_COUNT=0
 
-until python manage.py check --database default > /dev/null 2>&1; do
+until python manage.py check --database default 2>&1; do
     RETRY_COUNT=$((RETRY_COUNT + 1))
     if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
         echo "ERROR: Database not available after $MAX_RETRIES attempts"
+        echo "Last error output is shown above"
         exit 1
     fi
     echo "Waiting for database... (attempt $RETRY_COUNT/$MAX_RETRIES)"
