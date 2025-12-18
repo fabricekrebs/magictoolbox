@@ -282,20 +282,35 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_PROD }}
       
-      - name: Deploy to Azure Container Apps
+      - name: Update Container App image
         id: deploy
-        uses: azure/container-apps-deploy-action@v1
-        with:
-          acrName: ${{ secrets.ACR_NAME }}
-          containerAppName: app-in-magictoolbox-prod-01
-          resourceGroup: ${{ secrets.RESOURCE_GROUP_PROD }}
-          imageToDeploy: ${{ needs.build.outputs.acr-server }}/${{ env.APP_NAME }}:${{ needs.build.outputs.image-tag }}
+        run: |
+          IMAGE="${{ needs.build.outputs.acr-server }}/${{ env.APP_NAME }}:${{ needs.build.outputs.image-tag }}"
+          echo "Deploying image: ${IMAGE}"
+          
+          # Update container app with new image
+          az containerapp update \
+            --name app-in-magictoolbox-prod-01 \
+            --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
+            --image "${IMAGE}" \
+            --output json | jq -r '{fqdn: .properties.configuration.ingress.fqdn, provisioningState: .properties.provisioningState}'
+          
+          # Get the app URL
+          FQDN=$(az containerapp show \
+            --name app-in-magictoolbox-prod-01 \
+            --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+          
+          echo "url=https://${FQDN}" >> $GITHUB_OUTPUT
+          echo "✅ Container App updated successfully"
+          echo "URL: https://${FQDN}"
       
       - name: Deployment summary
         run: |
           echo "✅ Deployed to production"
           echo "Version: ${{ needs.build.outputs.image-version }}"
           echo "Image: ${{ needs.build.outputs.acr-server }}/${{ env.APP_NAME }}:${{ needs.build.outputs.image-tag }}"
+          echo "URL: ${{ steps.deploy.outputs.url }}"
       
       # Note: Migrations and collectstatic run in container startup script
       # az containerapp exec doesn't work in non-interactive CI/CD environments
