@@ -80,6 +80,35 @@ jobs:
           echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_ADMIN_PASSWORD_PROD }}" >> $GITHUB_ENV
           echo "DJANGO_SECRET=${{ secrets.DJANGO_SECRET_KEY_PROD }}" >> $GITHUB_ENV
       
+      - name: Get current Container App image
+        if: github.event.inputs.destroy != 'true'
+        id: get_image
+        run: |
+          # Determine container app name based on environment
+          if [ "${{ steps.set_env.outputs.environment }}" == "prod" ]; then
+            CONTAINER_APP_NAME="app-in-magictoolbox-prod-01"
+          else
+            CONTAINER_APP_NAME="app-we-magictoolbox-dev-01"
+          fi
+          
+          # Get current image if Container App exists
+          CURRENT_IMAGE=$(az containerapp show \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "properties.template.containers[0].image" -o tsv 2>/dev/null || echo "")
+          
+          if [ -z "$CURRENT_IMAGE" ]; then
+            # Container App doesn't exist, use public placeholder image
+            IMAGE_TAG="mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
+            echo "ℹ️  Container App doesn't exist yet, will use public placeholder image"
+          else
+            # Preserve current image
+            IMAGE_TAG="$CURRENT_IMAGE"
+            echo "✅ Preserving current image: $CURRENT_IMAGE"
+          fi
+          
+          echo "imageTag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+      
       - name: Deploy infrastructure (What-If)
         if: github.event.inputs.destroy != 'true'
         run: |
@@ -89,7 +118,8 @@ jobs:
             --parameters ./infra/parameters.${{ steps.set_env.outputs.environment }}.json \
             --parameters \
               postgresAdminPassword="$POSTGRES_PASSWORD" \
-              djangoSecretKey="$DJANGO_SECRET"
+              djangoSecretKey="$DJANGO_SECRET" \
+              imageTag="${{ steps.get_image.outputs.imageTag }}"
       
       - name: Deploy infrastructure (with Key Vault references)
         if: github.event.inputs.destroy != 'true'
@@ -102,7 +132,8 @@ jobs:
             --parameters \
               postgresAdminPassword="$POSTGRES_PASSWORD" \
               djangoSecretKey="$DJANGO_SECRET" \
-              useKeyVaultReferences=true
+              useKeyVaultReferences=true \
+              imageTag="${{ steps.get_image.outputs.imageTag }}"
       
       - name: Set resource group for destroy (Dev)
         if: github.event.inputs.environment == 'dev' && github.event.inputs.destroy == 'true'
