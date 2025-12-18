@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.1.3](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.2...v4.1.3) (2025-12-18)
+
+### Bug Fixes
+
+* **ci:** generate correct Docker tags for semantic versions ([ab00983](https://github.com/fabricekrebs/magictoolbox/commit/ab0098355e0299ea695b2f6c22709f6a7ffe46b6))
+
 ## [4.1.2](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.1...v4.1.2) (2025-12-18)
 
 ### Bug Fixes
