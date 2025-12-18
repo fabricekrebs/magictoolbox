@@ -31,20 +31,16 @@ jobs:
         with:
           node-version: 20
       
-      - name: Install dependencies
-        run: |
-          npm install -g \
-            semantic-release \
-            @semantic-release/changelog \
-            @semantic-release/git \
-            @semantic-release/github \
-            conventional-changelog-conventionalcommits
-      
       - name: Run Semantic Release
         id: semantic
+        uses: cycjimmy/semantic-release-action@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
+        with:
+          extra_plugins: |
+            @semantic-release/changelog
+            @semantic-release/git
+            conventional-changelog-conventionalcommits
       
       - name: Output release info
         if: steps.semantic.outputs.new-release-published == 'true'
