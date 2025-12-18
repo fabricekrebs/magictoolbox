@@ -1,6 +1,11 @@
 // Azure Container Apps Environment and App
 // Supports both direct secrets and Key Vault references
 // Use useKeyVaultReferences=false for initial deployment, true after RBAC is configured
+//
+// Authentication: Uses user-assigned managed identity for:
+// - Azure Container Registry (ACR) image pull
+// - Azure Key Vault secret access
+// - Azure Storage Blob access (via RBAC module)
 param location string
 param namingPrefix string
 param tags object
