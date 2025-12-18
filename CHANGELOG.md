@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.1.0](https://github.com/fabricekrebs/magictoolbox/compare/v4.0.0...v4.1.0) (2025-12-18)
+
+### Features
+
+* **ci:** combine release and deployment into single workflow ([a29a4cb](https://github.com/fabricekrebs/magictoolbox/commit/a29a4cbf31422881170184b43bab017afd1a5076))
+
+### Bug Fixes
+
+* **ci:** allow build job to run when release is skipped ([3853ea0](https://github.com/fabricekrebs/magictoolbox/commit/3853ea0bdb865c904d5de75c4178e4a3be22d8cf))
+* **ci:** correct YAML syntax error in deploy-prod job ([741b210](https://github.com/fabricekrebs/magictoolbox/commit/741b210f4a78adce4af2414641da3c6dd442ae9c))
+* **ci:** remove duplicate keys in deploy-prod job ([0bf10e0](https://github.com/fabricekrebs/magictoolbox/commit/0bf10e05868827f5407bbb9db92c26bb1ce26ce4))
+
 ## [4.0.0](https://github.com/fabricekrebs/magictoolbox/compare/v3.0.1...v4.0.0) (2025-12-18)
 
 ### ⚠ BREAKING CHANGES
