@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.0](https://github.com/fabricekrebs/magictoolbox/compare/v1.0.0...v2.0.0) (2025-12-18)
+
+### ⚠ BREAKING CHANGES
+
+* **ci:** Production deployments now triggered by semantic version tags instead of direct main branch pushes
+
+* fix(ci): disable GitHub plugin PR/issue comments to prevent 404 errors
+
+### Bug Fixes
+
+* **ci:** disable GitHub plugin PR/issue comments ([#3](https://github.com/fabricekrebs/magictoolbox/issues/3)) ([1ab3b14](https://github.com/fabricekrebs/magictoolbox/commit/1ab3b147f546997358b188b95cac3bc303dd6ca0))
+
 ## [1.0.0](https://github.com/fabricekrebs/magictoolbox/compare/v0.0.1...v1.0.0) (2025-12-18)
 
 ### ⚠ BREAKING CHANGES
