@@ -52,3 +52,16 @@ jobs:
           echo "🎉 New release published!"
           echo "Version: ${{ steps.semantic.outputs.new-release-version }}"
           echo "Tag: ${{ steps.semantic.outputs.new-release-git-tag }}"
+      
+      - name: Trigger deployment workflow
+        if: steps.semantic.outputs.new-release-published == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'azure-deploy.yml',
+              ref: '${{ steps.semantic.outputs.new-release-git-tag }}'
+            });
+            console.log('✅ Triggered deployment for ${{ steps.semantic.outputs.new-release-git-tag }}');
