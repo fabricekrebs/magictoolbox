@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.1.7](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.6...v4.1.7) (2025-12-18)
+
+### Code Refactoring
+
+* **ci:** use numeric version tags without 'v' prefix for Docker ([31f9440](https://github.com/fabricekrebs/magictoolbox/commit/31f9440ac4bbaf7ceef3e536414ab9cfd9170bc3))
+
 ## [4.1.6](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.5...v4.1.6) (2025-12-18)
 
 ### Bug Fixes
@@ -230,4 +236,3 @@ See documentation/NAMING_CONSISTENCY_AUDIT.md for full details.
 * remove Redis, migrate to database-backed sessions and cache ([98bd34d](https://github.com/fabricekrebs/magictoolbox/commit/98bd34d15fdcb7086c406bf4f001db1c47d6d850))
 * use managed identity for ACR authentication ([2b76bb0](https://github.com/fabricekrebs/magictoolbox/commit/2b76bb0b5885a40a0db3f9e1abdd28a89997ce94))
 test: validate workflow cleanup changes
-test: trigger development build to verify ACR routing
