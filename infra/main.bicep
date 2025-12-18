@@ -67,6 +67,16 @@ module monitoring './modules/monitoring.bicep' = {
   }
 }
 
+// User-Assigned Managed Identity for Container App (deploy early for RBAC)
+module managedIdentity './modules/managed-identity.bicep' = {
+  name: 'managed-identity-deployment'
+  params: {
+    location: location
+    namingPrefix: namingPrefix
+    tags: tags
+  }
+}
+
 // Azure Container Registry
 module acr './modules/acr.bicep' = {
   name: 'acr-deployment'
@@ -174,6 +184,7 @@ module containerApps './modules/container-apps.bicep' = {
     containerAppsSubnetId: network.outputs.containerAppsSubnetId
     functionAppUrl: 'https://${functionApp.outputs.functionAppHostName}/api'
     imageTag: imageTag
+    userAssignedIdentityId: managedIdentity.outputs.managedIdentityId
   }
 }
 
@@ -203,7 +214,7 @@ module rbac './modules/rbac.bicep' = {
     storageAccountName: storage.outputs.storageAccountName
     acrName: acr.outputs.acrName
     keyVaultName: keyVault.outputs.keyVaultName
-    containerAppIdentityPrincipalId: containerApps.outputs.containerAppIdentityPrincipalId
+    containerAppIdentityPrincipalId: managedIdentity.outputs.managedIdentityPrincipalId
     functionAppIdentityPrincipalId: functionApp.outputs.functionAppPrincipalId
   }
 }

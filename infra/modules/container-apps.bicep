@@ -37,6 +37,9 @@ param functionAppUrl string = ''
 @description('Container image tag (version) - can be semver tag like v1.2.3 or branch-based like develop-abc123')
 param imageTag string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
+@description('User-Assigned Managed Identity resource ID for ACR pull and Key Vault access')
+param userAssignedIdentityId string
+
 // Location abbreviation for naming (Container Apps have 32 char limit)
 var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'italynorth' ? 'in' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
 
@@ -82,7 +85,10 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
   location: location
   tags: tags
   identity: {
-    type: 'SystemAssigned' // Managed Identity for ACR and Storage access
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${userAssignedIdentityId}': {}
+    }
   }
   properties: {
     managedEnvironmentId: containerAppsEnvironment.id
@@ -103,29 +109,29 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
       registries: [
         {
           server: acrLoginServer
-          identity: 'system' // Use managed identity instead of admin credentials
+          identity: userAssignedIdentityId // Use user-assigned managed identity for ACR pull
         }
       ]
       secrets: useKeyVaultReferences ? [
         {
           name: 'django-secret-key'
           keyVaultUrl: '${keyVaultUri}secrets/django-secret-key'
-          identity: 'system'
+          identity: userAssignedIdentityId
         }
         {
           name: 'postgres-password'
           keyVaultUrl: '${keyVaultUri}secrets/postgres-password'
-          identity: 'system'
+          identity: userAssignedIdentityId
         }
         {
           name: 'storage-account-key'
           keyVaultUrl: '${keyVaultUri}secrets/storage-account-key'
-          identity: 'system'
+          identity: userAssignedIdentityId
         }
         {
           name: 'appinsights-connection-string'
           keyVaultUrl: '${keyVaultUri}secrets/appinsights-connection-string'
-          identity: 'system'
+          identity: userAssignedIdentityId
         }
       ] : [
         {
@@ -307,5 +313,4 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
 output containerAppId string = containerApp.id
 output containerAppName string = containerApp.name
 output containerAppUrl string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
-output containerAppIdentityPrincipalId string = containerApp.identity.principalId
 output containerAppsEnvironmentId string = containerAppsEnvironment.id
