@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.1.5](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.4...v4.1.5) (2025-12-18)
+
+### Bug Fixes
+
+* **ci:** use az containerapp update for deployment ([bac117b](https://github.com/fabricekrebs/magictoolbox/commit/bac117b2b8b51d314c62afb5d0f158613b4c4349))
+
 ## [4.1.4](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.3...v4.1.4) (2025-12-18)
 
 ### Bug Fixes
