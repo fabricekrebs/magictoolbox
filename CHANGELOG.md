@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.0.1](https://github.com/fabricekrebs/magictoolbox/compare/v3.0.0...v3.0.1) (2025-12-18)
+
+### Bug Fixes
+
+* **ci:** correct azure-deploy workflow YAML syntax ([928b5be](https://github.com/fabricekrebs/magictoolbox/commit/928b5be5da8439244848a07c2ac70dd4813a6849))
+
 ## [3.0.0](https://github.com/fabricekrebs/magictoolbox/compare/v2.0.0...v3.0.0) (2025-12-18)
 
 ### ⚠ BREAKING CHANGES
