@@ -117,36 +117,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
-      - name: Determine ACR based on branch
+      - name: Set ACR from environment
         id: set_acr
         run: |
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            # Production: use prod ACR secrets
-            echo "server=${{ secrets.ACR_LOGIN_SERVER_PROD }}" >> $GITHUB_OUTPUT
-            echo "name=${{ secrets.ACR_NAME_PROD }}" >> $GITHUB_OUTPUT
-            echo "username=${{ secrets.ACR_USERNAME_PROD }}" >> $GITHUB_OUTPUT
-            echo "password=${{ secrets.ACR_PASSWORD_PROD }}" >> $GITHUB_OUTPUT
-            echo "Using production ACR: ${{ secrets.ACR_LOGIN_SERVER_PROD }}"
-          else
-            # Development: use dev ACR secrets (if they exist, otherwise fallback to prod)
-            SERVER="${{ secrets.ACR_LOGIN_SERVER_DEV }}"
-            if [[ -z "$SERVER" ]]; then SERVER="${{ secrets.ACR_LOGIN_SERVER }}"; fi
-            echo "server=${SERVER}" >> $GITHUB_OUTPUT
-            
-            NAME="${{ secrets.ACR_NAME_DEV }}"
-            if [[ -z "$NAME" ]]; then NAME="${{ secrets.ACR_NAME }}"; fi
-            echo "name=${NAME}" >> $GITHUB_OUTPUT
-            
-            USERNAME="${{ secrets.ACR_USERNAME_DEV }}"
-            if [[ -z "$USERNAME" ]]; then USERNAME="${{ secrets.ACR_USERNAME }}"; fi
-            echo "username=${USERNAME}" >> $GITHUB_OUTPUT
-            
-            PASSWORD="${{ secrets.ACR_PASSWORD_DEV }}"
-            if [[ -z "$PASSWORD" ]]; then PASSWORD="${{ secrets.ACR_PASSWORD }}"; fi
-            echo "password=${PASSWORD}" >> $GITHUB_OUTPUT
-            
-            echo "Using development ACR: ${SERVER}"
-          fi
+          echo "server=${{ secrets.ACR_LOGIN_SERVER }}" >> $GITHUB_OUTPUT
+          echo "name=${{ secrets.ACR_NAME }}" >> $GITHUB_OUTPUT
+          echo "username=${{ secrets.ACR_USERNAME }}" >> $GITHUB_OUTPUT
+          echo "password=${{ secrets.ACR_PASSWORD }}" >> $GITHUB_OUTPUT
+          echo "Using ACR: ${{ secrets.ACR_LOGIN_SERVER }}"
       
       - name: Log in to Azure Container Registry
         uses: azure/docker-login@v1
@@ -250,7 +228,7 @@ jobs:
         uses: azure/container-apps-deploy-action@v1
         with:
           acrName: ${{ secrets.ACR_NAME }}
-          containerAppName: ${{ secrets.CONTAINER_APP_NAME_DEV }}
+          containerAppName: ${{ secrets.CONTAINER_APP_NAME }}
           resourceGroup: ${{ secrets.RESOURCE_GROUP_DEV }}
           imageToDeploy: ${{ needs.build.outputs.acr-server }}/${{ env.APP_NAME }}:${{ needs.build.outputs.image-tag }}
       
@@ -285,19 +263,19 @@ jobs:
       - name: Update Container App image
         id: deploy
         run: |
-          IMAGE="${{ secrets.ACR_LOGIN_SERVER_PROD }}/${{ env.APP_NAME }}:${{ needs.build.outputs.image-tag }}"
+          IMAGE="${{ secrets.ACR_LOGIN_SERVER }}/${{ env.APP_NAME }}:${{ needs.build.outputs.image-tag }}"
           echo "Deploying image: ${IMAGE}"
           
           # Update container app with new image
           az containerapp update \
-            --name app-in-magictoolbox-prod-01 \
+            --name ${{ secrets.CONTAINER_APP_NAME }} \
             --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
             --image "${IMAGE}" \
             --output json | jq -r '{fqdn: .properties.configuration.ingress.fqdn, provisioningState: .properties.provisioningState}'
           
           # Get the app URL
           FQDN=$(az containerapp show \
-            --name app-in-magictoolbox-prod-01 \
+            --name ${{ secrets.CONTAINER_APP_NAME }} \
             --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
             --query "properties.configuration.ingress.fqdn" -o tsv)
           
