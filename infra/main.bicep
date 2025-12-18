@@ -34,6 +34,9 @@ param djangoSecretKey string
 @description('Use Key Vault references in Container App (false for first deployment, true after RBAC propagates)')
 param useKeyVaultReferences bool = false
 
+@description('Container image tag (version) - can be semver tag like v1.2.3 or branch-based like develop-abc123')
+param imageTag string = environment == 'prod' ? 'latest' : 'develop'
+
 @description('Tags to apply to all resources')
 param tags object = {
   Application: 'MagicToolbox'
@@ -170,10 +173,11 @@ module containerApps './modules/container-apps.bicep' = {
     postgresAdminUsername: postgresAdminUsername
     containerAppsSubnetId: network.outputs.containerAppsSubnetId
     functionAppUrl: 'https://${functionApp.outputs.functionAppHostName}/api'
+    imageTag: imageTag
   }
 }
 
-// Private Endpoints for ACR, PostgreSQL, Redis, Storage, and Key Vault
+// Private Endpoints for ACR, PostgreSQL, Storage, Key Vault, and Function App
 module privateEndpoints './modules/private-endpoints.bicep' = {
   name: 'private-endpoints-deployment'
   params: {

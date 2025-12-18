@@ -17,7 +17,7 @@ param environment string = 'dev'
 @description('Subnet ID for Function Apps to access Key Vault')
 param functionAppsSubnetId string = ''
 
-resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' = {
+resource keyVault 'Microsoft.KeyVault/vaults@2025-05-01' = {
   name: keyVaultName
   location: location
   tags: tags
@@ -61,7 +61,7 @@ param storageAccountKey string
 @secure()
 param applicationInsightsConnectionString string
 
-resource djangoSecretKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' = {
+resource djangoSecretKeySecret 'Microsoft.KeyVault/vaults/secrets@2025-05-01' = {
   parent: keyVault
   name: 'django-secret-key'
   properties: {
@@ -70,7 +70,7 @@ resource djangoSecretKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' = 
   }
 }
 
-resource postgresPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' = {
+resource postgresPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2025-05-01' = {
   parent: keyVault
   name: 'postgres-password'
   properties: {
@@ -79,7 +79,7 @@ resource postgresPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' =
   }
 }
 
-resource storageAccountKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' = {
+resource storageAccountKeySecret 'Microsoft.KeyVault/vaults/secrets@2025-05-01' = {
   parent: keyVault
   name: 'storage-account-key'
   properties: {
@@ -88,7 +88,7 @@ resource storageAccountKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' 
   }
 }
 
-resource applicationInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-02-01' = {
+resource applicationInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2025-05-01' = {
   parent: keyVault
   name: 'appinsights-connection-string'
   properties: {

@@ -29,7 +29,7 @@ var functionAppName = 'func-${namingPrefix}-${uniqueString(resourceGroup().id)}'
 var appServicePlanName = 'plan-flexconsumption-${namingPrefix}-${uniqueString(resourceGroup().id)}'
 
 // App Service Plan (Flex Consumption for reliable HTTP triggers)
-resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
+resource appServicePlan 'Microsoft.Web/serverfarms@2025-03-01' = {
   name: appServicePlanName
   location: location
   tags: tags
@@ -44,7 +44,7 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
 }
 
 // Function App
-resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
+resource functionApp 'Microsoft.Web/sites@2025-03-01' = {
   name: functionAppName
   location: location
   tags: tags
@@ -193,7 +193,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
 // to avoid duplicate assignments and ensure proper deployment order
 
 // Diagnostic settings for Function App
-resource functionAppDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+resource functionAppDiagnostics 'Microsoft.Insights/diagnosticSettings@2017-05-01-preview' = {
   name: 'function-app-diagnostics'
   scope: functionApp
   properties: {

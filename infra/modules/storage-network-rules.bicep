@@ -9,7 +9,7 @@ param functionAppsSubnetId string
 
 // Update network rules to add Function App resource access
 // We only update networkAcls to avoid modifying other properties
-resource storageAccountUpdate 'Microsoft.Storage/storageAccounts@2023-01-01' = {
+resource storageAccountUpdate 'Microsoft.Storage/storageAccounts@2025-06-01' = {
   name: storageAccountName
   location: location
   tags: tags

@@ -17,13 +17,13 @@ var locationAbbr = location == 'westeurope' ? 'westeurope' : location == 'northe
 // ========== Private DNS Zones ==========
 
 // PostgreSQL Private DNS Zone
-resource postgresPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+resource postgresPrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
   name: 'privatelink.postgres.database.azure.com'
   location: 'global'
   tags: tags
 }
 
-resource postgresPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+resource postgresPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
   parent: postgresPrivateDnsZone
   name: 'vnet-link-postgres'
   location: 'global'
@@ -36,13 +36,13 @@ resource postgresPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtu
 }
 
 // Storage Blob Private DNS Zone
-resource storageBlobPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+resource storageBlobPrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
   name: 'privatelink.blob.${environment().suffixes.storage}'
   location: 'global'
   tags: tags
 }
 
-resource storageBlobPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+resource storageBlobPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
   parent: storageBlobPrivateDnsZone
   name: 'vnet-link-storage'
   location: 'global'
@@ -55,13 +55,13 @@ resource storageBlobPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/vi
 }
 
 // Key Vault Private DNS Zone
-resource keyVaultPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+resource keyVaultPrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
   name: 'privatelink.vaultcore.azure.net'
   location: 'global'
   tags: tags
 }
 
-resource keyVaultPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+resource keyVaultPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
   parent: keyVaultPrivateDnsZone
   name: 'vnet-link-keyvault'
   location: 'global'
@@ -74,13 +74,13 @@ resource keyVaultPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtu
 }
 
 // Function App Private DNS Zone
-resource functionAppPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (!empty(functionAppId)) {
+resource functionAppPrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = if (!empty(functionAppId)) {
   name: 'privatelink.azurewebsites.net'
   location: 'global'
   tags: tags
 }
 
-resource functionAppPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (!empty(functionAppId)) {
+resource functionAppPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = if (!empty(functionAppId)) {
   parent: functionAppPrivateDnsZone
   name: 'vnet-link-functionapp'
   location: 'global'
@@ -95,7 +95,7 @@ resource functionAppPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/vi
 // ========== Private Endpoints ==========
 
 // PostgreSQL Private Endpoint
-resource postgresPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
+resource postgresPrivateEndpoint 'Microsoft.Network/privateEndpoints@2025-05-01' = {
   name: 'pe-${locationAbbr}-${namingPrefix}-psql-01'
   location: location
   tags: tags
@@ -117,7 +117,7 @@ resource postgresPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01'
   }
 }
 
-resource postgresPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-05-01' = {
+resource postgresPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2025-05-01' = {
   parent: postgresPrivateEndpoint
   name: 'default'
   properties: {
@@ -133,7 +133,7 @@ resource postgresPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/private
 }
 
 // Storage Blob Private Endpoint
-resource storageBlobPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
+resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2025-05-01' = {
   name: 'pe-${locationAbbr}-${namingPrefix}-blob-01'
   location: location
   tags: tags
@@ -155,8 +155,8 @@ resource storageBlobPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-
   }
 }
 
-resource storageBlobPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-05-01' = {
-  parent: storageBlobPrivateEndpoint
+resource storageBlobPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2025-05-01' = {
+  parent: storagePrivateEndpoint
   name: 'default'
   properties: {
     privateDnsZoneConfigs: [
@@ -171,7 +171,7 @@ resource storageBlobPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/priv
 }
 
 // Key Vault Private Endpoint
-resource keyVaultPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
+resource keyVaultPrivateEndpoint 'Microsoft.Network/privateEndpoints@2025-05-01' = {
   name: 'pe-${locationAbbr}-${namingPrefix}-kv-01'
   location: location
   tags: tags
@@ -193,7 +193,7 @@ resource keyVaultPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01'
   }
 }
 
-resource keyVaultPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-05-01' = {
+resource keyVaultPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2025-05-01' = {
   parent: keyVaultPrivateEndpoint
   name: 'default'
   properties: {
@@ -209,7 +209,7 @@ resource keyVaultPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/private
 }
 
 // Function App Private Endpoint (only if functionAppId is provided)
-resource functionAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = if (!empty(functionAppId)) {
+resource functionAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2025-05-01' = if (!empty(functionAppId)) {
   name: 'pe-${locationAbbr}-${namingPrefix}-func-01'
   location: location
   tags: tags
@@ -231,7 +231,7 @@ resource functionAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-
   }
 }
 
-resource functionAppPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-05-01' = if (!empty(functionAppId)) {
+resource functionAppPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2025-05-01' = if (!empty(functionAppId)) {
   parent: functionAppPrivateEndpoint
   name: 'default'
   properties: {
@@ -249,5 +249,5 @@ resource functionAppPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/priv
 // Outputs
 output postgresPrivateEndpointId string = postgresPrivateEndpoint.id
 output functionAppPrivateEndpointId string = !empty(functionAppId) ? functionAppPrivateEndpoint.id : ''
-output storageBlobPrivateEndpointId string = storageBlobPrivateEndpoint.id
+output storageBlobPrivateEndpointId string = storagePrivateEndpoint.id
 output keyVaultPrivateEndpointId string = keyVaultPrivateEndpoint.id

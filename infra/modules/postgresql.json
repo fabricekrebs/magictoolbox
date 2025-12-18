@@ -1,0 +1,123 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.39.26.7824",
+      "templateHash": "3834379041981667382"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string"
+    },
+    "namingPrefix": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "object"
+    },
+    "administratorLogin": {
+      "type": "string"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "administratorLoginPassword": {
+      "type": "securestring"
+    }
+  },
+  "variables": {
+    "locationAbbr": "[if(equals(parameters('location'), 'westeurope'), 'westeurope', if(equals(parameters('location'), 'northeurope'), 'northeurope', if(equals(parameters('location'), 'italynorth'), 'italynorth', if(equals(parameters('location'), 'eastus'), 'eastus', if(equals(parameters('location'), 'eastus2'), 'eastus2', parameters('location'))))))]",
+    "postgresServerName": "[format('psql-{0}-{1}-01', variables('locationAbbr'), parameters('namingPrefix'))]",
+    "databaseName": "magictoolbox",
+    "skuTier": "Burstable",
+    "skuName": "Standard_B1ms"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers",
+      "apiVersion": "2025-08-01",
+      "name": "[variables('postgresServerName')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "sku": {
+        "name": "[variables('skuName')]",
+        "tier": "[variables('skuTier')]"
+      },
+      "properties": {
+        "administratorLogin": "[parameters('administratorLogin')]",
+        "administratorLoginPassword": "[parameters('administratorLoginPassword')]",
+        "version": "17",
+        "storage": {
+          "storageSizeGB": 32,
+          "autoGrow": "Enabled"
+        },
+        "backup": {
+          "backupRetentionDays": 7,
+          "geoRedundantBackup": "Disabled"
+        },
+        "highAvailability": {
+          "mode": "Disabled"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
+      "apiVersion": "2025-08-01",
+      "name": "[format('{0}/{1}', variables('postgresServerName'), variables('databaseName'))]",
+      "properties": {
+        "charset": "UTF8",
+        "collation": "en_US.utf8"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('postgresServerName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules",
+      "apiVersion": "2025-08-01",
+      "name": "[format('{0}/{1}', variables('postgresServerName'), 'AllowAllAzureServicesAndResourcesWithinAzureIps')]",
+      "properties": {
+        "startIpAddress": "0.0.0.0",
+        "endIpAddress": "0.0.0.0"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/databases', variables('postgresServerName'), variables('databaseName'))]",
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('postgresServerName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/configurations",
+      "apiVersion": "2025-08-01",
+      "name": "[format('{0}/{1}', variables('postgresServerName'), 'azure.extensions')]",
+      "properties": {
+        "value": "uuid-ossp,pg_trgm,btree_gin,btree_gist",
+        "source": "user-override"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/databases', variables('postgresServerName'), variables('databaseName'))]",
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('postgresServerName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "postgresServerId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('postgresServerName'))]"
+    },
+    "postgresServerName": {
+      "type": "string",
+      "value": "[variables('postgresServerName')]"
+    },
+    "fqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('postgresServerName')), '2025-08-01').fullyQualifiedDomainName]"
+    },
+    "databaseName": {
+      "type": "string",
+      "value": "[variables('databaseName')]"
+    }
+  }
+}

@@ -9,7 +9,7 @@ var locationAbbr = location == 'westeurope' ? 'westeurope' : location == 'northe
 var vnetName = 'vnet-${locationAbbr}-${namingPrefix}-01'
 
 // Virtual Network with multiple subnets
-resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-05-01' = {
+resource virtualNetwork 'Microsoft.Network/virtualNetworks@2025-05-01' = {
   name: vnetName
   location: location
   tags: tags
@@ -30,6 +30,12 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-05-01' = {
               service: 'Microsoft.Storage'
               locations: [
                 location
+              ]
+            }
+            {
+              service: 'Microsoft.KeyVault'
+              locations: [
+                '*'
               ]
             }
           ]

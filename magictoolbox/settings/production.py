@@ -101,10 +101,6 @@ try:
             DB_PASSWORD = get_secret_or_env("postgres-password", "DB_PASSWORD", required=True)
             DATABASES["default"]["PASSWORD"] = DB_PASSWORD
 
-            # Redis URL is passed as a complete connection string in environment variables
-            # No need to reconstruct it from individual components
-            logger.info("Using REDIS_URL from environment variables (with embedded access key)")
-
             # Storage credentials (for non-Managed Identity scenarios)
             STORAGE_ACCOUNT_KEY = get_secret_or_env(
                 "storage-account-key", "AZURE_STORAGE_ACCOUNT_KEY", required=False
@@ -121,21 +117,12 @@ except ImportError as e:
         f"Azure Key Vault packages not installed: {e}. Using environment variables for secrets."
     )
 
-# Validate Redis connection and fallback to database sessions if needed
-try:
-    import redis
-    from django_redis import get_redis_connection
+# Enforce SSL for production database connections
+DATABASES["default"]["OPTIONS"]["sslmode"] = "require"
 
-    # Test Redis connection
-    redis_conn = get_redis_connection("default")
-    redis_conn.ping()
-    logger.info("Redis connection successful - using cache-based sessions")
-except Exception as e:
-    logger.warning(f"Redis connection failed: {e}. Falling back to database sessions.")
-    # Fallback to database-backed sessions if Redis is unavailable
-    SESSION_ENGINE = "django.contrib.sessions.backends.db"
-    # Also update cache to use dummy backend as fallback
-    CACHES["default"]["BACKEND"] = "django.core.cache.backends.locmem.LocMemCache"
+# Use persistent connections for production (better performance)
+DATABASES["default"]["CONN_MAX_AGE"] = None  # Persistent connections
+DATABASES["default"]["ATOMIC_REQUESTS"] = True  # Wrap each request in a transaction
 
 # Application Insights for monitoring, logging, and telemetry
 try:
@@ -220,7 +207,3 @@ ADMINS = [
     ("Admin", config("ADMIN_EMAIL", default="admin@magictoolbox.com")),
 ]
 MANAGERS = ADMINS
-
-# Database connection pooling (optional - requires django-db-connection-pool)
-DATABASES["default"]["CONN_MAX_AGE"] = 600  # 10 minutes
-DATABASES["default"]["ATOMIC_REQUESTS"] = True

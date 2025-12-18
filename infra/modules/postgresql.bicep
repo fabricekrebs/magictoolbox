@@ -18,7 +18,7 @@ var databaseName = 'magictoolbox'
 var skuTier = 'Burstable'
 var skuName = 'Standard_B1ms'
 
-resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-03-01-preview' = {
+resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2025-08-01' = {
   name: postgresServerName
   location: location
   tags: tags
@@ -29,7 +29,7 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-03-01-pr
   properties: {
     administratorLogin: administratorLogin
     administratorLoginPassword: administratorLoginPassword
-    version: '15' // PostgreSQL 15
+    version: '17' // PostgreSQL 17 (latest stable)
     storage: {
       storageSizeGB: 32
       autoGrow: 'Enabled'
@@ -45,7 +45,7 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-03-01-pr
 }
 
 // Create the database
-resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2023-03-01-preview' = {
+resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2025-08-01' = {
   parent: postgresServer
   name: databaseName
   properties: {
@@ -55,7 +55,7 @@ resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2023-03-0
 }
 
 // Allow Azure services and resources to access this server (includes Function Apps)
-resource firewallRuleAllowAzureServices 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2023-03-01-preview' = {
+resource firewallRuleAllowAzureServices 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2025-08-01' = {
   parent: postgresServer
   name: 'AllowAllAzureServicesAndResourcesWithinAzureIps'
   properties: {
@@ -69,7 +69,7 @@ resource firewallRuleAllowAzureServices 'Microsoft.DBforPostgreSQL/flexibleServe
 
 // PostgreSQL extensions configuration
 // Must wait for database to be fully created before configuring extensions
-resource postgresConfiguration 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2023-03-01-preview' = {
+resource postgresConfiguration 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2025-08-01' = {
   parent: postgresServer
   name: 'azure.extensions'
   properties: {

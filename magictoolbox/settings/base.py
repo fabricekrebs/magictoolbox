@@ -10,6 +10,13 @@ from pathlib import Path
 
 from decouple import Csv, config
 
+# Constants for readable configuration
+MB = 1024 * 1024
+DEFAULT_MAX_UPLOAD_SIZE = 50 * MB  # 50 MB
+DEFAULT_DB_CONNECTION_MAX_AGE = 600  # 10 minutes
+DEFAULT_CACHE_TIMEOUT = 300  # 5 minutes
+DEFAULT_SESSION_COOKIE_AGE = 1209600  # 2 weeks
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -91,11 +98,11 @@ DATABASES = {
         "PASSWORD": config("DB_PASSWORD", default="postgres"),
         "HOST": config("DB_HOST", default="localhost"),
         "PORT": config("DB_PORT", default=5432, cast=int),
-        "CONN_MAX_AGE": 600,
+        "CONN_MAX_AGE": config("DB_CONN_MAX_AGE", default=DEFAULT_DB_CONNECTION_MAX_AGE, cast=int),
         "OPTIONS": {
             "connect_timeout": 10,
-            # Azure PostgreSQL Flexible Server requires SSL
-            "sslmode": config("DB_SSLMODE", default="require"),
+            # Use 'prefer' for development (auto-detects SSL), 'require' enforced in production.py
+            "sslmode": config("DB_SSLMODE", default="prefer"),
         },
     }
 }
@@ -224,7 +231,7 @@ CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.db.DatabaseCache",
         "LOCATION": "django_cache_table",
-        "TIMEOUT": 300,  # 5 minutes default
+        "TIMEOUT": config("CACHE_TIMEOUT", default=DEFAULT_CACHE_TIMEOUT, cast=int),
         "OPTIONS": {
             "MAX_ENTRIES": 1000,
         },
@@ -233,11 +240,11 @@ CACHES = {
 
 # Session Configuration (Database)
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
-SESSION_COOKIE_AGE = 1209600  # 2 weeks
+SESSION_COOKIE_AGE = config("SESSION_COOKIE_AGE", default=DEFAULT_SESSION_COOKIE_AGE, cast=int)
 SESSION_SAVE_EVERY_REQUEST = False
 
 # File Upload Configuration
-MAX_UPLOAD_SIZE = config("MAX_UPLOAD_SIZE", default=52428800, cast=int)  # 50MB
+MAX_UPLOAD_SIZE = config("MAX_UPLOAD_SIZE", default=DEFAULT_MAX_UPLOAD_SIZE, cast=int)
 DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE
 FILE_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE
 
