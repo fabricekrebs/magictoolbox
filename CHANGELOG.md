@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.1.6](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.5...v4.1.6) (2025-12-18)
+
+### Bug Fixes
+
+* **ci:** use ACR secret directly for deployment image path ([cf7325c](https://github.com/fabricekrebs/magictoolbox/commit/cf7325c6c80dee65e533ad3a7a4c2f12603d38e6))
+
 ## [4.1.5](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.4...v4.1.5) (2025-12-18)
 
 ### Bug Fixes
