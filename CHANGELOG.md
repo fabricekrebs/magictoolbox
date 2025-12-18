@@ -229,3 +229,4 @@ See documentation/NAMING_CONSISTENCY_AUDIT.md for full details.
 
 * remove Redis, migrate to database-backed sessions and cache ([98bd34d](https://github.com/fabricekrebs/magictoolbox/commit/98bd34d15fdcb7086c406bf4f001db1c47d6d850))
 * use managed identity for ACR authentication ([2b76bb0](https://github.com/fabricekrebs/magictoolbox/commit/2b76bb0b5885a40a0db3f9e1abdd28a89997ce94))
+test: validate workflow cleanup changes
