@@ -2,6 +2,56 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.0.0](https://github.com/fabricekrebs/magictoolbox/compare/v3.0.1...v4.0.0) (2025-12-18)
+
+### ⚠ BREAKING CHANGES
+
+* **ci:** Production deployments now triggered by semantic version tags instead of direct main branch pushes
+
+* fix(ci): disable GitHub plugin PR/issue comments to prevent 404 errors
+
+* feat(ci): trigger deployment workflow after semantic release
+
+* fix(ci): correct azure-deploy workflow YAML syntax
+
+* fix(ci): use semantic-release action to properly set outputs
+
+### Bug Fixes
+
+* **ci:** use semantic-release action to properly set outputs ([#6](https://github.com/fabricekrebs/magictoolbox/issues/6)) ([11905f8](https://github.com/fabricekrebs/magictoolbox/commit/11905f8996343d63733b2935a8eaf1fd377b8484))
+
+## [3.0.1](https://github.com/fabricekrebs/magictoolbox/compare/v3.0.0...v3.0.1) (2025-12-18)
+
+### Bug Fixes
+
+* **ci:** correct azure-deploy workflow YAML syntax ([928b5be](https://github.com/fabricekrebs/magictoolbox/commit/928b5be5da8439244848a07c2ac70dd4813a6849))
+
+## [3.0.0](https://github.com/fabricekrebs/magictoolbox/compare/v2.0.0...v3.0.0) (2025-12-18)
+
+### ⚠ BREAKING CHANGES
+
+* **ci:** Production deployments now triggered by semantic version tags instead of direct main branch pushes
+
+* fix(ci): disable GitHub plugin PR/issue comments to prevent 404 errors
+
+* feat(ci): trigger deployment workflow after semantic release
+
+### Features
+
+* **ci:** trigger deployment workflow after semantic release ([#4](https://github.com/fabricekrebs/magictoolbox/issues/4)) ([419f9be](https://github.com/fabricekrebs/magictoolbox/commit/419f9be8a3f4069c48de5a2ab3f633ba490a5990))
+
+## [2.0.0](https://github.com/fabricekrebs/magictoolbox/compare/v1.0.0...v2.0.0) (2025-12-18)
+
+### ⚠ BREAKING CHANGES
+
+* **ci:** Production deployments now triggered by semantic version tags instead of direct main branch pushes
+
+* fix(ci): disable GitHub plugin PR/issue comments to prevent 404 errors
+
+### Bug Fixes
+
+* **ci:** disable GitHub plugin PR/issue comments ([#3](https://github.com/fabricekrebs/magictoolbox/issues/3)) ([1ab3b14](https://github.com/fabricekrebs/magictoolbox/commit/1ab3b147f546997358b188b95cac3bc303dd6ca0))
+
 ## [1.0.0](https://github.com/fabricekrebs/magictoolbox/compare/v0.0.1...v1.0.0) (2025-12-18)
 
 ### ⚠ BREAKING CHANGES
