@@ -121,12 +121,12 @@ jobs:
         id: set_acr
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            # Production: use main ACR secrets
-            echo "server=${{ secrets.ACR_LOGIN_SERVER }}" >> $GITHUB_OUTPUT
-            echo "name=${{ secrets.ACR_NAME }}" >> $GITHUB_OUTPUT
-            echo "username=${{ secrets.ACR_USERNAME }}" >> $GITHUB_OUTPUT
-            echo "password=${{ secrets.ACR_PASSWORD }}" >> $GITHUB_OUTPUT
-            echo "Using production ACR: ${{ secrets.ACR_LOGIN_SERVER }}"
+            # Production: use prod ACR secrets
+            echo "server=${{ secrets.ACR_LOGIN_SERVER_PROD }}" >> $GITHUB_OUTPUT
+            echo "name=${{ secrets.ACR_NAME_PROD }}" >> $GITHUB_OUTPUT
+            echo "username=${{ secrets.ACR_USERNAME_PROD }}" >> $GITHUB_OUTPUT
+            echo "password=${{ secrets.ACR_PASSWORD_PROD }}" >> $GITHUB_OUTPUT
+            echo "Using production ACR: ${{ secrets.ACR_LOGIN_SERVER_PROD }}"
           else
             # Development: use dev ACR secrets (if they exist, otherwise fallback to prod)
             SERVER="${{ secrets.ACR_LOGIN_SERVER_DEV }}"
