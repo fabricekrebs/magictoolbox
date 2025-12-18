@@ -34,6 +34,9 @@ param containerAppsSubnetId string
 @description('Azure Function App base URL')
 param functionAppUrl string = ''
 
+@description('Container image tag (version) - can be semver tag like v1.2.3 or branch-based like develop-abc123')
+param imageTag string = environment == 'prod' ? 'latest' : 'develop'
+
 // Location abbreviation for naming (Container Apps have 32 char limit)
 var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'italynorth' ? 'in' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
 
@@ -41,10 +44,7 @@ var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ?
 // Using abbreviated names to fit within 32 char limit
 var containerAppsEnvironmentName = 'env-${locationAbbr}-${namingPrefix}-01'
 var containerAppName = 'app-${locationAbbr}-${namingPrefix}-01'
-// Use environment-specific image tags: develop for dev, main for prod
-// Note: In practice, the workflow deploys with SHA-specific tags (e.g., develop-abc123)
-// This is used as a fallback for infrastructure-only deployments
-var imageTag = environment == 'prod' ? 'main' : 'develop'
+// Use semantic version tags for production (e.g., v1.2.3) or branch-based tags for development (e.g., develop-abc123)
 var imageName = '${acrLoginServer}/magictoolbox:${imageTag}'
 
 // Minimum and maximum replicas based on environment
