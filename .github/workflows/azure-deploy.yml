@@ -140,9 +140,10 @@ jobs:
         run: |
           ACR_SERVER="${{ steps.set_acr.outputs.server }}"
           APP_NAME="${{ env.APP_NAME }}"
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
           
           if [[ "${{ github.ref }}" == "refs/heads/main" ]] && [[ "${{ needs.release.outputs.new-release-published }}" == "true" ]]; then
-            # Production semantic release: use numeric version (without 'v' prefix) and latest
+            # Main branch with new release: use semantic version and latest
             VERSION="${{ needs.release.outputs.new-release-git-tag }}"
             VERSION_NUM="${VERSION#v}"
             TAGS="${ACR_SERVER}/${APP_NAME}:${VERSION_NUM},"
@@ -150,22 +151,11 @@ jobs:
             echo "tags=${TAGS}" >> $GITHUB_OUTPUT
             echo "version=${VERSION_NUM}" >> $GITHUB_OUTPUT
             echo "Docker tags: ${TAGS}"
-          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
-            # Development: use branch + sha
-            SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
-            TAGS="${ACR_SERVER}/${APP_NAME}:develop-${SHORT_SHA},"
-            TAGS+="${ACR_SERVER}/${APP_NAME}:develop"
-            echo "tags=${TAGS}" >> $GITHUB_OUTPUT
-            echo "version=develop" >> $GITHUB_OUTPUT
-            echo "Docker tags: ${TAGS}"
           else
-            # Fallback: use branch name
-            BRANCH_NAME="${{ github.ref_name }}"
-            SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
-            TAGS="${ACR_SERVER}/${APP_NAME}:${BRANCH_NAME},"
-            TAGS+="${ACR_SERVER}/${APP_NAME}:${BRANCH_NAME}-${SHORT_SHA}"
+            # Everything else (develop, PRs, feature branches): use commit SHA
+            TAGS="${ACR_SERVER}/${APP_NAME}:${SHORT_SHA}"
             echo "tags=${TAGS}" >> $GITHUB_OUTPUT
-            echo "version=${BRANCH_NAME}" >> $GITHUB_OUTPUT
+            echo "version=${SHORT_SHA}" >> $GITHUB_OUTPUT
             echo "Docker tags: ${TAGS}"
           fi
       
