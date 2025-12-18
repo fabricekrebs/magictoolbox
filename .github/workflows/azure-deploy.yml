@@ -285,7 +285,7 @@ jobs:
       - name: Update Container App image
         id: deploy
         run: |
-          IMAGE="${{ needs.build.outputs.acr-server }}/${{ env.APP_NAME }}:${{ needs.build.outputs.image-tag }}"
+          IMAGE="${{ secrets.ACR_LOGIN_SERVER_PROD }}/${{ env.APP_NAME }}:${{ needs.build.outputs.image-tag }}"
           echo "Deploying image: ${IMAGE}"
           
           # Update container app with new image
@@ -309,7 +309,7 @@ jobs:
         run: |
           echo "✅ Deployed to production"
           echo "Version: ${{ needs.build.outputs.image-version }}"
-          echo "Image: ${{ needs.build.outputs.acr-server }}/${{ env.APP_NAME }}:${{ needs.build.outputs.image-tag }}"
+          echo "Image: ${{ secrets.ACR_LOGIN_SERVER_PROD }}/${{ env.APP_NAME }}:${{ needs.build.outputs.image-tag }}"
           echo "URL: ${{ steps.deploy.outputs.url }}"
       
       # Note: Migrations and collectstatic run in container startup script
