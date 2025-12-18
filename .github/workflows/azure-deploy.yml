@@ -103,6 +103,8 @@ jobs:
       always() && 
       !cancelled() &&
       (needs.release.result == 'success' || needs.release.result == 'skipped')
+    environment:
+      name: ${{ (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'prod') && 'production' || 'development' }}
     outputs:
       image-tag: ${{ steps.image_tag.outputs.tag }}
       image-version: ${{ steps.image_tag.outputs.version }}
