@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [6.0.0](https://github.com/fabricekrebs/magictoolbox/compare/v5.0.0...v6.0.0) (2025-12-18)
+
+### ⚠ BREAKING CHANGES
+
+* Environment-based ACR routing now requires separate GitHub secrets configuration for Development and Production environments
+* ACR credentials now require environment-specific GitHub secrets configuration
+* **ci:** Workflows now require secrets to be configured in GitHub environments (Development/Production) instead of repository-level secrets with _DEV/_PROD suffixes.
+
+Closes #TBD
+* **ci:** Production deployments now triggered by semantic version tags instead of direct main branch pushes
+
+### Features
+
+* add version tracking to core module ([32978ce](https://github.com/fabricekrebs/magictoolbox/commit/32978ce83a82fec157a5706f87b6cd17bf87dc21))
+* **ci:** implement automatic semantic versioning and deployment ([2c728dd](https://github.com/fabricekrebs/magictoolbox/commit/2c728ddec8581f87b4b0255b64671fce4a25631d))
+* **ci:** trigger deployment workflow after semantic release ([9011c6f](https://github.com/fabricekrebs/magictoolbox/commit/9011c6fb7555e1de728ccc78521dfee741e98b5b))
+* implement environment-based ACR routing with separate registries ([5ea88e7](https://github.com/fabricekrebs/magictoolbox/commit/5ea88e71e8609b2be18dc9c3acaea9dd778352ca))
+* **infra:** preserve current container image during infrastructure deployments ([c0b9155](https://github.com/fabricekrebs/magictoolbox/commit/c0b91558ea88f5f04a99198c84856d549a5cde61))
+* **infra:** Upgrade PostgreSQL from version 15 to 17 (latest stable) ([bdeef5d](https://github.com/fabricekrebs/magictoolbox/commit/bdeef5dac82720ad8044cd6867af28e24507c685))
+
+### Bug Fixes
+
+* **ci:** add environment context to build job for secret access ([34b2c02](https://github.com/fabricekrebs/magictoolbox/commit/34b2c025fed56819b18ae93573d5151baff68c05))
+* **ci:** correct azure-deploy workflow YAML syntax ([3f734b2](https://github.com/fabricekrebs/magictoolbox/commit/3f734b231e74d64b04c62ce0c6b4d2af3510dcc1))
+* **ci:** disable GitHub plugin PR/issue comments to prevent 404 errors ([0039196](https://github.com/fabricekrebs/magictoolbox/commit/0039196096f85aa6487b8fdef27de1336f30964a))
+* **ci:** simplify Docker tagging to use commit SHA for non-main branches ([022a42e](https://github.com/fabricekrebs/magictoolbox/commit/022a42efb4d17fc0e77873a7364cde5d0e693b7e))
+* **ci:** use semantic-release action to properly set outputs ([643b581](https://github.com/fabricekrebs/magictoolbox/commit/643b58176cdd5118f63f66e103e95c4b424d5def))
+* **infra:** Add Key Vault service endpoint to Container Apps subnet ([d985267](https://github.com/fabricekrebs/magictoolbox/commit/d9852670ea7e0218571f49bd221e9c86e3a79619))
+* **infra:** use public sample image as default to avoid ACR auth race condition ([092011a](https://github.com/fabricekrebs/magictoolbox/commit/092011ad7f9a60b4ff9f7fe355e1be3476757128))
+* Remove Celery task import and deprecate old process endpoint ([6380f97](https://github.com/fabricekrebs/magictoolbox/commit/6380f975a50bab499bce01e6b1a8eb780c527fed))
+
+### Miscellaneous Chores
+
+* **ci:** standardize GitHub Actions workflows with environment-based secrets ([9cb40f5](https://github.com/fabricekrebs/magictoolbox/commit/9cb40f57958c8b57ca6029cc09411267e7d1ec11))
+
+### Code Refactoring
+
+* Clean up code based on analysis report ([bbcf38e](https://github.com/fabricekrebs/magictoolbox/commit/bbcf38e3f6fc9736793a4d20f8533eda5efdefea))
+* **infra:** Update all Bicep API versions to latest stable (non-preview) ([6c5d53b](https://github.com/fabricekrebs/magictoolbox/commit/6c5d53b12655b92d397ebea28176fee2f6123a7f))
+
 ## [5.0.0](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.7...v5.0.0) (2025-12-18)
 
 ### ⚠ BREAKING CHANGES
