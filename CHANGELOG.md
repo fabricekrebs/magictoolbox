@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.1.1](https://github.com/fabricekrebs/magictoolbox/compare/v4.1.0...v4.1.1) (2025-12-18)
+
+### Bug Fixes
+
+* **ci:** manually capture semantic-release version outputs ([5dbcfda](https://github.com/fabricekrebs/magictoolbox/commit/5dbcfda91f089c9bdf5244b03fbc0e1157f73aee))
+
 ## [4.1.0](https://github.com/fabricekrebs/magictoolbox/compare/v4.0.0...v4.1.0) (2025-12-18)
 
 ### Features
