@@ -42,9 +42,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     outputs:
-      new-release-published: ${{ steps.semantic.outputs.new-release-published }}
-      new-release-version: ${{ steps.semantic.outputs.new-release-version }}
-      new-release-git-tag: ${{ steps.semantic.outputs.new-release-git-tag }}
+      new-release-published: ${{ steps.check_new_tag.outputs.new_release }}
+      new-release-version: ${{ steps.check_new_tag.outputs.version }}
+      new-release-git-tag: ${{ steps.check_new_tag.outputs.git_tag }}
     
     steps:
       - name: Checkout code
@@ -68,12 +68,31 @@ jobs:
             @semantic-release/git
             conventional-changelog-conventionalcommits
       
-      - name: Output release info
-        if: steps.semantic.outputs.new-release-published == 'true'
+      - name: Check for new tag
+        id: check_new_tag
         run: |
-          echo "🎉 New release published!"
-          echo "Version: ${{ steps.semantic.outputs.new-release-version }}"
-          echo "Tag: ${{ steps.semantic.outputs.new-release-git-tag }}"
+          # Get the latest tag created (semantic-release just created it)
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          # Check if tag was just created (within last 60 seconds)
+          if [ -n "$LATEST_TAG" ]; then
+            TAG_DATE=$(git log -1 --format=%ct "$LATEST_TAG")
+            CURRENT_DATE=$(date +%s)
+            AGE=$((CURRENT_DATE - TAG_DATE))
+            
+            if [ $AGE -lt 60 ]; then
+              echo "new_release=true" >> $GITHUB_OUTPUT
+              echo "git_tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
+              echo "version=${LATEST_TAG#v}" >> $GITHUB_OUTPUT
+              echo "🎉 New release published: ${LATEST_TAG}"
+            else
+              echo "new_release=false" >> $GITHUB_OUTPUT
+              echo "No new release (latest tag is ${LATEST_TAG}, created ${AGE}s ago)"
+            fi
+          else
+            echo "new_release=false" >> $GITHUB_OUTPUT
+            echo "No tags found"
+          fi
 
   # Build and push Docker image
   build:
