@@ -35,7 +35,7 @@ param containerAppsSubnetId string
 param functionAppUrl string = ''
 
 @description('Container image tag (version) - can be semver tag like v1.2.3 or branch-based like develop-abc123')
-param imageTag string = environment == 'prod' ? 'latest' : 'develop'
+param imageTag string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
 // Location abbreviation for naming (Container Apps have 32 char limit)
 var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'italynorth' ? 'in' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
@@ -45,7 +45,7 @@ var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ?
 var containerAppsEnvironmentName = 'env-${locationAbbr}-${namingPrefix}-01'
 var containerAppName = 'app-${locationAbbr}-${namingPrefix}-01'
 // Use semantic version tags for production (e.g., v1.2.3) or branch-based tags for development (e.g., develop-abc123)
-var imageName = '${acrLoginServer}/magictoolbox:${imageTag}'
+var imageName = contains(imageTag, '/') ? imageTag : '${acrLoginServer}/magictoolbox:${imageTag}'
 
 // Minimum and maximum replicas based on environment
 var minReplicas = environment == 'prod' ? 2 : 1
