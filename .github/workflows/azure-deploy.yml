@@ -162,11 +162,10 @@ jobs:
           APP_NAME="${{ env.APP_NAME }}"
           
           if [[ "${{ github.ref }}" == "refs/heads/main" ]] && [[ "${{ needs.release.outputs.new-release-published }}" == "true" ]]; then
-            # Production semantic release: use version tags
+            # Production semantic release: use numeric version (without 'v' prefix) and latest
             VERSION="${{ needs.release.outputs.new-release-git-tag }}"
             VERSION_NUM="${VERSION#v}"
-            TAGS="${ACR_SERVER}/${APP_NAME}:${VERSION},"
-            TAGS+="${ACR_SERVER}/${APP_NAME}:${VERSION_NUM},"
+            TAGS="${ACR_SERVER}/${APP_NAME}:${VERSION_NUM},"
             TAGS+="${ACR_SERVER}/${APP_NAME}:latest"
             echo "tags=${TAGS}" >> $GITHUB_OUTPUT
             echo "version=${VERSION_NUM}" >> $GITHUB_OUTPUT
@@ -206,11 +205,12 @@ jobs:
         id: image_tag
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/main" ]] && [[ "${{ needs.release.outputs.new-release-published }}" == "true" ]]; then
-            # Production: use semantic version tag (just the version part, e.g. v4.1.2)
+            # Production: use numeric semantic version (without 'v' prefix, e.g. 4.1.2)
             VERSION="${{ needs.release.outputs.new-release-git-tag }}"
-            echo "tag=${VERSION}" >> $GITHUB_OUTPUT
-            echo "version=${VERSION#v}" >> $GITHUB_OUTPUT
-            echo "Image tag for deployment: ${VERSION}"
+            VERSION_NUM="${VERSION#v}"
+            echo "tag=${VERSION_NUM}" >> $GITHUB_OUTPUT
+            echo "version=${VERSION_NUM}" >> $GITHUB_OUTPUT
+            echo "Image tag for deployment: ${VERSION_NUM}"
           elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
             # Development: use branch + short SHA
             SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
