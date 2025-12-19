@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}MagicToolbox - Home{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <!-- Hero Section -->
+  <div class="row mb-5">
+    <div class="col-lg-8 mx-auto text-center">
+      <h1 class="display-4 fw-bold mb-3">
+        <i class="bi bi-magic text-primary"></i>
+        Welcome to MagicToolbox
+      </h1>
+      <p class="lead text-muted mb-4">
+        Your all-in-one solution for file and image conversion. Fast, secure, and easy to use.
+      </p>
+      <a href="{% url 'tools:tool_list' %}" class="btn btn-primary btn-lg">
+        <i class="bi bi-tools me-2"></i>Explore Tools
+      </a>
+    </div>
+  </div>
+
+  <!-- Features Section -->
+  <div class="row g-4 mb-5">
+    <div class="col-md-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body text-center">
+          <div class="mb-3">
+            <i class="bi bi-lightning-charge-fill text-primary" style="font-size: 3rem;"></i>
+          </div>
+          <h5 class="card-title">Fast Processing</h5>
+          <p class="card-text text-muted">
+            Lightning-fast file conversions with optimized processing algorithms.
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body text-center">
+          <div class="mb-3">
+            <i class="bi bi-shield-check text-success" style="font-size: 3rem;"></i>
+          </div>
+          <h5 class="card-title">Secure & Private</h5>
+          <p class="card-text text-muted">
+            Your files are processed securely and deleted automatically after conversion.
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body text-center">
+          <div class="mb-3">
+            <i class="bi bi-palette-fill text-info" style="font-size: 3rem;"></i>
+          </div>
+          <h5 class="card-title">Multiple Tools</h5>
+          <p class="card-text text-muted">
+            Access a wide variety of tools for different file and image processing needs.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

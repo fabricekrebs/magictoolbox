@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="MagicToolbox Test" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Sample GPS Track</name>
+    <desc>A test GPS track with waypoints and a track</desc>
+    <time>2025-11-25T21:30:00Z</time>
+  </metadata>
+  
+  <!-- Waypoints -->
+  <wpt lat="47.6062" lon="-122.3321">
+    <ele>10</ele>
+    <name>Seattle Space Needle</name>
+    <desc>Famous landmark in Seattle</desc>
+  </wpt>
+  
+  <wpt lat="47.6097" lon="-122.3331">
+    <ele>15</ele>
+    <name>Pike Place Market</name>
+    <desc>Historic public market</desc>
+  </wpt>
+  
+  <!-- Track -->
+  <trk>
+    <name>Downtown Seattle Walk</name>
+    <desc>Walking tour of downtown Seattle</desc>
+    <trkseg>
+      <trkpt lat="47.6062" lon="-122.3321">
+        <ele>10</ele>
+        <time>2025-11-25T10:00:00Z</time>
+      </trkpt>
+      <trkpt lat="47.6070" lon="-122.3325">
+        <ele>12</ele>
+        <time>2025-11-25T10:05:00Z</time>
+      </trkpt>
+      <trkpt lat="47.6080" lon="-122.3328">
+        <ele>14</ele>
+        <time>2025-11-25T10:10:00Z</time>
+      </trkpt>
+      <trkpt lat="47.6090" lon="-122.3330">
+        <ele>15</ele>
+        <time>2025-11-25T10:15:00Z</time>
+      </trkpt>
+      <trkpt lat="47.6097" lon="-122.3331">
+        <ele>15</ele>
+        <time>2025-11-25T10:20:00Z</time>
+      </trkpt>
+    </trkseg>
+  </trk>
+  
+  <!-- Route -->
+  <rte>
+    <name>Return Route</name>
+    <desc>Route back to starting point</desc>
+    <rtept lat="47.6097" lon="-122.3331">
+      <ele>15</ele>
+      <name>Start</name>
+    </rtept>
+    <rtept lat="47.6085" lon="-122.3326">
+      <ele>13</ele>
+      <name>Midpoint</name>
+    </rtept>
+    <rtept lat="47.6062" lon="-122.3321">
+      <ele>10</ele>
+      <name>End</name>
+    </rtept>
+  </rte>
+</gpx>

@@ -1,0 +1,82 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.pyc
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+/staticfiles/
+/media/
+
+# Environment
+.env
+.env.local
+.env.development
+.env.production
+*.env
+
+# IDE
+
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+coverage.xml
+
+# Distribution
+build/
+dist/
+*.egg-info/
+
+# Logs
+logs/
+*.log
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Azure Functions
+function_app/local.settings.json
+function_app/.python_packages/
+function_app/azurite/
+function_app/__azurite_db*__
+function_app/*.zip
+function_app/.venv/
+function_app/__pycache__/
+
+# Local Azurite storage emulator
+.azurite/
+
+# Local testing files
+*.pdf
+!tests/fixtures/*.pdf
+test_*.pdf
+LOCAL_TESTING_REPORT.md
+AZURE_FUNCTIONS_CORE_TOOLS_TESTING.md
+AZURE_FUNCTIONS_TESTING_SUMMARY.md
+LOCAL_ENVIRONMENT_SETUP.md

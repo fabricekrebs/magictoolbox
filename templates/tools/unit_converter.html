@@ -1,0 +1,688 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Unit Converter{% endblock %}
+
+{% block extra_css %}
+<style>
+    .conversion-container {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin: 20px 0;
+    }
+    .conversion-input {
+        flex: 1;
+    }
+    .conversion-equals {
+        font-size: 24px;
+        font-weight: bold;
+        color: #0d6efd;
+    }
+    .swap-btn {
+        margin-top: 28px;
+    }
+    #result-display {
+        margin-top: 20px;
+        display: none;
+    }
+    .unit-info-card {
+        margin-bottom: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="bi bi-calculator"></i> Unit Converter</h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Convert between units instantly across 18 categories with over 160 units.</p>
+                    
+                    <form id="conversion-form">
+                        <!-- Conversion Type Selection -->
+                        <div class="mb-3">
+                            <label for="conversion-type" class="form-label">Conversion Type</label>
+                            <select class="form-select" id="conversion-type" required>
+                                <option value="">Select category...</option>
+                                <option value="Length">Length</option>
+                                <option value="Volume">Volume</option>
+                                <option value="Area">Area</option>
+                                <option value="Energy">Energy</option>
+                                <option value="Force">Force</option>
+                                <option value="Speed">Speed</option>
+                                <option value="Fuel Consumption">Fuel Consumption</option>
+                                <option value="Data Storage">Data Storage</option>
+                                <option value="Currency">Currency</option>
+                                <option value="Weight and Mass">Weight and Mass</option>
+                                <option value="Temperature">Temperature</option>
+                                <option value="Pressure">Pressure</option>
+                                <option value="Power">Power</option>
+                                <option value="Time">Time</option>
+                                <option value="Angle">Angle</option>
+                                <option value="Numbers">Numbers</option>
+                                <option value="Volume - Dry">Volume - Dry</option>
+                                <option value="Case">Case</option>
+                            </select>
+                        </div>
+
+                        <!-- Conversion Inputs -->
+                        <div class="conversion-container">
+                            <div class="conversion-input">
+                                <label for="from-value" class="form-label">From</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="from-value" placeholder="Enter value" required>
+                                    <select class="form-select" id="from-unit" style="max-width: 200px;" required>
+                                        <option value="">Unit...</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button type="button" class="btn btn-outline-secondary swap-btn" id="swap-btn" title="Swap units">
+                                <i class="bi bi-arrow-left-right"></i>
+                            </button>
+
+                            <span class="conversion-equals">=</span>
+
+                            <div class="conversion-input">
+                                <label for="to-value" class="form-label">To</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="to-value" placeholder="Result">
+                                    <select class="form-select" id="to-unit" style="max-width: 200px;" required>
+                                        <option value="">Unit...</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Result Display -->
+                    <div id="result-display" class="alert alert-success">
+                        <h5>Result</h5>
+                        <p id="result-text" class="mb-0"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm unit-info-card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">About Unit Converter</h5>
+                </div>
+                <div class="card-body">
+                    <p>Comprehensive converter supporting <strong>18 categories</strong>:</p>
+                    <ul class="small">
+                        <li><strong>Length:</strong> 13 units</li>
+                        <li><strong>Volume:</strong> 18 units</li>
+                        <li><strong>Area:</strong> 10 units</li>
+                        <li><strong>Energy:</strong> 9 units</li>
+                        <li><strong>Force:</strong> 5 units</li>
+                        <li><strong>Speed:</strong> 5 units</li>
+                        <li><strong>Fuel:</strong> 4 units</li>
+                        <li><strong>Data Storage:</strong> 10 units</li>
+                        <li><strong>Currency:</strong> 9 currencies</li>
+                        <li><strong>Weight/Mass:</strong> 11 units</li>
+                        <li><strong>Temperature:</strong> 3 scales</li>
+                        <li><strong>Pressure:</strong> 7 units</li>
+                        <li><strong>Power:</strong> 5 units</li>
+                        <li><strong>Time:</strong> 8 units</li>
+                        <li><strong>Angle:</strong> 5 units</li>
+                        <li><strong>Numbers:</strong> 4 bases</li>
+                        <li><strong>Dry Volume:</strong> 7 units</li>
+                        <li><strong>Case:</strong> 8 formats</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Features</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="small mb-0">
+                        <li>Auto-conversion as you type</li>
+                        <li>Bidirectional editing</li>
+                        <li>Swap button for quick reversal</li>
+                        <li>High-precision calculations</li>
+                        <li>Special conversions (temperature, fuel, numbers, text case)</li>
+                        <li>Currency converter (static rates)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Unit data for all categories
+const unitData = {
+    'Length': {
+        'millimeter': 'Millimeter',
+        'centimeter': 'Centimeter',
+        'meter': 'Meter',
+        'kilometer': 'Kilometer',
+        'inch': 'Inch',
+        'foot': 'Foot',
+        'yard': 'Yard',
+        'mile': 'Mile',
+        'nautical_mile': 'Nautical Mile',
+        'micrometer': 'Micrometer',
+        'nanometer': 'Nanometer',
+        'light_year': 'Light Year',
+        'astronomical_unit': 'Astronomical Unit'
+    },
+    'Volume': {
+        'milliliter': 'Milliliter',
+        'liter': 'Liter',
+        'cubic_centimeter': 'Cubic Centimeter',
+        'cubic_meter': 'Cubic Meter',
+        'teaspoon_us': 'Teaspoon (US)',
+        'tablespoon_us': 'Tablespoon (US)',
+        'fluid_ounce_us': 'Fluid Ounce (US)',
+        'cup_us': 'Cup (US)',
+        'pint_us': 'Pint (US)',
+        'quart_us': 'Quart (US)',
+        'gallon_us': 'Gallon (US)',
+        'fluid_ounce_imperial': 'Fluid Ounce (Imperial)',
+        'pint_imperial': 'Pint (Imperial)',
+        'quart_imperial': 'Quart (Imperial)',
+        'gallon_imperial': 'Gallon (Imperial)',
+        'cubic_inch': 'Cubic Inch',
+        'cubic_foot': 'Cubic Foot',
+        'cubic_yard': 'Cubic Yard'
+    },
+    'Area': {
+        'square_meter': 'Square Meter',
+        'square_kilometer': 'Square Kilometer',
+        'square_centimeter': 'Square Centimeter',
+        'square_millimeter': 'Square Millimeter',
+        'square_inch': 'Square Inch',
+        'square_foot': 'Square Foot',
+        'square_yard': 'Square Yard',
+        'square_mile': 'Square Mile',
+        'acre': 'Acre',
+        'hectare': 'Hectare'
+    },
+    'Energy': {
+        'joule': 'Joule',
+        'kilojoule': 'Kilojoule',
+        'megajoule': 'Megajoule',
+        'watt_hour': 'Watt-hour',
+        'kilowatt_hour': 'Kilowatt-hour',
+        'calorie': 'Calorie',
+        'kilocalorie': 'Kilocalorie',
+        'btu': 'BTU',
+        'electronvolt': 'Electronvolt'
+    },
+    'Force': {
+        'newton': 'Newton',
+        'kilonewton': 'Kilonewton',
+        'dyne': 'Dyne',
+        'pound_force': 'Pound-force',
+        'kilogram_force': 'Kilogram-force'
+    },
+    'Speed': {
+        'meter_per_second': 'Meter per Second',
+        'kilometer_per_hour': 'Kilometer per Hour',
+        'mile_per_hour': 'Mile per Hour',
+        'knot': 'Knot',
+        'foot_per_second': 'Foot per Second'
+    },
+    'Fuel Consumption': {
+        'liters_per_100km': 'Liters per 100 km',
+        'km_per_liter': 'Kilometers per Liter',
+        'mpg_us': 'Miles per Gallon (US)',
+        'mpg_imperial': 'Miles per Gallon (Imperial)'
+    },
+    'Data Storage': {
+        'bit': 'Bit',
+        'byte': 'Byte',
+        'kilobyte': 'Kilobyte',
+        'megabyte': 'Megabyte',
+        'gigabyte': 'Gigabyte',
+        'terabyte': 'Terabyte',
+        'kibibyte': 'Kibibyte',
+        'mebibyte': 'Mebibyte',
+        'gibibyte': 'Gibibyte',
+        'tebibyte': 'Tebibyte'
+    },
+    'Currency': {
+        'usd': 'US Dollar',
+        'eur': 'Euro',
+        'gbp': 'British Pound',
+        'jpy': 'Japanese Yen',
+        'cad': 'Canadian Dollar',
+        'aud': 'Australian Dollar',
+        'chf': 'Swiss Franc',
+        'cny': 'Chinese Yuan',
+        'inr': 'Indian Rupee'
+    },
+    'Weight and Mass': {
+        'milligram': 'Milligram',
+        'gram': 'Gram',
+        'kilogram': 'Kilogram',
+        'metric_ton': 'Metric Ton',
+        'ounce': 'Ounce',
+        'pound': 'Pound',
+        'stone': 'Stone',
+        'tonne': 'Tonne (Metric)',
+        'short_ton': 'Short Ton (US)',
+        'long_ton': 'Long Ton (Imperial)',
+        'carat': 'Carat'
+    },
+    'Temperature': {
+        'celsius': 'Celsius',
+        'fahrenheit': 'Fahrenheit',
+        'kelvin': 'Kelvin'
+    },
+    'Pressure': {
+        'pascal': 'Pascal',
+        'kilopascal': 'Kilopascal',
+        'bar': 'Bar',
+        'atmosphere': 'Atmosphere',
+        'psi': 'PSI',
+        'torr': 'Torr',
+        'mmhg': 'mmHg'
+    },
+    'Power': {
+        'watt': 'Watt',
+        'kilowatt': 'Kilowatt',
+        'megawatt': 'Megawatt',
+        'horsepower': 'Horsepower',
+        'btu_per_hour': 'BTU per Hour'
+    },
+    'Time': {
+        'millisecond': 'Millisecond',
+        'second': 'Second',
+        'minute': 'Minute',
+        'hour': 'Hour',
+        'day': 'Day',
+        'week': 'Week',
+        'month': 'Month',
+        'year': 'Year'
+    },
+    'Angle': {
+        'degree': 'Degree',
+        'radian': 'Radian',
+        'gradian': 'Gradian',
+        'arcminute': 'Arcminute',
+        'arcsecond': 'Arcsecond'
+    },
+    'Numbers': {
+        'binary': 'Binary',
+        'octal': 'Octal',
+        'decimal': 'Decimal',
+        'hexadecimal': 'Hexadecimal'
+    },
+    'Volume - Dry': {
+        'dry_pint_us': 'Dry Pint (US)',
+        'dry_quart_us': 'Dry Quart (US)',
+        'dry_gallon_us': 'Dry Gallon (US)',
+        'peck_us': 'Peck (US)',
+        'bushel_us': 'Bushel (US)',
+        'peck_imperial': 'Peck (Imperial)',
+        'bushel_imperial': 'Bushel (Imperial)'
+    },
+    'Case': {
+        'lowercase': 'lowercase',
+        'uppercase': 'UPPERCASE',
+        'titlecase': 'Title Case',
+        'sentencecase': 'Sentence case',
+        'snakecase': 'snake_case',
+        'camelcase': 'camelCase',
+        'pascalcase': 'PascalCase',
+        'kebabcase': 'kebab-case'
+    }
+};
+
+// Populate unit dropdowns based on selected conversion type
+function populateUnits() {
+    const conversionType = document.getElementById('conversion-type').value;
+    const fromUnit = document.getElementById('from-unit');
+    const toUnit = document.getElementById('to-unit');
+    
+    // Clear existing options
+    fromUnit.innerHTML = '<option value="">Unit...</option>';
+    toUnit.innerHTML = '<option value="">Unit...</option>';
+    
+    if (!conversionType || !unitData[conversionType]) {
+        return;
+    }
+    
+    const units = unitData[conversionType];
+    
+    for (const [value, label] of Object.entries(units)) {
+        const option1 = new Option(label, value);
+        const option2 = new Option(label, value);
+        fromUnit.add(option1);
+        toUnit.add(option2);
+    }
+}
+
+// Conversion factors loaded from JSON data
+const conversionFactors = {
+    'Length': {
+        'millimeter': 0.001, 'centimeter': 0.01, 'meter': 1, 'kilometer': 1000,
+        'inch': 0.0254, 'foot': 0.3048, 'yard': 0.9144, 'mile': 1609.344,
+        'nautical_mile': 1852, 'micrometer': 0.000001, 'nanometer': 0.000000001,
+        'light_year': 9460730472580800, 'astronomical_unit': 149597870700
+    },
+    'Volume': {
+        'milliliter': 0.000001, 'liter': 0.001, 'cubic_centimeter': 0.000001, 'cubic_meter': 1,
+        'teaspoon_us': 0.00000492892159375, 'tablespoon_us': 0.00001478676478125,
+        'fluid_ounce_us': 0.0000295735295625, 'cup_us': 0.0002365882365,
+        'pint_us': 0.000473176473, 'quart_us': 0.000946352946, 'gallon_us': 0.003785411784,
+        'fluid_ounce_imperial': 0.0000284130625, 'pint_imperial': 0.00056826125,
+        'quart_imperial': 0.0011365225, 'gallon_imperial': 0.00454609,
+        'cubic_inch': 0.000016387064, 'cubic_foot': 0.028316846592, 'cubic_yard': 0.764554857984,
+        'barrel_oil': 0.158987294928
+    },
+    'Area': {
+        'square_meter': 1, 'square_kilometer': 1000000, 'square_centimeter': 0.0001,
+        'square_millimeter': 0.000001, 'square_inch': 0.00064516, 'square_foot': 0.09290304,
+        'square_yard': 0.83612736, 'square_mile': 2589988.110336, 'acre': 4046.8564224,
+        'hectare': 10000
+    },
+    'Energy': {
+        'joule': 1, 'kilojoule': 1000, 'megajoule': 1000000, 'watt_hour': 3600,
+        'kilowatt_hour': 3600000, 'calorie': 4.184, 'kilocalorie': 4184,
+        'btu': 1055.05585262, 'electronvolt': 1.602176634e-19, 'foot_pound': 1.3558179483314004
+    },
+    'Force': {
+        'newton': 1, 'kilonewton': 1000, 'dyne': 0.00001,
+        'pound_force': 4.4482216152605, 'kilogram_force': 9.80665
+    },
+    'Speed': {
+        'meter_per_second': 1, 'kilometer_per_hour': 0.277777777777778,
+        'mile_per_hour': 0.44704, 'knot': 0.514444444444444, 'foot_per_second': 0.3048
+    },
+    'Data Storage': {
+        'bit': 0.125, 'byte': 1, 'kilobyte': 1000, 'megabyte': 1000000,
+        'gigabyte': 1000000000, 'terabyte': 1000000000000, 'kibibyte': 1024,
+        'mebibyte': 1048576, 'gibibyte': 1073741824, 'tebibyte': 1099511627776
+    },
+    'Weight and Mass': {
+        'milligram': 0.000001, 'gram': 0.001, 'kilogram': 1, 'metric_ton': 1000,
+        'ounce': 0.028349523125, 'pound': 0.45359237, 'stone': 6.35029318,
+        'tonne': 1000, 'short_ton': 907.18474, 'long_ton': 1016.0469088, 'carat': 0.0002
+    },
+    'Pressure': {
+        'pascal': 1, 'kilopascal': 1000, 'bar': 100000, 'atmosphere': 101325,
+        'psi': 6894.757293168, 'torr': 133.322368421, 'mmhg': 133.322368421
+    },
+    'Power': {
+        'watt': 1, 'kilowatt': 1000, 'megawatt': 1000000,
+        'horsepower': 745.699872, 'btu_per_hour': 0.29307107017
+    },
+    'Time': {
+        'millisecond': 0.001, 'second': 1, 'minute': 60, 'hour': 3600,
+        'day': 86400, 'week': 604800, 'month': 2629746, 'year': 31556952
+    },
+    'Angle': {
+        'degree': 0.0174532925199433, 'radian': 1, 'gradian': 0.015707963267949,
+        'arcminute': 0.000290888208665722, 'arcsecond': 0.00000484813681109536
+    },
+    'Volume - Dry': {
+        'dry_pint_us': 0.0005506104713575, 'dry_quart_us': 0.001101220942715,
+        'dry_gallon_us': 0.00440488377086, 'peck_us': 0.00880976754172,
+        'bushel_us': 0.03523907016688, 'peck_imperial': 0.00909218, 'bushel_imperial': 0.03636872
+    }
+};
+
+// Auto-convert when typing in from-value
+function autoConvert() {
+    const fromValue = document.getElementById('from-value').value;
+    const fromUnit = document.getElementById('from-unit').value;
+    const toUnit = document.getElementById('to-unit').value;
+    const conversionType = document.getElementById('conversion-type').value;
+    
+    if (!fromValue || !fromUnit || !toUnit || !conversionType) {
+        document.getElementById('to-value').value = '';
+        return;
+    }
+    
+    // Perform conversion client-side
+    try {
+        const result = performConversion(parseFloat(fromValue), fromUnit, toUnit, conversionType);
+        document.getElementById('to-value').value = result;
+    } catch (error) {
+        console.error('Conversion error:', error);
+        document.getElementById('to-value').value = 'Error';
+    }
+}
+
+// Perform conversion using JavaScript
+function performConversion(value, fromUnit, toUnit, conversionType) {
+    // Temperature conversions
+    if (conversionType === 'Temperature') {
+        return convertTemperature(value, fromUnit, toUnit);
+    }
+    
+    // Fuel consumption conversions
+    if (conversionType === 'Fuel Consumption') {
+        return convertFuel(value, fromUnit, toUnit);
+    }
+    
+    // Number base conversions
+    if (conversionType === 'Numbers') {
+        return convertNumberBase(value.toString(), fromUnit, toUnit);
+    }
+    
+    // Text case conversions
+    if (conversionType === 'Case') {
+        return convertCase(value.toString(), toUnit);
+    }
+    
+    // Currency conversions
+    if (conversionType === 'Currency') {
+        return convertCurrency(value, fromUnit, toUnit);
+    }
+    
+    // Standard factor-based conversions
+    const factors = conversionFactors[conversionType];
+    if (!factors) {
+        throw new Error('Unknown conversion type: ' + conversionType);
+    }
+    
+    const fromFactor = factors[fromUnit];
+    const toFactor = factors[toUnit];
+    
+    if (!fromFactor || !toFactor) {
+        throw new Error('Unknown unit');
+    }
+    
+    // Convert to base unit, then to target unit
+    const baseValue = value * fromFactor;
+    const result = baseValue / toFactor;
+    
+    return result.toPrecision(10);
+}
+
+// Temperature conversion
+function convertTemperature(value, fromUnit, toUnit) {
+    // Convert to Celsius first
+    let celsius;
+    if (fromUnit === 'celsius') {
+        celsius = value;
+    } else if (fromUnit === 'fahrenheit') {
+        celsius = (value - 32) * 5 / 9;
+    } else if (fromUnit === 'kelvin') {
+        celsius = value - 273.15;
+    }
+    
+    // Convert from Celsius to target
+    if (toUnit === 'celsius') {
+        return celsius.toPrecision(10);
+    } else if (toUnit === 'fahrenheit') {
+        return (celsius * 9 / 5 + 32).toPrecision(10);
+    } else if (toUnit === 'kelvin') {
+        return (celsius + 273.15).toPrecision(10);
+    }
+}
+
+// Fuel consumption conversion
+function convertFuel(value, fromUnit, toUnit) {
+    // Convert to L/100km as base
+    let base_l_100km;
+    if (fromUnit === 'liters_per_100km') {
+        base_l_100km = value;
+    } else if (fromUnit === 'km_per_liter') {
+        base_l_100km = 100 / value;
+    } else if (fromUnit === 'mpg_us') {
+        base_l_100km = 235.214583 / value;
+    } else if (fromUnit === 'mpg_imperial') {
+        base_l_100km = 282.48093627967 / value;
+    }
+    
+    // Convert to target
+    if (toUnit === 'liters_per_100km') {
+        return base_l_100km.toPrecision(10);
+    } else if (toUnit === 'km_per_liter') {
+        return (100 / base_l_100km).toPrecision(10);
+    } else if (toUnit === 'mpg_us') {
+        return (235.214583 / base_l_100km).toPrecision(10);
+    } else if (toUnit === 'mpg_imperial') {
+        return (282.48093627967 / base_l_100km).toPrecision(10);
+    }
+}
+
+// Number base conversion
+function convertNumberBase(value, fromBase, toBase) {
+    const bases = {
+        'binary': 2,
+        'octal': 8,
+        'decimal': 10,
+        'hexadecimal': 16
+    };
+    
+    const decimalValue = parseInt(value, bases[fromBase]);
+    
+    if (toBase === 'binary') {
+        return decimalValue.toString(2);
+    } else if (toBase === 'octal') {
+        return decimalValue.toString(8);
+    } else if (toBase === 'decimal') {
+        return decimalValue.toString(10);
+    } else if (toBase === 'hexadecimal') {
+        return decimalValue.toString(16).toUpperCase();
+    }
+}
+
+// Text case conversion
+function convertCase(value, toCase) {
+    if (toCase === 'lowercase') {
+        return value.toLowerCase();
+    } else if (toCase === 'uppercase') {
+        return value.toUpperCase();
+    } else if (toCase === 'titlecase') {
+        return value.replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+    } else if (toCase === 'sentencecase') {
+        return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+    } else if (toCase === 'snakecase') {
+        return value.replace(/[\s\-]+/g, '_').replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
+    } else if (toCase === 'camelcase') {
+        const words = value.split(/[\s_\-]+/);
+        return words[0].toLowerCase() + words.slice(1).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('');
+    } else if (toCase === 'pascalcase') {
+        return value.split(/[\s_\-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('');
+    } else if (toCase === 'kebabcase') {
+        return value.replace(/[\s_]+/g, '-').replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+    }
+}
+
+// Currency conversion (static rates)
+function convertCurrency(value, fromCurr, toCurr) {
+    const rates = {
+        'usd': 1, 'eur': 0.92, 'gbp': 0.79, 'jpy': 149.50,
+        'cad': 1.36, 'aud': 1.53, 'chf': 0.88, 'cny': 7.24, 'inr': 83.12
+    };
+    
+    const usdValue = value / rates[fromCurr];
+    return (usdValue * rates[toCurr]).toPrecision(10);
+}
+
+// Swap units
+function swapUnits() {
+    const fromValue = document.getElementById('from-value');
+    const toValue = document.getElementById('to-value');
+    const fromUnit = document.getElementById('from-unit');
+    const toUnit = document.getElementById('to-unit');
+    
+    // Swap values
+    const tempValue = fromValue.value;
+    fromValue.value = toValue.value;
+    toValue.value = tempValue;
+    
+    // Swap units
+    const tempUnit = fromUnit.value;
+    fromUnit.value = toUnit.value;
+    toUnit.value = tempUnit;
+    
+    // Trigger auto-convert
+    autoConvert();
+}
+
+// Get CSRF token from cookies
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Reverse conversion (when typing in to-value)
+function reverseConvert() {
+    const toValue = document.getElementById('to-value').value;
+    const fromUnit = document.getElementById('from-unit').value;
+    const toUnit = document.getElementById('to-unit').value;
+    const conversionType = document.getElementById('conversion-type').value;
+    
+    if (!toValue || !fromUnit || !toUnit || !conversionType) {
+        document.getElementById('from-value').value = '';
+        return;
+    }
+    
+    // Perform reverse conversion client-side
+    try {
+        const result = performConversion(parseFloat(toValue), toUnit, fromUnit, conversionType);
+        document.getElementById('from-value').value = result;
+    } catch (error) {
+        console.error('Reverse conversion error:', error);
+        document.getElementById('from-value').value = 'Error';
+    }
+}
+
+// Event listeners
+document.getElementById('conversion-type').addEventListener('change', populateUnits);
+document.getElementById('from-value').addEventListener('input', autoConvert);
+document.getElementById('to-value').addEventListener('input', reverseConvert);
+document.getElementById('from-unit').addEventListener('change', autoConvert);
+document.getElementById('to-unit').addEventListener('change', autoConvert);
+document.getElementById('swap-btn').addEventListener('click', swapUnits);
+
+document.getElementById('conversion-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    autoConvert();
+    document.getElementById('result-display').style.display = 'block';
+    const fromValue = document.getElementById('from-value').value;
+    const toValue = document.getElementById('to-value').value;
+    const fromUnitText = document.getElementById('from-unit').selectedOptions[0].text;
+    const toUnitText = document.getElementById('to-unit').selectedOptions[0].text;
+    document.getElementById('result-text').textContent = 
+        `${fromValue} ${fromUnitText} = ${toValue} ${toUnitText}`;
+});
+</script>
+{% endblock %}

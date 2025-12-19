@@ -1,0 +1,253 @@
+// Private Endpoints and Private DNS Zones for PostgreSQL, Storage, and Key Vault
+param location string
+param namingPrefix string
+param tags object
+param privateEndpointsSubnetId string
+param vnetId string
+
+// Resource IDs for private endpoints
+param postgresServerId string
+param storageAccountId string
+param keyVaultId string
+param functionAppId string = ''
+
+// Location abbreviation for naming
+var locationAbbr = location == 'westeurope' ? 'westeurope' : location == 'northeurope' ? 'northeurope' : location == 'italynorth' ? 'italynorth' : location == 'eastus' ? 'eastus' : location == 'eastus2' ? 'eastus2' : location
+
+// ========== Private DNS Zones ==========
+
+// PostgreSQL Private DNS Zone
+resource postgresPrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
+  name: 'privatelink.postgres.database.azure.com'
+  location: 'global'
+  tags: tags
+}
+
+resource postgresPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
+  parent: postgresPrivateDnsZone
+  name: 'vnet-link-postgres'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: vnetId
+    }
+  }
+}
+
+// Storage Blob Private DNS Zone
+resource storageBlobPrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
+  name: 'privatelink.blob.${environment().suffixes.storage}'
+  location: 'global'
+  tags: tags
+}
+
+resource storageBlobPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
+  parent: storageBlobPrivateDnsZone
+  name: 'vnet-link-storage'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: vnetId
+    }
+  }
+}
+
+// Key Vault Private DNS Zone
+resource keyVaultPrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
+  name: 'privatelink.vaultcore.azure.net'
+  location: 'global'
+  tags: tags
+}
+
+resource keyVaultPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
+  parent: keyVaultPrivateDnsZone
+  name: 'vnet-link-keyvault'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: vnetId
+    }
+  }
+}
+
+// Function App Private DNS Zone
+resource functionAppPrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = if (!empty(functionAppId)) {
+  name: 'privatelink.azurewebsites.net'
+  location: 'global'
+  tags: tags
+}
+
+resource functionAppPrivateDnsZoneVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = if (!empty(functionAppId)) {
+  parent: functionAppPrivateDnsZone
+  name: 'vnet-link-functionapp'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: vnetId
+    }
+  }
+}
+
+// ========== Private Endpoints ==========
+
+// PostgreSQL Private Endpoint
+resource postgresPrivateEndpoint 'Microsoft.Network/privateEndpoints@2025-05-01' = {
+  name: 'pe-${locationAbbr}-${namingPrefix}-psql-01'
+  location: location
+  tags: tags
+  properties: {
+    subnet: {
+      id: privateEndpointsSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'postgres-connection'
+        properties: {
+          privateLinkServiceId: postgresServerId
+          groupIds: [
+            'postgresqlServer'
+          ]
+        }
+      }
+    ]
+  }
+}
+
+resource postgresPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2025-05-01' = {
+  parent: postgresPrivateEndpoint
+  name: 'default'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'privatelink-postgres-database-azure-com'
+        properties: {
+          privateDnsZoneId: postgresPrivateDnsZone.id
+        }
+      }
+    ]
+  }
+}
+
+// Storage Blob Private Endpoint
+resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2025-05-01' = {
+  name: 'pe-${locationAbbr}-${namingPrefix}-blob-01'
+  location: location
+  tags: tags
+  properties: {
+    subnet: {
+      id: privateEndpointsSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'blob-connection'
+        properties: {
+          privateLinkServiceId: storageAccountId
+          groupIds: [
+            'blob'
+          ]
+        }
+      }
+    ]
+  }
+}
+
+resource storageBlobPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2025-05-01' = {
+  parent: storagePrivateEndpoint
+  name: 'default'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'privatelink-blob-core-windows-net'
+        properties: {
+          privateDnsZoneId: storageBlobPrivateDnsZone.id
+        }
+      }
+    ]
+  }
+}
+
+// Key Vault Private Endpoint
+resource keyVaultPrivateEndpoint 'Microsoft.Network/privateEndpoints@2025-05-01' = {
+  name: 'pe-${locationAbbr}-${namingPrefix}-kv-01'
+  location: location
+  tags: tags
+  properties: {
+    subnet: {
+      id: privateEndpointsSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'keyvault-connection'
+        properties: {
+          privateLinkServiceId: keyVaultId
+          groupIds: [
+            'vault'
+          ]
+        }
+      }
+    ]
+  }
+}
+
+resource keyVaultPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2025-05-01' = {
+  parent: keyVaultPrivateEndpoint
+  name: 'default'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'privatelink-vaultcore-azure-net'
+        properties: {
+          privateDnsZoneId: keyVaultPrivateDnsZone.id
+        }
+      }
+    ]
+  }
+}
+
+// Function App Private Endpoint (only if functionAppId is provided)
+resource functionAppPrivateEndpoint 'Microsoft.Network/privateEndpoints@2025-05-01' = if (!empty(functionAppId)) {
+  name: 'pe-${locationAbbr}-${namingPrefix}-func-01'
+  location: location
+  tags: tags
+  properties: {
+    subnet: {
+      id: privateEndpointsSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'functionapp-connection'
+        properties: {
+          privateLinkServiceId: functionAppId
+          groupIds: [
+            'sites'
+          ]
+        }
+      }
+    ]
+  }
+}
+
+resource functionAppPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2025-05-01' = if (!empty(functionAppId)) {
+  parent: functionAppPrivateEndpoint
+  name: 'default'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'privatelink-azurewebsites-net'
+        properties: {
+          privateDnsZoneId: functionAppPrivateDnsZone.id
+        }
+      }
+    ]
+  }
+}
+
+// Outputs
+output postgresPrivateEndpointId string = postgresPrivateEndpoint.id
+output functionAppPrivateEndpointId string = !empty(functionAppId) ? functionAppPrivateEndpoint.id : ''
+output storageBlobPrivateEndpointId string = storagePrivateEndpoint.id
+output keyVaultPrivateEndpointId string = keyVaultPrivateEndpoint.id

@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% load static crispy_forms_tags %}
+
+{% block title %}{{ tool.name }} - MagicToolbox{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <!-- Tool Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'tools:tool_list' %}">Tools</a></li>
+          <li class="breadcrumb-item active" aria-current="page">{{ tool.name }}</li>
+        </ol>
+      </nav>
+      <h1 class="display-5 fw-bold">
+        <i class="bi bi-{{ tool.icon|default:'box' }} text-primary me-2"></i>
+        {{ tool.name }}
+      </h1>
+      <p class="lead text-muted">{{ tool.description }}</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Tool Form -->
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-upload me-2"></i>Upload & Process
+          </h5>
+        </div>
+        <div class="card-body">
+          <form method="post" enctype="multipart/form-data" id="toolForm">
+            {% csrf_token %}
+            {{ form|crispy }}
+            
+            <div class="d-grid gap-2 mt-3">
+              <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                <i class="bi bi-play-circle me-2"></i>Process File
+              </button>
+            </div>
+          </form>
+
+          <!-- Progress Section (hidden by default) -->
+          <div id="progressSection" class="mt-4" style="display: none;">
+            <div class="progress" style="height: 30px;">
+              <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                   role="progressbar" 
+                   id="progressBar"
+                   style="width: 0%">
+                <span id="progressText">0%</span>
+              </div>
+            </div>
+            <p class="text-center text-muted mt-2" id="progressMessage">Processing your file...</p>
+          </div>
+
+          <!-- Result Section (hidden by default) -->
+          <div id="resultSection" class="mt-4" style="display: none;">
+            <div class="alert alert-success" role="alert">
+              <h5 class="alert-heading">
+                <i class="bi bi-check-circle me-2"></i>Success!
+              </h5>
+              <p class="mb-0">Your file has been processed successfully.</p>
+            </div>
+            <div class="d-grid gap-2">
+              <a href="#" id="downloadBtn" class="btn btn-success btn-lg" download>
+                <i class="bi bi-download me-2"></i>Download Result
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tool Information -->
+    <div class="col-lg-4">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header bg-light">
+          <h6 class="mb-0">
+            <i class="bi bi-info-circle me-2"></i>Tool Information
+          </h6>
+        </div>
+        <div class="card-body">
+          <ul class="list-unstyled mb-0">
+            <li class="mb-2">
+              <strong>Max File Size:</strong> {{ tool.max_file_size|filesizeformat }}
+            </li>
+            <li class="mb-2">
+              <strong>Supported Formats:</strong>
+              <div class="mt-1">
+                {% for format in tool.supported_formats %}
+                  <span class="badge bg-secondary me-1">{{ format|upper }}</span>
+                {% endfor %}
+              </div>
+            </li>
+            <li class="mb-2">
+              <strong>Processing Time:</strong> {{ tool.estimated_time|default:"~1-2 seconds" }}
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-header bg-light">
+          <h6 class="mb-0">
+            <i class="bi bi-lightbulb me-2"></i>Usage Tips
+          </h6>
+        </div>
+        <div class="card-body">
+          <ul class="small mb-0">
+            {% for tip in tool.usage_tips %}
+              <li>{{ tip }}</li>
+            {% empty %}
+              <li>Upload your file using the form</li>
+              <li>Select the desired output options</li>
+              <li>Click "Process File" and wait for completion</li>
+              <li>Download your processed file</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.getElementById('toolForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const submitBtn = document.getElementById('submitBtn');
+    const progressSection = document.getElementById('progressSection');
+    const resultSection = document.getElementById('resultSection');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    
+    // Show progress section
+    submitBtn.disabled = true;
+    progressSection.style.display = 'block';
+    resultSection.style.display = 'none';
+    
+    // Simulate progress (replace with actual AJAX call)
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 10;
+      progressBar.style.width = progress + '%';
+      progressText.textContent = progress + '%';
+      
+      if (progress >= 100) {
+        clearInterval(interval);
+        setTimeout(() => {
+          progressSection.style.display = 'none';
+          resultSection.style.display = 'block';
+          submitBtn.disabled = false;
+        }, 500);
+      }
+    }, 200);
+    
+    // TODO: Replace with actual fetch API call to backend
+    // fetch('/api/v1/tools/{{ tool.slug }}/convert/', {
+    //   method: 'POST',
+    //   body: formData,
+    //   headers: {
+    //     'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+    //   }
+    // }).then(response => response.json())
+    //   .then(data => {
+    //     // Handle success
+    //   })
+    //   .catch(error => {
+    //     // Handle error
+    //   });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,82 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+/logs/
+*.pot
+
+# Static and media files (collected during build)
+/staticfiles/
+/mediafiles/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation (not needed in container)
+*.md
+!README.md
+SETUP_*.md
+RUNNING.md
+FRONTEND_*.md
+GPX_*.md
+RESTRUCTURE_*.md
+
+# Environment files (secrets should be in Key Vault)
+.env
+.env.*
+!.env.example
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# CI/CD (not needed in container)
+.github/
+
+# Infrastructure (not needed in container)
+infra/
+
+# Scripts (except those needed for runtime)
+scripts/
+!scripts/startup.sh
+!scripts/startup_health_checks.py
+!scripts/migrate.sh
+
+# Development files
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Temporary files
+*.tmp
+*.bak
+*.cache

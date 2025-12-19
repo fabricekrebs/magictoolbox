@@ -1,0 +1,65 @@
+# Ruff configuration for MagicToolbox
+# Documentation: https://docs.astral.sh/ruff/
+
+# Exclude common directories
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "migrations",
+    "staticfiles",
+    "media",
+    "node_modules",
+    ".pytest_cache",
+    ".mypy_cache",
+    "build",
+    "dist",
+]
+
+# Same line length as Black
+line-length = 100
+
+# Target Python 3.11
+target-version = "py311"
+
+[lint]
+# Enable specific rule sets (start conservative, add more later)
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+]
+
+# Ignore specific rules
+ignore = [
+    "E501",  # Line too long (handled by Black)
+    "E402",  # Module level import not at top (Django settings use this pattern)
+    "F401",  # Imported but unused (some are used in __init__.py for re-export)
+    "F403",  # Unable to detect undefined names from star import (Django settings)
+    "F405",  # May be undefined from star imports (Django settings)
+]
+
+# Allow autofix for specific rules
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[lint.per-file-ignores]
+# Ignore specific rules in specific files
+"__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+"manage.py" = ["E402"]     # Allow imports not at top (Django requirement)
+"settings/*.py" = ["F405", "F403"]  # Allow wildcard imports in settings
+"tests/*.py" = ["S101"]    # Allow use of assert in tests
+"conftest.py" = ["F401"]   # Allow unused imports in conftest
+
+[lint.isort]
+# isort configuration to match our settings
+known-first-party = ["apps", "magictoolbox"]
+section-order = ["future", "standard-library", "third-party", "django", "first-party", "local-folder"]
+
+[lint.isort.sections]
+# Group Django imports together
+django = ["django", "rest_framework"]

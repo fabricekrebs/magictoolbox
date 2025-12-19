@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Profile - MagicToolbox{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+      <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+          <h4 class="mb-0">
+            <i class="bi bi-person-circle me-2"></i>User Profile
+          </h4>
+        </div>
+        <div class="card-body">
+          <div class="row mb-3">
+            <div class="col-sm-4 fw-bold">Username:</div>
+            <div class="col-sm-8">{{ user.username }}</div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-sm-4 fw-bold">Email:</div>
+            <div class="col-sm-8">{{ user.email }}</div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-sm-4 fw-bold">Member Since:</div>
+            <div class="col-sm-8">{{ user.date_joined|date:"F d, Y" }}</div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-sm-4 fw-bold">Last Login:</div>
+            <div class="col-sm-8">{{ user.last_login|date:"F d, Y H:i" }}</div>
+          </div>
+          
+          <hr class="my-4">
+          
+          <div class="d-grid gap-2">
+            <a href="#" class="btn btn-outline-primary">
+              <i class="bi bi-pencil me-2"></i>Edit Profile
+            </a>
+            <a href="#" class="btn btn-outline-secondary">
+              <i class="bi bi-key me-2"></i>Change Password
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

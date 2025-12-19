@@ -1,0 +1,45 @@
+{
+  "Length": {
+    "units": {
+      "meter": {"name": "Meter", "factor": "1"},
+      "kilometer": {"name": "Kilometer", "factor": "1000"},
+      "centimeter": {"name": "Centimeter", "factor": "0.01"},
+      "millimeter": {"name": "Millimeter", "factor": "0.001"},
+      "mile": {"name": "Mile", "factor": "1609.344"},
+      "yard": {"name": "Yard", "factor": "0.9144"},
+      "foot": {"name": "Foot", "factor": "0.3048"},
+      "inch": {"name": "Inch", "factor": "0.0254"}
+    }
+  },
+  "Volume": {
+    "units": {
+      "liter": {"name": "Liter", "factor": "0.001"},
+      "milliliter": {"name": "Milliliter", "factor": "0.000001"},
+      "gallon_us": {"name": "US Gallon", "factor": "0.003785411784"},
+      "cubic_meter": {"name": "Cubic Meter", "factor": "1"},
+      "cup_us": {"name": "US Cup", "factor": "0.0002365882365"},
+      "barrel_oil": {"name": "Oil Barrel", "factor": "0.158987294928"},
+      "cubic_foot": {"name": "Cubic Foot", "factor": "0.028316846592"}
+    }
+  },
+  "Area": {
+    "units": {
+      "square_meter": {"name": "Square Meter", "factor": "1"},
+      "square_centimeter": {"name": "Square Centimeter", "factor": "0.0001"},
+      "acre": {"name": "Acre", "factor": "4046.8564224"},
+      "hectare": {"name": "Hectare", "factor": "10000"},
+      "square_foot": {"name": "Square Foot", "factor": "0.09290304"}
+    }
+  },
+  "Energy": {
+    "units": {
+      "joule": {"name": "Joule", "factor": "1"},
+      "kilojoule": {"name": "Kilojoule", "factor": "1000"},
+      "kilowatt_hour": {"name": "Kilowatt-hour", "factor": "3600000"},
+      "megajoule": {"name": "Megajoule", "factor": "1000000"},
+      "calorie": {"name": "Calorie", "factor": "4.184"},
+      "btu": {"name": "BTU", "factor": "1055.06"},
+      "foot_pound": {"name": "Foot-pound", "factor": "1.35582"}
+    }
+  }
+}
