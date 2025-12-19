@@ -25,15 +25,19 @@ done
 
 echo "Database is ready!"
 
-# Run comprehensive startup health checks
+# Run comprehensive startup health checks (if available)
 echo ""
 echo "=== Running Startup Health Checks ==="
-python /app/scripts/startup_health_checks.py
-HEALTH_CHECK_EXIT=$?
-
-if [ $HEALTH_CHECK_EXIT -ne 0 ]; then
-    echo "WARNING: Some health checks failed (exit code: $HEALTH_CHECK_EXIT)"
-    echo "Continuing with startup..."
+if [ -f "/app/scripts/startup_health_checks.py" ]; then
+    python /app/scripts/startup_health_checks.py
+    HEALTH_CHECK_EXIT=$?
+    
+    if [ $HEALTH_CHECK_EXIT -ne 0 ]; then
+        echo "WARNING: Some health checks failed (exit code: $HEALTH_CHECK_EXIT)"
+        echo "Continuing with startup..."
+    fi
+else
+    echo "Health checks script not found, skipping..."
 fi
 echo ""
 

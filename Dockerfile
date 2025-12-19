@@ -97,9 +97,8 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/health/ || exit 1
 
-# Use startup script
-COPY --chown=appuser:appuser scripts/startup.sh /app/startup.sh
-RUN chmod +x /app/startup.sh
+# Ensure startup script is executable (already copied in line 89)
+RUN chmod +x /app/scripts/startup.sh
 
 # Run application
-ENTRYPOINT ["/app/startup.sh"]
+ENTRYPOINT ["/app/scripts/startup.sh"]

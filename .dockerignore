@@ -68,6 +68,7 @@ infra/
 # Scripts (except those needed for runtime)
 scripts/
 !scripts/startup.sh
+!scripts/startup_health_checks.py
 !scripts/migrate.sh
 
 # Development files

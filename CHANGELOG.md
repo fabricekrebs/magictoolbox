@@ -2,30 +2,6 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
-## [6.1.2](https://github.com/fabricekrebs/magictoolbox/compare/v6.1.1...v6.1.2) (2025-12-18)
-
-### Bug Fixes
-
-* **health:** improve health check diagnostics ([#22](https://github.com/fabricekrebs/magictoolbox/issues/22)) ([05a42de](https://github.com/fabricekrebs/magictoolbox/commit/05a42dec07fb3bee695496af69e91d7079045022))
-
-## [6.1.1](https://github.com/fabricekrebs/magictoolbox/compare/v6.1.0...v6.1.1) (2025-12-18)
-
-### Bug Fixes
-
-* **ci:** switch prod function deployment to config-zip method ([#21](https://github.com/fabricekrebs/magictoolbox/issues/21)) ([c6ae860](https://github.com/fabricekrebs/magictoolbox/commit/c6ae860742f4c1647e3fea610b4b28c635562e3d))
-
-## [6.1.0](https://github.com/fabricekrebs/magictoolbox/compare/v6.0.0...v6.1.0) (2025-12-18)
-
-### Features
-
-* **infra:** add documentation for user-assigned managed identity ([#19](https://github.com/fabricekrebs/magictoolbox/issues/19)) ([1bf7a08](https://github.com/fabricekrebs/magictoolbox/commit/1bf7a087689dbc7d4be234d8e13b7a577a032b0c))
-* **infra:** add user-assigned managed identity for container app ([#15](https://github.com/fabricekrebs/magictoolbox/issues/15)) ([5dc13a4](https://github.com/fabricekrebs/magictoolbox/commit/5dc13a4c3c36ff3ebe01704c7b556cb063aff304))
-
-### Bug Fixes
-
-* **infra:** remove duplicate userAssignedIdentityId parameter ([#18](https://github.com/fabricekrebs/magictoolbox/issues/18)) ([8e061c3](https://github.com/fabricekrebs/magictoolbox/commit/8e061c3103dd4072098e4c89ba968f2c20aa1bd1))
-* **infra:** use magictoolbox:latest from ACR by default ([#16](https://github.com/fabricekrebs/magictoolbox/issues/16)) ([46adaf9](https://github.com/fabricekrebs/magictoolbox/commit/46adaf9346b5dd5d6d349a6cbddf9a04c9c95c33))
-
 ## [6.0.0](https://github.com/fabricekrebs/magictoolbox/compare/v5.0.0...v6.0.0) (2025-12-18)
 
 ### ⚠ BREAKING CHANGES
