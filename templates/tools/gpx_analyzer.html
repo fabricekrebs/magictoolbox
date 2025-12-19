@@ -1,0 +1,312 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ tool.display_name }} - MagicToolbox{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <!-- ==================== BREADCRUMB & HEADER ==================== -->
+  <div class="row mb-4">
+    <div class="col">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'tools:tool_list' %}">Tools</a></li>
+          <li class="breadcrumb-item active" aria-current="page">{{ tool.display_name }}</li>
+        </ol>
+      </nav>
+      
+      <h1 class="display-4 mb-3">
+        <i class="bi bi-{{ tool.icon }} text-primary me-3"></i>
+        {{ tool.display_name }}
+      </h1>
+      <p class="lead text-muted">{{ tool.description }}</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- ==================== MAIN CONTENT (LEFT COLUMN) ==================== -->
+    <div class="col-lg-8">
+      <!-- Upload Card -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-upload me-2"></i>Upload GPX File
+          </h5>
+        </div>
+        <div class="card-body">
+          <form id="toolForm" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <!-- File Input -->
+            <div class="mb-3">
+              <label for="inputFile" class="form-label">
+                Select GPX File
+              </label>
+              <input 
+                type="file" 
+                class="form-control" 
+                id="inputFile" 
+                name="file" 
+                accept=".gpx"
+                required>
+              <div class="form-text">
+                <i class="bi bi-info-circle me-1"></i>
+                Select a GPX file to analyze (max 50MB).
+              </div>
+            </div>
+            
+            <!-- Submit Button -->
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary btn-lg" id="convertBtn">
+                <i class="bi bi-play-circle me-2"></i>Analyze Track
+              </button>
+            </div>
+          </form>
+
+          <!-- ==================== PROGRESS SECTION ==================== -->
+          <div id="progressSection" class="mt-4" style="display: none;">
+            <div class="progress" style="height: 30px;">
+              <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                   role="progressbar" 
+                   id="progressBar"
+                   style="width: 0%">
+                <span id="progressText">0%</span>
+              </div>
+            </div>
+            <p class="text-center text-muted mt-2">Analyzing your file...</p>
+          </div>
+
+          <!-- ==================== ANALYSIS RESULT ==================== -->
+          <div id="analysisSection" class="mt-4" style="display: none;">
+            <div class="alert alert-success" role="alert">
+              <h5 class="alert-heading">
+                <i class="bi bi-check-circle me-2"></i>Analysis Complete!
+              </h5>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Track Statistics</h6>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <h6 class="text-primary"><i class="bi bi-map me-2"></i>Distance</h6>
+                    <p class="h4 mb-0" id="statDistance">-</p>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <h6 class="text-primary"><i class="bi bi-clock me-2"></i>Duration</h6>
+                    <p class="h4 mb-0" id="statDuration">-</p>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <h6 class="text-primary"><i class="bi bi-speedometer me-2"></i>Average Speed</h6>
+                    <p class="h4 mb-0" id="statAvgSpeed">-</p>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <h6 class="text-primary"><i class="bi bi-lightning me-2"></i>Max Speed</h6>
+                    <p class="h4 mb-0" id="statMaxSpeed">-</p>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <h6 class="text-primary"><i class="bi bi-arrow-up-circle me-2"></i>Elevation Gain</h6>
+                    <p class="h4 mb-0" id="statElevGain">-</p>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <h6 class="text-primary"><i class="bi bi-arrow-down-circle me-2"></i>Elevation Loss</h6>
+                    <p class="h4 mb-0" id="statElevLoss">-</p>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <h6 class="text-primary"><i class="bi bi-geo-alt me-2"></i>Elevation Range</h6>
+                    <p class="h4 mb-0" id="statElevRange">-</p>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <h6 class="text-primary"><i class="bi bi-pin me-2"></i>Track Points</h6>
+                    <p class="h4 mb-0" id="statPoints">-</p>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <h6 class="text-primary"><i class="bi bi-hourglass me-2"></i>Average Pace</h6>
+                    <p class="h4 mb-0" id="statPace">-</p>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <h6 class="text-primary"><i class="bi bi-activity me-2"></i>Moving Time</h6>
+                    <p class="h4 mb-0" id="statMovingTime">-</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-grid gap-2 mt-3">
+              <a href="#" id="downloadBtn" class="btn btn-success" download>
+                <i class="bi bi-download me-2"></i>Download Statistics (JSON)
+              </a>
+              <button type="button" class="btn btn-outline-primary" onclick="location.reload()">
+                <i class="bi bi-arrow-clockwise me-2"></i>Analyze Another File
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SIDEBAR (RIGHT COLUMN) ==================== -->
+    <div class="col-lg-4">
+      <!-- Features Card -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-header bg-light">
+          <h6 class="mb-0">
+            <i class="bi bi-star me-2"></i>Features
+          </h6>
+        </div>
+        <div class="card-body">
+          <ul class="list-unstyled mb-0">
+            <li><i class="bi bi-check-circle text-success me-2"></i>Distance & duration analysis</li>
+            <li><i class="bi bi-check-circle text-success me-2"></i>Speed statistics (avg/max)</li>
+            <li><i class="bi bi-check-circle text-success me-2"></i>Elevation data analysis</li>
+            <li><i class="bi bi-check-circle text-success me-2"></i>Track point counting</li>
+            <li><i class="bi bi-check-circle text-success me-2"></i>Pace calculation</li>
+            <li><i class="bi bi-check-circle text-success me-2"></i>Export to JSON</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- How It Works Card -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-header bg-light">
+          <h6 class="mb-0">
+            <i class="bi bi-info-circle me-2"></i>How It Works
+          </h6>
+        </div>
+        <div class="card-body">
+          <p class="small text-muted mb-0">Upload a GPX file and the analyzer will extract comprehensive statistics including distance, duration, speed metrics, elevation changes, and more. The original file is never modified - you'll get a detailed analysis report that you can download as JSON.</p>
+        </div>
+      </div>
+
+      <!-- Use Cases Card -->
+      <div class="card shadow-sm">
+        <div class="card-header bg-light">
+          <h6 class="mb-0">
+            <i class="bi bi-lightbulb me-2"></i>Use Cases
+          </h6>
+        </div>
+        <div class="card-body">
+          <ul class="small mb-0">
+            <li>Review recorded tracks</li>
+            <li>Analyze workout performance</li>
+            <li>Compare different routes</li>
+            <li>Track elevation profiles</li>
+            <li>Monitor fitness progress</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ==================== FORM SUBMISSION ====================
+document.getElementById('toolForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const fileInput = document.getElementById('inputFile');
+  const file = fileInput.files[0];
+  
+  if (!file) {
+    MagicToolbox.showNotification('Please select a file', 'error');
+    return;
+  }
+
+  const convertBtn = document.getElementById('convertBtn');
+  const progressSection = document.getElementById('progressSection');
+  const analysisSection = document.getElementById('analysisSection');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  
+  // Show progress
+  convertBtn.disabled = true;
+  progressSection.style.display = 'block';
+  analysisSection.style.display = 'none';
+  
+  // Animate progress
+  let progress = 0;
+  const progressInterval = setInterval(() => {
+    progress += 15;
+    progressBar.style.width = Math.min(progress, 90) + '%';
+    progressText.textContent = Math.min(progress, 90) + '%';
+    if (progress >= 90) clearInterval(progressInterval);
+  }, 150);
+  
+  // Prepare form data
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  try {
+    const response = await fetch('/api/v1/tools/gpx-analyzer/convert/', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': '{{ csrf_token }}'
+      }
+    });
+    
+    clearInterval(progressInterval);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Server error: ${response.status}`);
+    }
+    
+    // Complete progress
+    progressBar.style.width = '100%';
+    progressText.textContent = '100%';
+    
+    // Get JSON analysis result
+    const blob = await response.blob();
+    const stats = JSON.parse(await blob.text());
+    
+    // Display statistics
+    document.getElementById('statDistance').textContent = `${stats.total_distance_km} km`;
+    document.getElementById('statDuration').textContent = stats.total_duration_formatted || '-';
+    document.getElementById('statAvgSpeed').textContent = `${stats.average_speed_kmh} km/h`;
+    document.getElementById('statMaxSpeed').textContent = `${stats.max_speed_kmh} km/h`;
+    document.getElementById('statElevGain').textContent = `${stats.elevation_gain_m} m`;
+    document.getElementById('statElevLoss').textContent = `${stats.elevation_loss_m} m`;
+    document.getElementById('statElevRange').textContent = 
+      `${stats.min_elevation_m} - ${stats.max_elevation_m} m`;
+    document.getElementById('statPoints').textContent = stats.total_points;
+    document.getElementById('statPace').textContent = stats.average_pace_min_per_km || '-';
+    document.getElementById('statMovingTime').textContent = stats.moving_time_formatted || '-';
+    
+    // Setup download link
+    const downloadUrl = URL.createObjectURL(blob);
+    const downloadBtn = document.getElementById('downloadBtn');
+    downloadBtn.href = downloadUrl;
+    
+    // Extract filename from Content-Disposition or use default
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = 'track_analysis.json';
+    if (contentDisposition) {
+      const matches = /filename="([^"]+)"/.exec(contentDisposition);
+      if (matches) filename = matches[1];
+    }
+    downloadBtn.download = filename;
+    
+    // Show results
+    setTimeout(() => {
+      progressSection.style.display = 'none';
+      analysisSection.style.display = 'block';
+      MagicToolbox.showNotification('Analysis complete!', 'success');
+    }, 500);
+    
+  } catch (error) {
+    clearInterval(progressInterval);
+    console.error('Analysis error:', error);
+    MagicToolbox.showNotification(error.message || 'Analysis failed', 'error');
+    progressSection.style.display = 'none';
+  } finally {
+    convertBtn.disabled = false;
+  }
+});
+</script>
+{% endblock %}

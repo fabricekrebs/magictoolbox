@@ -1,0 +1,287 @@
+name: Deploy Azure Function App
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'function_app/**'
+      - '.github/workflows/deploy-function-app.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-function-dev:
+    name: Deploy Function App to Development
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
+    environment:
+      name: development
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_DEV }}
+      
+      - name: Get Function App name and Resource Group
+        id: get_function_app
+        run: |
+          echo "🔍 Looking for Function App in resource group..."
+          FUNC_APP_NAME=$(az functionapp list \
+            --resource-group ${{ secrets.RESOURCE_GROUP_DEV }} \
+            --query "[?contains(name, 'func-')].name | [0]" -o tsv)
+          
+          if [ -z "$FUNC_APP_NAME" ]; then
+            echo "❌ Error: No Function App found in resource group ${{ secrets.RESOURCE_GROUP_DEV }}"
+            exit 1
+          fi
+          
+          echo "function_app_name=$FUNC_APP_NAME" >> $GITHUB_OUTPUT
+          echo "resource_group=${{ secrets.RESOURCE_GROUP_DEV }}" >> $GITHUB_OUTPUT
+          echo "✅ Found Function App: $FUNC_APP_NAME"
+          
+          # Check if it's Flex Consumption
+          SKU=$(az functionapp show \
+            --resource-group ${{ secrets.RESOURCE_GROUP_DEV }} \
+            --name $FUNC_APP_NAME \
+            --query "sku" -o tsv 2>/dev/null || echo "Unknown")
+          echo "📊 SKU: $SKU"
+      
+      - name: Create deployment package
+        run: |
+          echo "📦 Creating deployment package with dependencies..."
+          cd function_app
+          
+          # Install dependencies into .python_packages/lib/site-packages
+          # This is the standard location for Azure Functions Python
+          mkdir -p .python_packages/lib/site-packages
+          pip install --target=".python_packages/lib/site-packages" -r requirements.txt
+          
+          # Create zip with all code and dependencies
+          zip -r ../function_app.zip . \
+            -x "*.pyc" \
+            -x "__pycache__/*" \
+            -x ".venv/*" \
+            -x "local.settings.json" \
+            -x "*.md" \
+            -x "function_app_*.py" \
+            -x "*.sh"
+          echo "✅ Package created: $(du -h ../function_app.zip | cut -f1)"
+          echo "📋 Package contents:"
+          unzip -l ../function_app.zip | grep -E "(function_app\.py|host\.json|requirements\.txt)" || true
+      
+      - name: Verify runtime configuration
+        run: |
+          echo "🔍 Checking Function App runtime configuration..."
+          
+          # For Flex Consumption, runtime is in functionAppConfig, not app settings
+          # But we can check app settings for debugging
+          az functionapp config appsettings list \
+            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
+            --name ${{ steps.get_function_app.outputs.function_app_name }} \
+            --query "[?name=='AzureWebJobsStorage__accountName' || name=='APPLICATIONINSIGHTS_CONNECTION_STRING'].{Name:name, Value:value}" \
+            -o table || true
+          
+          echo "✅ Runtime configuration check complete"
+      
+      - name: Deploy to Azure Function App (Flex Consumption)
+        run: |
+          echo "🚀 Deploying to Flex Consumption Function App..."
+          
+          # Deploy ZIP package
+          # With pre-built dependencies, we use --build-remote false
+          az functionapp deployment source config-zip \
+            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
+            --name ${{ steps.get_function_app.outputs.function_app_name }} \
+            --src function_app.zip \
+            --build-remote false \
+            --timeout 600 2>&1 | tee deploy.log || {
+              echo "⚠️  Deployment command exited with error (expected for Flex Consumption)"
+              echo "   Checking if 'Deployment endpoint responded with status code 202'"
+              if grep -q "status code 202" deploy.log; then
+                echo "✅ Deployment was accepted (202), continuing..."
+              else
+                echo "❌ Deployment was not accepted"
+                cat deploy.log
+                exit 1
+              fi
+            }
+          echo "✅ Deployment package uploaded"
+      
+      - name: Wait for deployment to complete
+        run: |
+          echo "⏳ Waiting for Flex Consumption deployment to stabilize..."
+          echo "   (Flex Consumption plans can take 2-3 minutes to cold start)"
+          sleep 120  # 2 minutes for Flex Consumption cold start
+      
+      - name: Verify functions are deployed
+        run: |
+          echo "🔍 Verifying function deployment..."
+          az functionapp function list \
+            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
+            --name ${{ steps.get_function_app.outputs.function_app_name }} \
+            -o table
+          
+          FUNCTION_COUNT=$(az functionapp function list \
+            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
+            --name ${{ steps.get_function_app.outputs.function_app_name }} \
+            --query "length([])" -o tsv)
+          
+          echo "✅ Found $FUNCTION_COUNT functions"
+          
+          if [ "$FUNCTION_COUNT" -lt 9 ]; then
+            echo "⚠️  Warning: Expected 9 functions, found $FUNCTION_COUNT"
+            exit 1
+          fi
+  
+  deploy-function-prod:
+    name: Deploy Function App to Production
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod')
+    environment:
+      name: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_PROD }}
+      
+      - name: Get Function App name and Resource Group
+        id: get_function_app
+        run: |
+          FUNC_APP_NAME=$(az functionapp list \
+            --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
+            --query "[?contains(name, 'func-')].name | [0]" -o tsv)
+          
+          # Get storage account name dynamically
+          STORAGE_ACCOUNT=$(az storage account list \
+            --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
+            --query "[0].name" -o tsv)
+          
+          echo "function_app_name=$FUNC_APP_NAME" >> $GITHUB_OUTPUT
+          echo "resource_group=${{ secrets.RESOURCE_GROUP_PROD }}" >> $GITHUB_OUTPUT
+          echo "storage_account=$STORAGE_ACCOUNT" >> $GITHUB_OUTPUT
+          echo "📦 Deploying to Function App: $FUNC_APP_NAME"
+          echo "💾 Using Storage Account: $STORAGE_ACCOUNT"
+      
+      - name: Create deployment package
+        run: |
+          echo "📦 Creating deployment package with dependencies..."
+          cd function_app
+          
+          # Install dependencies into .python_packages/lib/site-packages
+          # This is the standard location for Azure Functions Python
+          mkdir -p .python_packages/lib/site-packages
+          pip install --target=".python_packages/lib/site-packages" -r requirements.txt
+          
+          # Create zip with all code and dependencies
+          zip -r ../function_app.zip . \
+            -x "*.pyc" \
+            -x "__pycache__/*" \
+            -x ".venv/*" \
+            -x "local.settings.json" \
+            -x "*.md" \
+            -x "function_app_*.py" \
+            -x "*.sh"
+          echo "✅ Package created: $(du -h ../function_app.zip | cut -f1)"
+          echo "📋 Package contents:"
+          unzip -l ../function_app.zip | grep -E "(function_app\.py|host\.json|requirements\.txt)" || true
+      
+      - name: Remove WEBSITE_RUN_FROM_PACKAGE setting
+        run: |
+          echo "🧹 Removing WEBSITE_RUN_FROM_PACKAGE setting (switching to config-zip deployment)..."
+          az functionapp config appsettings delete \
+            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
+            --name ${{ steps.get_function_app.outputs.function_app_name }} \
+            --setting-names WEBSITE_RUN_FROM_PACKAGE || true
+      
+      - name: Deploy to Azure Function App (Flex Consumption)
+        run: |
+          echo "🚀 Deploying to Flex Consumption Function App..."
+          
+          # Deploy ZIP package
+          # With pre-built dependencies, we use --build-remote false
+          az functionapp deployment source config-zip \
+            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
+            --name ${{ steps.get_function_app.outputs.function_app_name }} \
+            --src function_app.zip \
+            --build-remote false \
+            --timeout 600 2>&1 | tee deploy.log || {
+              echo "⚠️  Deployment command exited with error (expected for Flex Consumption)"
+              echo "   Checking if 'Deployment endpoint responded with status code 202'"
+              if grep -q "Deployment endpoint responded with status code 202" deploy.log; then
+                echo "✅ Deployment was accepted (async deployment started)"
+                exit 0
+              else
+                echo "❌ Deployment failed"
+                cat deploy.log
+                exit 1
+              fi
+            }
+          
+          echo "✅ Deployment complete"
+      
+      - name: Wait for deployment to propagate
+        run: |
+          echo "⏳ Waiting 60 seconds for deployment to propagate..."
+          sleep 60
+      
+      - name: Verify functions are deployed
+        run: |
+          echo "🔍 Verifying function deployment..."
+          FUNC_COUNT=$(az functionapp function list \
+            --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
+            --name ${{ steps.get_function_app.outputs.function_app_name }} \
+            --query "length(@)" -o tsv 2>/dev/null || echo "0")
+          
+          echo "📊 Functions deployed: $FUNC_COUNT"
+          
+          if [ "$FUNC_COUNT" -gt 0 ]; then
+            echo "✅ Functions successfully deployed!"
+            az functionapp function list \
+              --resource-group ${{ steps.get_function_app.outputs.resource_group }} \
+              --name ${{ steps.get_function_app.outputs.function_app_name }} \
+              --query "[].{Name:name, InvokeUrl:invokeUrlTemplate}" \
+              -o table
+          else
+            echo "⚠️  No functions found. Check App Insights logs for details."
+          fi
+      
+      - name: Restore storage private network access
+        if: always()
+        run: |
+          echo "🔒 Restoring private network access..."
+          az storage account update \
+            --name ${{ steps.get_function_app.outputs.storage_account }} \
+            --resource-group ${{ secrets.RESOURCE_GROUP_PROD }} \
+            --public-network-access Disabled \
+            --default-action Deny

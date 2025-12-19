@@ -1,0 +1,24 @@
+# Production dependencies
+-r base.txt
+
+# Application server
+gunicorn>=21.2,<21.3
+
+# Static files serving
+whitenoise[brotli]>=6.6,<7.0
+
+# Azure services
+azure-identity>=1.15,<2.0
+azure-keyvault-secrets>=4.7,<5.0
+azure-storage-blob>=12.19,<13.0
+django-storages[azure]>=1.14,<2.0
+
+# Database drivers
+psycopg2-binary>=2.9,<3.0
+
+# Monitoring and logging
+opencensus-ext-azure>=1.1,<1.2
+opencensus-ext-django>=0.8,<0.9
+
+# Security
+django-ratelimit>=4.1,<4.2

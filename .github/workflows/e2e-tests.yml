@@ -1,0 +1,264 @@
+name: End-to-End Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test'
+        required: true
+        type: choice
+        options:
+          - Development
+          - Staging
+          - Production
+        default: 'Development'
+      skip_network_config:
+        description: 'Skip network access configuration (if already public)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  PYTHON_VERSION: '3.11'
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  e2e-tests:
+    name: Run E2E Tests on Azure ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements/base.txt
+          pip install pytest pytest-django pytest-cov azure-storage-blob azure-identity
+      
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Set environment variables
+        run: |
+          echo "AZURE_STORAGE_ACCOUNT_NAME=${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}" >> $GITHUB_ENV
+          echo "AZURE_RESOURCE_GROUP=${{ secrets.AZURE_RESOURCE_GROUP }}" >> $GITHUB_ENV
+          echo "APP_URL=${{ secrets.APP_URL }}" >> $GITHUB_ENV
+          echo "AZURE_INTEGRATION_TEST_ENABLED=true" >> $GITHUB_ENV
+          
+          # Generate a unique suffix for test user email
+          echo "TEST_USER_SUFFIX=$(date +%s%N | sha256sum | head -c 8)" >> $GITHUB_ENV
+      
+      - name: Enable public network access on storage account
+        if: ${{ !inputs.skip_network_config }}
+        run: |
+          echo "Enabling public network access..."
+          STORAGE_ACCOUNT="${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}"
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          
+          # Get current network rule default action
+          CURRENT_ACTION=$(az storage account show \
+            --name "$STORAGE_ACCOUNT" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query networkRuleSet.defaultAction \
+            --output tsv)
+          
+          echo "ORIGINAL_NETWORK_ACTION=$CURRENT_ACTION" >> $GITHUB_ENV
+          echo "Current network action: $CURRENT_ACTION"
+          
+          # Enable public access
+          az storage account update \
+            --name "$STORAGE_ACCOUNT" \
+            --resource-group "$RESOURCE_GROUP" \
+            --default-action Allow
+          
+          echo "Public network access enabled"
+      
+      - name: Create Django environment file
+        run: |
+          cat > .env.testing << EOF
+          DEBUG=False
+          SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
+          ALLOWED_HOSTS=${{ secrets.APP_URL }}
+          
+          # Database (use test database, will be created by Django)
+          DATABASE_URL=postgresql://${{ secrets.DB_USER }}:${{ secrets.DB_PASSWORD }}@${{ secrets.DB_HOST }}:5432/test_magictoolbox
+          
+          # Azure Storage
+          AZURE_STORAGE_CONNECTION_STRING=${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+          AZURE_STORAGE_ACCOUNT_NAME=${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}
+          AZURE_STORAGE_CONTAINER_NAME=media
+          
+          # Azure Functions
+          AZURE_FUNCTIONS_URL=${{ secrets.AZURE_FUNCTIONS_URL }}
+          
+          # Testing
+          AZURE_INTEGRATION_TEST_ENABLED=true
+          USE_AZURE_CLI_AUTH=false
+          
+          # Application Settings
+          ENVIRONMENT=${{ inputs.environment }}
+          EOF
+      
+      - name: Run E2E tests
+        env:
+          DJANGO_SETTINGS_MODULE: magictoolbox.settings.development
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+          AZURE_INTEGRATION_TEST_ENABLED: true
+        run: |
+          echo "Running E2E tests against ${{ inputs.environment }} environment..."
+          echo "Application URL: ${{ secrets.APP_URL }}"
+          echo "Storage Account: ${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}"
+          
+          pytest tests/test_complete_user_workflows.py \
+            -v \
+            --tb=short \
+            --cov=apps \
+            --cov-report=term-missing \
+            --cov-report=html \
+            --cov-report=xml \
+            --junit-xml=test-results.xml
+      
+      - name: Restore network access settings
+        if: ${{ !inputs.skip_network_config && always() }}
+        run: |
+          echo "Restoring network access settings..."
+          STORAGE_ACCOUNT="${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}"
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          ORIGINAL_ACTION="${{ env.ORIGINAL_NETWORK_ACTION }}"
+          
+          if [ -n "$ORIGINAL_ACTION" ]; then
+            az storage account update \
+              --name "$STORAGE_ACCOUNT" \
+              --resource-group "$RESOURCE_GROUP" \
+              --default-action "$ORIGINAL_ACTION"
+            echo "Network access restored to: $ORIGINAL_ACTION"
+          else
+            echo "No original network action found, skipping restore"
+          fi
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ inputs.environment }}
+          path: |
+            test-results.xml
+            htmlcov/
+            .coverage
+          retention-days: 30
+      
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: e2e-tests
+          name: e2e-${{ inputs.environment }}
+          fail_ci_if_error: false
+      
+      - name: Publish test results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: test-results.xml
+          check_name: E2E Test Results (${{ inputs.environment }})
+          comment_title: E2E Test Results on ${{ inputs.environment }}
+      
+      - name: Test summary
+        if: always()
+        run: |
+          echo "## E2E Test Summary - ${{ inputs.environment }} Environment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Application URL:** ${{ secrets.APP_URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Storage Account:** ${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Resource Group:** ${{ secrets.AZURE_RESOURCE_GROUP }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f test-results.xml ]; then
+            echo "### Test Results" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            python -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('test-results.xml')
+          root = tree.getroot()
+          testsuite = root.find('.//testsuite')
+          if testsuite is not None:
+              tests = testsuite.get('tests', '0')
+              failures = testsuite.get('failures', '0')
+              errors = testsuite.get('errors', '0')
+              skipped = testsuite.get('skipped', '0')
+              time = testsuite.get('time', '0')
+              
+              print(f'Total Tests: {tests}')
+              print(f'Passed: {int(tests) - int(failures) - int(errors) - int(skipped)}')
+              print(f'Failed: {failures}')
+              print(f'Errors: {errors}')
+              print(f'Skipped: {skipped}')
+              print(f'Duration: {time}s')
+          " >> $GITHUB_STEP_SUMMARY || echo "Could not parse test results" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "View detailed results in the artifacts section above." >> $GITHUB_STEP_SUMMARY
+
+  cleanup:
+    name: Cleanup Test Data
+    needs: e2e-tests
+    if: always()
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Clean up old test blobs
+        run: |
+          echo "Cleaning up test blobs older than 24 hours..."
+          STORAGE_ACCOUNT="${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}"
+          
+          # Get connection string
+          CONNECTION_STRING=$(az storage account show-connection-string \
+            --name "$STORAGE_ACCOUNT" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --output tsv)
+          
+          # Delete old blobs in test containers
+          for container in media uploads processed; do
+            echo "Checking container: $container"
+            
+            # List blobs older than 24 hours and delete
+            az storage blob list \
+              --container-name "$container" \
+              --connection-string "$CONNECTION_STRING" \
+              --query "[?properties.lastModified < '$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)'].name" \
+              --output tsv | while read blob; do
+              if [ -n "$blob" ]; then
+                echo "Deleting old test blob: $blob"
+                az storage blob delete \
+                  --container-name "$container" \
+                  --name "$blob" \
+                  --connection-string "$CONNECTION_STRING"
+              fi
+            done
+          done
+          
+          echo "Cleanup completed"

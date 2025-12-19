@@ -1,0 +1,812 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Video Rotation - MagicToolbox{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/tool-history.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-5">
+  <!-- Tool Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'tools:tool_list' %}">Tools</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Video Rotation</li>
+        </ol>
+      </nav>
+      <h1 class="display-5 fw-bold">
+        <i class="bi bi-arrow-clockwise text-primary me-2"></i>
+        Video Rotation
+      </h1>
+      <p class="lead text-muted">Rotate your videos by 90° clockwise, 90° counter-clockwise, or 180°.</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Left Column: Upload & Processing (8 columns) -->
+    <div class="col-lg-8 mb-4">
+      <!-- Step 1: Upload Video -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-upload me-2"></i>Step 1: Upload Video
+          </h5>
+        </div>
+        <div class="card-body">
+          <form id="videoUploadForm" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <!-- File Upload -->
+            <div class="mb-3">
+              <label for="videoFile" class="form-label fw-bold">
+                <i class="bi bi-file-earmark-play me-2"></i>Select Video File
+              </label>
+              <input type="file" class="form-control form-control-lg" id="videoFile" name="file" 
+                     accept=".mp4,.avi,.mov,.mkv,.webm,.flv,.wmv,.m4v,.mpg,.mpeg,.3gp" required>
+              <div class="form-text">
+                Supported formats: MP4, AVI, MOV, MKV, WEBM, FLV, WMV, M4V, MPG, MPEG, 3GP
+                <br>
+                Maximum file size: 500 MB
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary btn-lg" id="uploadBtn">
+                <i class="bi bi-cloud-upload me-2"></i>Upload Video
+              </button>
+            </div>
+          </form>
+
+          <!-- Upload Progress -->
+          <div id="uploadProgress" class="mt-3" style="display: none;">
+            <div class="alert alert-info">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span>
+                  <i class="bi bi-cloud-upload me-2"></i>
+                  <span id="uploadStatus">Uploading video...</span>
+                </span>
+                <span id="uploadPercentage" class="badge bg-primary">0%</span>
+              </div>
+              <div class="progress" style="height: 25px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                     role="progressbar" 
+                     id="uploadProgressBar"
+                     style="width: 0%"
+                     aria-valuenow="0" 
+                     aria-valuemin="0" 
+                     aria-valuemax="100">
+                  <span id="uploadProgressText">0 MB / 0 MB</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Select and Rotate Video -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-arrow-repeat me-2"></i>Step 2: Select & Rotate Video
+          </h5>
+        </div>
+        <div class="card-body">
+          <!-- Refresh Button -->
+          <div class="mb-3 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Your Uploaded Videos</h6>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="refreshVideosBtn">
+              <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+            </button>
+          </div>
+
+          <!-- Video List -->
+          <div id="videoList" class="mb-4">
+            <div class="text-center text-muted py-4">
+              <i class="bi bi-hourglass-split fs-3"></i>
+              <p class="mt-2">Loading videos...</p>
+            </div>
+          </div>
+
+          <!-- Rotation Form (shown when video selected) -->
+          <form id="videoRotationForm" style="display: none;">
+            {% csrf_token %}
+            <input type="hidden" id="selectedVideoId" name="video_id">
+            
+            <div class="alert alert-info">
+              <strong>Selected:</strong> <span id="selectedVideoName">-</span>
+            </div>
+
+            <!-- Rotation Options -->
+            <div class="mb-4">
+              <label class="form-label fw-bold">
+                <i class="bi bi-arrow-repeat me-2"></i>Select Rotation
+              </label>
+              <div class="row g-3">
+                <!-- 90° Clockwise -->
+                <div class="col-md-4">
+                  <input type="radio" class="btn-check" name="rotation" id="rotation_90_cw" value="90_cw" required>
+                  <label class="btn btn-outline-success w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3" for="rotation_90_cw">
+                    <i class="bi bi-arrow-clockwise fs-1 mb-2"></i>
+                    <strong>90° Clockwise</strong>
+                    <small class="text-muted mt-1">Rotate right</small>
+                  </label>
+                </div>
+
+                <!-- 90° Counter-Clockwise -->
+                <div class="col-md-4">
+                  <input type="radio" class="btn-check" name="rotation" id="rotation_90_ccw" value="90_ccw">
+                  <label class="btn btn-outline-success w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3" for="rotation_90_ccw">
+                    <i class="bi bi-arrow-counterclockwise fs-1 mb-2"></i>
+                    <strong>90° Counter-CW</strong>
+                    <small class="text-muted mt-1">Rotate left</small>
+                  </label>
+                </div>
+
+                <!-- 180° -->
+                <div class="col-md-4">
+                  <input type="radio" class="btn-check" name="rotation" id="rotation_180" value="180">
+                  <label class="btn btn-outline-success w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3" for="rotation_180">
+                    <i class="bi bi-arrow-repeat fs-1 mb-2"></i>
+                    <strong>180°</strong>
+                    <small class="text-muted mt-1">Flip upside down</small>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-success btn-lg" id="rotateBtn">
+                <i class="bi bi-play-circle me-2"></i>Rotate Video
+              </button>
+            </div>
+          </form>
+
+          <!-- Progress Section (hidden by default) -->
+          <div id="progressSection" class="mt-4" style="display: none;">
+            <div class="alert alert-info">
+              <h6 class="alert-heading">
+                <i class="bi bi-hourglass-split me-2"></i>Processing Video
+              </h6>
+              <p class="mb-2">Please wait while we rotate your video...</p>
+              <div class="progress" style="height: 25px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                     role="progressbar" 
+                     id="progressBar"
+                     style="width: 0%"
+                     aria-valuenow="0" 
+                     aria-valuemin="0" 
+                     aria-valuemax="100">
+                  <span id="progressText">0%</span>
+                </div>
+              </div>
+              <small class="text-muted mt-2 d-block" id="progressMessage">Uploading video...</small>
+            </div>
+          </div>
+
+          <!-- Result Section (hidden by default) -->
+          <div id="resultSection" class="mt-4" style="display: none;">
+            <div class="alert alert-success" role="alert">
+              <h5 class="alert-heading">
+                <i class="bi bi-check-circle me-2"></i>Success!
+              </h5>
+              <p class="mb-0">Your video has been rotated successfully.</p>
+            </div>
+            <div class="d-grid gap-2">
+              <a href="#" id="downloadBtn" class="btn btn-success btn-lg" download>
+                <i class="bi bi-download me-2"></i>Download Rotated Video
+              </a>
+              <button type="button" class="btn btn-outline-primary" id="resetBtn">
+                <i class="bi bi-arrow-counterclockwise me-2"></i>Rotate Another Video
+              </button>
+            </div>
+          </div>
+
+          <!-- Error Section (hidden by default) -->
+          <div id="errorSection" class="mt-4" style="display: none;">
+            <div class="alert alert-danger" role="alert">
+              <h5 class="alert-heading">
+                <i class="bi bi-exclamation-triangle me-2"></i>Error
+              </h5>
+              <p class="mb-0" id="errorMessage"></p>
+            </div>
+            <button type="button" class="btn btn-outline-primary" id="retryBtn">
+              <i class="bi bi-arrow-counterclockwise me-2"></i>Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Column: History Sidebar (4 columns) -->
+    <div class="col-lg-4">
+      <div class="history-sidebar">
+        <div class="card shadow-sm">
+          <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+              <i class="bi bi-clock-history me-2"></i>Rotation History
+            </h6>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="refreshHistoryBtn" title="Refresh history">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+          </div>
+          
+          <!-- Search Filter -->
+          <div class="history-search">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text">
+                <i class="bi bi-search"></i>
+              </span>
+              <input type="text" 
+                     class="form-control" 
+                     id="historySearchInput" 
+                     placeholder="Search by filename..."
+                     aria-label="Search history">
+            </div>
+          </div>
+          
+          <div class="card-body p-0">
+            <!-- Loading state -->
+            <div id="historyLoading" class="text-center py-4" style="display: none;">
+              <div class="spinner-border spinner-border-sm text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <p class="text-muted small mt-2 mb-0">Loading history...</p>
+            </div>
+            
+            <!-- Empty state -->
+            <div id="historyEmpty" class="text-center py-4" style="display: none;">
+              <i class="bi bi-inbox text-muted" style="font-size: 2rem;"></i>
+              <p class="text-muted small mt-2 mb-0">No rotation history yet</p>
+            </div>
+            
+            <!-- History list -->
+            <div id="historyList" class="list-group list-group-flush"></div>
+          </div>
+        </div>
+        
+        <!-- Tool Information (collapsible) -->
+        <div class="card shadow-sm mt-3">
+          <div class="card-header bg-light">
+            <h6 class="mb-0">
+              <i class="bi bi-info-circle me-2"></i>About This Tool
+            </h6>
+          </div>
+          <div class="card-body">
+            <div class="accordion accordion-flush" id="toolInfoAccordion">
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#supportedFormats">
+                    Supported Formats
+                  </button>
+                </h2>
+                <div id="supportedFormats" class="accordion-collapse collapse" data-bs-parent="#toolInfoAccordion">
+                  <div class="accordion-body">
+                    <div class="mb-2">
+                      <span class="badge bg-secondary me-1">MP4</span>
+                      <span class="badge bg-secondary me-1">AVI</span>
+                      <span class="badge bg-secondary me-1">MOV</span>
+                      <span class="badge bg-secondary me-1">MKV</span>
+                      <span class="badge bg-secondary me-1">WEBM</span>
+                      <span class="badge bg-secondary me-1">FLV</span>
+                    </div>
+                    <ul class="small mb-0">
+                      <li><strong>Max Size:</strong> 500 MB</li>
+                      <li><strong>Quality:</strong> Original preserved</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#howItWorks">
+                    How It Works
+                  </button>
+                </h2>
+                <div id="howItWorks" class="accordion-collapse collapse" data-bs-parent="#toolInfoAccordion">
+                  <div class="accordion-body">
+                    <ol class="small mb-0">
+                      <li class="mb-2">Upload your video to blob storage</li>
+                      <li class="mb-2">Select from your uploaded videos</li>
+                      <li class="mb-2">Choose rotation angle</li>
+                      <li class="mb-2">Click "Rotate Video"</li>
+                      <li class="mb-2">Wait for processing</li>
+                      <li class="mb-0">Download rotated video</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const uploadForm = document.getElementById('videoUploadForm');
+  const rotationForm = document.getElementById('videoRotationForm');
+  const uploadBtn = document.getElementById('uploadBtn');
+  const rotateBtn = document.getElementById('rotateBtn');
+  const refreshVideosBtn = document.getElementById('refreshVideosBtn');
+  const videoList = document.getElementById('videoList');
+  const uploadProgress = document.getElementById('uploadProgress');
+  const uploadStatus = document.getElementById('uploadStatus');
+  const progressSection = document.getElementById('progressSection');
+  const resultSection = document.getElementById('resultSection');
+  const errorSection = document.getElementById('errorSection');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  const progressMessage = document.getElementById('progressMessage');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const retryBtn = document.getElementById('retryBtn');
+  const errorMessage = document.getElementById('errorMessage');
+
+  let executionId = null;
+  let statusCheckInterval = null;
+
+  // Load videos on page load
+  loadVideos();
+  
+  // Initialize history with shared module
+  if (typeof ToolHistory !== 'undefined') {
+    ToolHistory.loadHistory('video-rotation', {
+      onDeleteSuccess: function() {
+        if (typeof MagicToolbox !== 'undefined') {
+          MagicToolbox.showNotification('Video deleted successfully', 'success');
+        }
+      },
+      onDeleteError: function(error) {
+        if (typeof MagicToolbox !== 'undefined') {
+          MagicToolbox.showNotification('Failed to delete video: ' + error, 'error');
+        } else {
+          alert('Failed to delete video: ' + error);
+        }
+      }
+    });
+    
+    // Manual refresh button
+    const refreshHistoryBtn = document.getElementById('refreshHistoryBtn');
+    if (refreshHistoryBtn) {
+      refreshHistoryBtn.addEventListener('click', function() {
+        ToolHistory.loadHistory('video-rotation');
+      });
+    }
+  }
+
+  // Upload form submission
+  uploadForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const fileInput = document.getElementById('videoFile');
+    if (!fileInput.files[0]) {
+      alert('Please select a video file');
+      return;
+    }
+
+    const file = fileInput.files[0];
+    const fileSize = file.size;
+    
+    uploadProgress.style.display = 'block';
+    uploadBtn.disabled = true;
+    uploadStatus.textContent = 'Uploading video...';
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      // Use XMLHttpRequest for upload progress tracking
+      const xhr = new XMLHttpRequest();
+      
+      // Track upload progress
+      xhr.upload.addEventListener('progress', function(e) {
+        if (e.lengthComputable) {
+          const percentComplete = Math.round((e.loaded / e.total) * 100);
+          const uploadedMB = (e.loaded / 1024 / 1024).toFixed(2);
+          const totalMB = (e.total / 1024 / 1024).toFixed(2);
+          
+          const uploadProgressBar = document.getElementById('uploadProgressBar');
+          const uploadProgressText = document.getElementById('uploadProgressText');
+          const uploadPercentage = document.getElementById('uploadPercentage');
+          
+          if (uploadProgressBar) {
+            uploadProgressBar.style.width = percentComplete + '%';
+            uploadProgressBar.setAttribute('aria-valuenow', percentComplete);
+          }
+          if (uploadProgressText) {
+            uploadProgressText.textContent = `${uploadedMB} MB / ${totalMB} MB`;
+          }
+          if (uploadPercentage) {
+            uploadPercentage.textContent = percentComplete + '%';
+          }
+        }
+      });
+      
+      // Handle completion
+      await new Promise((resolve, reject) => {
+        xhr.addEventListener('load', function() {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(JSON.parse(xhr.responseText));
+          } else {
+            reject(new Error(JSON.parse(xhr.responseText).error || 'Failed to upload video'));
+          }
+        });
+        
+        xhr.addEventListener('error', function() {
+          reject(new Error('Network error during upload'));
+        });
+        
+        xhr.open('POST', '/api/v1/tools/video-rotation/upload-video/');
+        xhr.setRequestHeader('X-CSRFToken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        xhr.send(formData);
+      });
+
+      const data = xhr.response ? JSON.parse(xhr.responseText) : {};
+
+      if (xhr.status >= 400) {
+        throw new Error(data.error || 'Failed to upload video');
+      }
+
+      uploadStatus.textContent = 'Upload successful! Refreshing video list...';
+      fileInput.value = '';
+      
+      // Immediately reload video list and refresh history
+      await loadVideos();
+      
+      if (typeof ToolHistory !== 'undefined') {
+        ToolHistory.loadHistory('video-rotation');
+      }
+      
+      uploadProgress.style.display = 'none';
+      uploadBtn.disabled = false;
+
+    } catch (error) {
+      uploadStatus.textContent = `Error: ${error.message}`;
+      uploadBtn.disabled = false;
+    }
+  });
+
+  // Refresh videos button
+  refreshVideosBtn.addEventListener('click', loadVideos);
+
+  // Load videos function
+  async function loadVideos() {
+    videoList.innerHTML = '<div class="text-center text-muted py-4"><i class="bi bi-hourglass-split fs-3"></i><p class="mt-2">Loading videos...</p></div>';
+
+    try {
+      const response = await fetch('/api/v1/tools/video-rotation/list-videos/');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to load videos');
+      }
+
+      if (!data.videos || data.videos.length === 0) {
+        videoList.innerHTML = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>No videos uploaded yet. Upload a video in Step 1 above.</div>';
+        return;
+      }
+
+      // Display videos
+      let html = '<div class="list-group">';
+      data.videos.forEach(video => {
+        const uploadDate = video.uploaded_at ? new Date(video.uploaded_at).toLocaleString() : 'Unknown';
+        const fileSize = formatFileSize(video.size);
+        
+        html += `
+          <a href="#" class="list-group-item list-group-item-action video-item" data-video-id="${video.video_id}" data-video-name="${video.filename}">
+            <div class="d-flex w-100 justify-content-between align-items-center">
+              <div>
+                <h6 class="mb-1"><i class="bi bi-file-earmark-play me-2"></i>${video.filename}</h6>
+                <small class="text-muted">${fileSize} • ${uploadDate}</small>
+              </div>
+              <i class="bi bi-chevron-right"></i>
+            </div>
+          </a>
+        `;
+      });
+      html += '</div>';
+      videoList.innerHTML = html;
+
+      // Add click handlers
+      const videoItems = document.querySelectorAll('.video-item');
+      console.log('Found video items:', videoItems.length);
+      
+      videoItems.forEach(item => {
+        console.log('Attaching click handler to:', item.dataset.videoId);
+        item.addEventListener('click', function(e) {
+          e.preventDefault();
+          console.log('Video item clicked!');
+          selectVideo(this.dataset.videoId, this.dataset.videoName);
+        });
+      });
+
+    } catch (error) {
+      console.error('Error loading videos:', error);
+      videoList.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-circle me-2"></i>Error loading videos: ${error.message}</div>`;
+    }
+  }
+
+  // Load rotation history
+  // Download video function (used for manual download button after successful rotation)
+  async function downloadVideo(execId, filename) {
+    try {
+      const response = await fetch(`/api/v1/executions/${execId}/download/`, {
+        credentials: 'same-origin'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      alert('Failed to download video: ' + error.message);
+    }
+  }
+
+  // Select video for rotation
+  function selectVideo(videoId, videoName) {
+    console.log('selectVideo called:', videoId, videoName);
+    console.log('rotationForm element:', rotationForm);
+    
+    const selectedVideoIdInput = document.getElementById('selectedVideoId');
+    const selectedVideoNameSpan = document.getElementById('selectedVideoName');
+    
+    if (!selectedVideoIdInput || !selectedVideoNameSpan) {
+      console.error('Required form elements not found');
+      return;
+    }
+    
+    selectedVideoIdInput.value = videoId;
+    selectedVideoNameSpan.textContent = videoName;
+    
+    // Show the rotation form
+    rotationForm.style.display = 'block';
+    console.log('rotationForm display set to block');
+    
+    // Highlight selected video
+    document.querySelectorAll('.video-item').forEach(item => {
+      item.classList.remove('active');
+    });
+    const selectedItem = document.querySelector(`[data-video-id="${videoId}"]`);
+    if (selectedItem) {
+      selectedItem.classList.add('active');
+    }
+    
+    // Scroll to rotation form
+    rotationForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Rotation form submission
+  rotationForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const videoId = document.getElementById('selectedVideoId').value;
+    const rotationInput = document.querySelector('input[name="rotation"]:checked');
+
+    if (!videoId) {
+      alert('Please select a video');
+      return;
+    }
+
+    if (!rotationInput) {
+      alert('Please select a rotation angle');
+      return;
+    }
+
+    // Hide sections and show progress
+    resultSection.style.display = 'none';
+    errorSection.style.display = 'none';
+    progressSection.style.display = 'block';
+    rotateBtn.disabled = true;
+    
+    // Reset progress bar
+    updateProgress(0);
+
+    const payload = {
+      video_id: videoId,
+      rotation: rotationInput.value
+    };
+
+    try {
+      progressMessage.textContent = 'Starting video rotation...';
+      updateProgress(10);
+      
+      // Immediately refresh history to show new pending item
+      if (typeof ToolHistory !== 'undefined') {
+        ToolHistory.loadHistory('video-rotation');
+      }
+
+      const response = await fetch('/api/v1/tools/video-rotation/rotate-video/', {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to start rotation');
+      }
+
+      executionId = data.execution_id;
+      progressMessage.textContent = 'Processing video rotation...';
+      updateProgress(30);
+
+      // Start polling for status
+      startStatusPolling();
+
+    } catch (error) {
+      showError(error.message);
+    }
+  });
+
+  function startStatusPolling() {
+    startTime = Date.now();
+    statusCheckInterval = setInterval(checkStatus, 3000); // Check every 3 seconds
+    
+    // Also refresh history every 5 seconds
+    const historyPollInterval = setInterval(() => {
+      if (typeof ToolHistory !== 'undefined') {
+        ToolHistory.loadHistory('video-rotation');
+      }
+    }, 5000);
+    
+    // Store interval ID for cleanup
+    window._videoHistoryPollInterval = historyPollInterval;
+  }
+
+  async function checkStatus() {
+    try {
+      const response = await fetch(`/api/v1/executions/${executionId}/status/`);
+      const data = await response.json();
+
+      if (data.status === 'completed') {
+        clearInterval(statusCheckInterval);
+        if (window._videoHistoryPollInterval) {
+          clearInterval(window._videoHistoryPollInterval);
+          window._videoHistoryPollInterval = null;
+        }
+        updateProgress(100);
+        progressMessage.textContent = 'Rotation complete!';
+        showSuccess(data);
+      } else if (data.status === 'failed') {
+        clearInterval(statusCheckInterval);
+        if (window._videoHistoryPollInterval) {
+          clearInterval(window._videoHistoryPollInterval);
+          window._videoHistoryPollInterval = null;
+        }
+        throw new Error(data.error || 'Video rotation failed');
+      } else if (data.status === 'processing') {
+        updateProgress(Math.min(90, 30 + (Date.now() - startTime) / 1000));
+        progressMessage.textContent = 'Rotating video with FFmpeg...';
+      } else {
+        // pending
+        progressMessage.textContent = 'Waiting for processing to start...';
+      }
+    } catch (error) {
+      clearInterval(statusCheckInterval);
+      if (window._videoHistoryPollInterval) {
+        clearInterval(window._videoHistoryPollInterval);
+        window._videoHistoryPollInterval = null;
+      }
+      showError(error.message);
+    }
+  }
+
+  let startTime = Date.now();
+
+  function updateProgress(percent) {
+    progressBar.style.width = percent + '%';
+    progressBar.setAttribute('aria-valuenow', percent);
+    progressText.textContent = Math.round(percent) + '%';
+  }
+
+  function showSuccess(data) {
+    // Keep progress section visible briefly to show completion
+    setTimeout(() => {
+      progressSection.style.display = 'none';
+      resultSection.style.display = 'block';
+    }, 1000);
+    
+    // Reload history to show the new rotated video
+    if (typeof ToolHistory !== 'undefined') {
+      ToolHistory.loadHistory('video-rotation');
+    }
+    
+    // Set download button to trigger authenticated download
+    const filename = data.outputFilename || 'rotated_video.mp4';
+    
+    downloadBtn.onclick = async function(e) {
+      e.preventDefault();
+      await downloadVideo(executionId, filename);
+    };
+  }
+
+  function showError(message) {
+    progressSection.style.display = 'none';
+    errorSection.style.display = 'block';
+    errorMessage.textContent = message;
+    rotateBtn.disabled = false;
+  }
+
+  // Helper function to format file size
+  function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  }
+
+  // Reset form
+  resetBtn.addEventListener('click', function() {
+    rotationForm.reset();
+    rotationForm.style.display = 'none';
+    resultSection.style.display = 'none';
+    rotateBtn.disabled = false;
+    executionId = null;
+    
+    // Clear selection
+    document.querySelectorAll('.video-item').forEach(item => {
+      item.classList.remove('active');
+    });
+  });
+
+  retryBtn.addEventListener('click', function() {
+    errorSection.style.display = 'none';
+    rotateBtn.disabled = false;
+  });
+});
+</script>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteHistoryModal" tabindex="-1" aria-labelledby="deleteHistoryModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteHistoryModalLabel">
+          <i class="bi bi-trash me-2"></i>Delete Video
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete this video?</p>
+        <p class="text-muted small mb-0">
+          <i class="bi bi-info-circle me-1"></i>
+          This will permanently delete both the input and output files.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+          <i class="bi bi-trash me-1"></i>Delete
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{% static 'js/tool-history.js' %}"></script>
+{% endblock %}

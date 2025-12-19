@@ -1,0 +1,30 @@
+# Development dependencies
+-r base.txt
+
+# Testing
+pytest>=7.4,<7.5
+pytest-django>=4.7,<4.8
+pytest-cov>=4.1,<4.2
+pytest-mock>=3.12,<3.13
+factory-boy>=3.3,<3.4
+
+# Code quality
+black>=23.12,<24.0
+isort>=5.13,<5.14
+ruff>=0.1,<0.2
+pylint>=3.0,<3.1
+mypy>=1.8,<1.9
+django-stubs>=4.2,<4.3
+djangorestframework-stubs>=3.14,<3.15
+
+# Development tools
+django-extensions>=3.2,<3.3
+ipython>=8.20
+ipdb>=0.13,<0.14
+
+# Documentation
+Sphinx>=7.2,<7.3
+sphinx-rtd-theme>=2.0,<2.1
+
+# Debug toolbar (optional)
+# django-debug-toolbar>=4.2,<4.3

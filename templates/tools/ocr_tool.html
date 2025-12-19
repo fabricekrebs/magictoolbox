@@ -1,0 +1,784 @@
+{% extends 'base.html' %}
+{% load static crispy_forms_tags %}
+
+{% block title %}OCR Text Extractor - MagicToolbox{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/tool-history.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-5">
+  <!-- Tool Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Home</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'tools:tool_list' %}">Tools</a></li>
+          <li class="breadcrumb-item active" aria-current="page">{{ tool.display_name }}</li>
+        </ol>
+      </nav>
+      <div>
+        <h1 class="display-5 fw-bold mb-2">
+          <i class="bi bi-file-text text-primary me-2"></i>
+          OCR Text Extractor
+        </h1>
+        <p class="lead text-muted mb-0">Extract text from images using OCR (Optical Character Recognition). Supports multiple languages and image preprocessing.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Left Column: Upload & Status (8 columns) -->
+    <div class="col-lg-8 mb-4">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-upload me-2"></i>Upload & Extract Text
+          </h5>
+        </div>
+        <div class="card-body">
+          <form id="ocrForm" enctype="multipart/form-data">
+            <div class="mb-3">
+              <label for="imageFile" class="form-label">
+                Select Image
+              </label>
+              <input type="file" class="form-control" id="imageFile" name="file" accept=".jpg,.jpeg,.png,.bmp,.tiff,.tif,.webp,image/*" required>
+              <div class="form-text">
+                <i class="bi bi-info-circle me-1"></i>
+                Select an image file (max 50MB)
+              </div>
+            </div>
+
+            <!-- File List -->
+            <div id="fileListSection" class="mb-3" style="display: none;">
+              <label class="form-label">Selected Files:</label>
+              <div id="fileList" class="list-group"></div>
+            </div>
+
+            <div class="card bg-light mb-3">
+              <div class="card-body">
+                <h6 class="card-title">
+                  <i class="bi bi-translate me-2"></i>OCR Options <span class="text-muted small">(Optional)</span>
+                </h6>
+                <div class="row">
+                  <div class="col-md-6 mb-2">
+                    <label for="language" class="form-label">Language</label>
+                    <select class="form-select" id="language" name="language">
+                      <option value="eng" selected>English</option>
+                      <option value="fra">French</option>
+                      <option value="deu">German</option>
+                      <option value="spa">Spanish</option>
+                      <option value="ita">Italian</option>
+                      <option value="por">Portuguese</option>
+                      <option value="nld">Dutch</option>
+                      <option value="rus">Russian</option>
+                      <option value="jpn">Japanese</option>
+                      <option value="chi_sim">Chinese (Simplified)</option>
+                      <option value="chi_tra">Chinese (Traditional)</option>
+                      <option value="kor">Korean</option>
+                      <option value="ara">Arabic</option>
+                      <option value="hin">Hindi</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6 mb-2">
+                    <label for="preprocess" class="form-label">Image Preprocessing</label>
+                    <select class="form-select" id="preprocess" name="preprocess">
+                      <option value="true" selected>Enabled (Better Accuracy)</option>
+                      <option value="false">Disabled</option>
+                    </select>
+                    <small class="form-text text-muted">Improves low-quality images</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary btn-lg" id="extractBtn">
+                <i class="bi bi-file-text me-2"></i>Extract Text from Image
+              </button>
+            </div>
+          </form>
+
+          <!-- Conversion Status Section -->
+          <div id="statusSection" class="mt-4" style="display: none;">
+            <h5 class="mb-3">
+              <i class="bi bi-hourglass-split me-2"></i>Extraction Status
+            </h5>
+            <div id="extractionStatusList"></div>
+            
+            <!-- Overall Progress -->
+            <div class="card mt-3 bg-light">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="fw-bold">Overall Progress</span>
+                  <span id="overallProgressText" class="text-muted">0 / 0 completed</span>
+                </div>
+                <div class="progress" style="height: 25px;">
+                  <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                       role="progressbar" 
+                       id="overallProgressBar"
+                       style="width: 0%">
+                    <span id="overallPercentage">0%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Results Section -->
+          <div id="resultSection" class="mt-4" style="display: none;">
+            <div class="alert alert-success" role="alert">
+              <h5 class="alert-heading">
+                <i class="bi bi-check-circle me-2"></i>Text Extraction Completed!
+              </h5>
+              <p class="mb-0" id="completionSummary"></p>
+            </div>
+
+            <!-- Completed Files List -->
+            <div id="completedFilesList"></div>
+            
+            <!-- Action Buttons -->
+            <div class="d-grid gap-2 mt-3">
+              <button type="button" class="btn btn-success btn-lg" id="downloadAllBtn" style="display: none;">
+                <i class="bi bi-download me-2"></i>Download All Text Files
+              </button>
+              <button type="button" class="btn btn-outline-primary" onclick="location.reload()">
+                <i class="bi bi-arrow-clockwise me-2"></i>Extract from More Images
+              </button>
+            </div>
+          </div>
+
+          <!-- Extracted Text Display Section -->
+          <div id="textResultSection" class="mt-4" style="display: none;">
+            <div class="card shadow-sm">
+              <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                  <i class="bi bi-file-text me-2"></i>Extracted Text
+                </h5>
+                <button type="button" class="btn btn-sm btn-light" onclick="copyExtractedText()">
+                  <i class="bi bi-clipboard me-1"></i>Copy to Clipboard
+                </button>
+              </div>
+              <div class="card-body">
+                <textarea id="extractedText" class="form-control font-monospace" rows="15" readonly 
+                  style="resize: vertical; background-color: #f8f9fa;"></textarea>
+                <div class="mt-2">
+                  <small class="text-muted">
+                    <i class="bi bi-info-circle me-1"></i>
+                    The extracted text is displayed above. You can copy it or download the text file.
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: History Sidebar (4 columns) -->
+    <div class="col-lg-4">
+      <div class="history-sidebar">
+        <div class="card shadow-sm">
+          <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+              <i class="bi bi-clock-history me-2"></i>Extraction History
+            </h6>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="refreshHistoryBtn" title="Refresh history">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+          </div>
+          
+          <!-- Search Filter -->
+          <div class="history-search">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text">
+                <i class="bi bi-search"></i>
+              </span>
+              <input type="text" 
+                     class="form-control" 
+                     id="historySearchInput" 
+                     placeholder="Search by filename..."
+                     aria-label="Search history">
+            </div>
+          </div>
+          
+          <div class="card-body p-0">
+            <!-- Loading state -->
+            <div id="historyLoading" class="text-center py-4" style="display: none;">
+              <div class="spinner-border spinner-border-sm text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <p class="text-muted small mt-2 mb-0">Loading history...</p>
+            </div>
+            
+            <!-- Empty state -->
+            <div id="historyEmpty" class="text-center py-4" style="display: none;">
+              <i class="bi bi-inbox text-muted" style="font-size: 2rem;"></i>
+              <p class="text-muted small mt-2 mb-0">No extraction history yet</p>
+            </div>
+            
+            <!-- History list -->
+            <div id="historyList" class="list-group list-group-flush"></div>
+          </div>
+        </div>
+        
+        <!-- Tool Information (collapsible) -->
+        <div class="card shadow-sm mt-3">
+          <div class="card-header bg-light">
+            <h6 class="mb-0">
+              <i class="bi bi-info-circle me-2"></i>About This Tool
+            </h6>
+          </div>
+          <div class="card-body">
+            <div class="accordion accordion-flush" id="toolInfoAccordion">
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#supportedLanguages">
+                    Supported Languages
+                  </button>
+                </h2>
+                <div id="supportedLanguages" class="accordion-collapse collapse" data-bs-parent="#toolInfoAccordion">
+                  <div class="accordion-body">
+                    <ul class="small mb-0">
+                      <li>English, French, German, Spanish</li>
+                      <li>Italian, Portuguese, Dutch, Russian</li>
+                      <li>Japanese, Chinese, Korean</li>
+                      <li>Arabic, Hindi</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#preprocessing">
+                    Image Preprocessing
+                  </button>
+                </h2>
+                <div id="preprocessing" class="accordion-collapse collapse" data-bs-parent="#toolInfoAccordion">
+                  <div class="accordion-body">
+                    <p class="small mb-2">Preprocessing improves OCR accuracy by:</p>
+                    <ul class="small mb-0">
+                      <li>Deskewing tilted text</li>
+                      <li>Denoising low-quality images</li>
+                      <li>Enhancing contrast</li>
+                      <li>Binarization for better text detection</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#usageTips">
+                    Usage Tips
+                  </button>
+                </h2>
+                <div id="usageTips" class="accordion-collapse collapse" data-bs-parent="#toolInfoAccordion">
+                  <div class="accordion-body">
+                    <ul class="small mb-0">
+                      <li class="mb-2">High-resolution images give better results</li>
+                      <li class="mb-2">Select correct language for best accuracy</li>
+                      <li class="mb-2">Enable preprocessing for low-quality images</li>
+                      <li class="mb-2">Works best with clear, well-lit text</li>
+                      <li class="mb-2">Handwritten text may not be recognized well</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/tool-history.js' %}"></script>
+<script>
+// Global state
+let executionData = {};
+let statusPollInterval = null;
+let historyPollInterval = null;
+
+// DOM Elements
+const fileInput = document.getElementById('imageFile');
+const fileListSection = document.getElementById('fileListSection');
+const fileList = document.getElementById('fileList');
+
+// Show selected file preview
+if (fileInput && fileListSection) {
+  fileInput.addEventListener('change', function() {
+    const file = fileInput.files[0];
+    
+    if (!file) {
+      fileListSection.style.display = 'none';
+      return;
+    }
+
+    // Show image preview
+    fileListSection.style.display = 'block';
+    fileList.innerHTML = `
+      <div class="list-group-item">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <i class="bi bi-image text-primary me-2"></i>
+            <strong>${file.name}</strong>
+          </div>
+          <span class="badge bg-secondary">${MagicToolbox.formatFileSize(file.size)}</span>
+        </div>
+      </div>
+    `;
+  });
+}
+
+// Handle form submission
+document.getElementById('ocrForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const file = fileInput.files[0];
+  
+  if (!file) {
+    MagicToolbox.showNotification('Please select an image file', 'error');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  // Add OCR parameters
+  const language = document.getElementById('language').value;
+  const preprocess = document.getElementById('preprocess').value;
+  
+  formData.append('language', language);
+  formData.append('preprocess', preprocess);
+  
+  const extractBtn = document.getElementById('extractBtn');
+  const statusSection = document.getElementById('statusSection');
+  const resultSection = document.getElementById('resultSection');
+  const textResultSection = document.getElementById('textResultSection');
+  
+  // Disable submit button
+  extractBtn.disabled = true;
+  extractBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
+  
+  // Show status section, hide result sections
+  statusSection.style.display = 'block';
+  resultSection.style.display = 'none';
+  if (textResultSection) textResultSection.style.display = 'none';
+  
+  try {
+    // Get CSRF token
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                      document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+    
+    // Call the API to upload file
+    const response = await fetch('/api/v1/tools/ocr-tool/convert/', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrftoken,
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Upload failed');
+    }
+    
+    const data = await response.json();
+    
+    // Initialize execution tracking
+    executionData = {};
+    executionData[data.executionId] = {
+      filename: file.name,
+      status: data.status,
+      downloadUrl: null,
+      extractedText: null,
+    };
+    
+    // Initialize status display
+    updateStatusDisplay();
+    
+    // Immediately refresh history after upload
+    if (typeof ToolHistory !== 'undefined') {
+      ToolHistory.loadHistory('ocr-tool');
+    }
+    
+    // Start polling for status updates
+    startStatusPolling();
+    
+  } catch (error) {
+    MagicToolbox.showNotification('Upload failed: ' + error.message, 'error');
+    statusSection.style.display = 'none';
+    extractBtn.disabled = false;
+    extractBtn.innerHTML = '<i class="bi bi-file-text me-2"></i>Extract Text from Image';
+  }
+});
+
+// Update status display
+function updateStatusDisplay() {
+  const statusList = document.getElementById('extractionStatusList');
+  statusList.innerHTML = '';
+  
+  const executionIds = Object.keys(executionData);
+  
+  executionIds.forEach(executionId => {
+    const exec = executionData[executionId];
+    const statusCard = createStatusCard(executionId, exec);
+    statusList.appendChild(statusCard);
+  });
+  
+  // Update overall progress
+  updateOverallProgress();
+}
+
+// Create status card for a file
+function createStatusCard(executionId, exec) {
+  const card = document.createElement('div');
+  card.className = 'card mb-2';
+  card.id = `status-${executionId}`;
+  
+  let statusBadge = '';
+  let progressBar = '';
+  
+  if (exec.status === 'pending') {
+    statusBadge = '<span class="badge bg-secondary">Pending</span>';
+    progressBar = `
+      <div class="progress mt-2" style="height: 20px;">
+        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+             style="width: 25%">Waiting to process...</div>
+      </div>
+    `;
+  } else if (exec.status === 'processing') {
+    statusBadge = '<span class="badge bg-primary">Processing</span>';
+    progressBar = `
+      <div class="progress mt-2" style="height: 20px;">
+        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+             style="width: 75%">Extracting text...</div>
+      </div>
+    `;
+  } else if (exec.status === 'completed') {
+    statusBadge = '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Completed</span>';
+    progressBar = `
+      <div class="progress mt-2" style="height: 20px;">
+        <div class="progress-bar bg-success" style="width: 100%">Done</div>
+      </div>
+    `;
+  } else if (exec.status === 'failed') {
+    statusBadge = '<span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Failed</span>';
+    progressBar = `
+      <div class="alert alert-danger mt-2 mb-0">
+        ${exec.error || 'OCR extraction failed'}
+      </div>
+    `;
+  }
+  
+  card.innerHTML = `
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="flex-grow-1">
+          <h6 class="mb-1">
+            <i class="bi bi-image text-primary me-2"></i>
+            ${exec.filename}
+          </h6>
+          ${statusBadge}
+        </div>
+      </div>
+      ${progressBar}
+    </div>
+  `;
+  
+  return card;
+}
+
+// Update overall progress
+function updateOverallProgress() {
+  const executionIds = Object.keys(executionData);
+  const totalFiles = executionIds.length;
+  const completedFiles = executionIds.filter(id => 
+    executionData[id].status === 'completed'
+  ).length;
+  const failedFiles = executionIds.filter(id => 
+    executionData[id].status === 'failed'
+  ).length;
+  
+  const percentage = totalFiles > 0 ? Math.round((completedFiles / totalFiles) * 100) : 0;
+  
+  const overallProgressText = document.getElementById('overallProgressText');
+  const overallProgressBar = document.getElementById('overallProgressBar');
+  const overallPercentage = document.getElementById('overallPercentage');
+  
+  if (overallProgressText) overallProgressText.textContent = 
+    `${completedFiles} / ${totalFiles} completed${failedFiles > 0 ? ` (${failedFiles} failed)` : ''}`;
+  if (overallProgressBar) overallProgressBar.style.width = `${percentage}%`;
+  if (overallPercentage) overallPercentage.textContent = `${percentage}%`;
+  
+  // Check if all completed or failed
+  if (completedFiles + failedFiles === totalFiles && totalFiles > 0) {
+    stopStatusPolling();
+    showResults(completedFiles, failedFiles);
+  }
+}
+
+// Start polling for status updates
+function startStatusPolling() {
+  // Poll every 2 seconds for status
+  statusPollInterval = setInterval(checkBatchStatus, 2000);
+  
+  // Also refresh history every 5 seconds
+  historyPollInterval = setInterval(() => {
+    if (typeof ToolHistory !== 'undefined') {
+      ToolHistory.loadHistory('ocr-tool');
+    }
+  }, 5000);
+  
+  // Initial check
+  checkBatchStatus();
+}
+
+// Stop polling
+function stopStatusPolling() {
+  if (statusPollInterval) {
+    clearInterval(statusPollInterval);
+    statusPollInterval = null;
+  }
+  
+  if (historyPollInterval) {
+    clearInterval(historyPollInterval);
+    historyPollInterval = null;
+  }
+}
+
+// Check batch status
+async function checkBatchStatus() {
+  const executionIds = Object.keys(executionData);
+  
+  if (executionIds.length === 0) {
+    return;
+  }
+  
+  try {
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                      document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+    
+    const response = await fetch('/api/v1/executions/batch-status/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrftoken,
+      },
+      body: JSON.stringify({ executionIds }),
+    });
+    
+    if (!response.ok) {
+      console.error('Failed to check status');
+      return;
+    }
+    
+    const data = await response.json();
+    
+    // Update execution data
+    data.executions.forEach(exec => {
+      if (executionData[exec.executionId]) {
+        executionData[exec.executionId].status = exec.status;
+        executionData[exec.executionId].outputFilename = exec.outputFilename;
+        executionData[exec.executionId].error = exec.error;
+        
+        if (exec.downloadUrl) {
+          executionData[exec.executionId].downloadUrl = exec.downloadUrl;
+        }
+      }
+    });
+    
+    // Update display
+    updateStatusDisplay();
+    
+  } catch (error) {
+    console.error('Error checking status:', error);
+  }
+}
+
+// Show results - including extracted text
+async function showResults(completedFiles, failedFiles) {
+  const resultSection = document.getElementById('resultSection');
+  const completionSummary = document.getElementById('completionSummary');
+  const completedFilesList = document.getElementById('completedFilesList');
+  const textResultSection = document.getElementById('textResultSection');
+  const extractedTextArea = document.getElementById('extractedText');
+  
+  // Update summary
+  if (failedFiles === 0) {
+    completionSummary.textContent = `Successfully extracted text from ${completedFiles} image${completedFiles !== 1 ? 's' : ''}.`;
+  } else {
+    completionSummary.textContent = `Extracted text from ${completedFiles} file${completedFiles !== 1 ? 's' : ''} successfully. ${failedFiles} file${failedFiles !== 1 ? 's' : ''} failed.`;
+  }
+  
+  // Build completed files list
+  completedFilesList.innerHTML = '';
+  
+  // Fetch and display the extracted text for completed files
+  for (const executionId of Object.keys(executionData)) {
+    const exec = executionData[executionId];
+    
+    if (exec.status === 'completed' && exec.downloadUrl) {
+      const outputFilename = exec.outputFilename || exec.filename.replace(/\.(jpg|jpeg|png|bmp|tiff|tif|webp)$/i, '.txt');
+      
+      const fileCard = document.createElement('div');
+      fileCard.className = 'card mb-2';
+      fileCard.innerHTML = `
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <i class="bi bi-file-text text-success me-2"></i>
+              <strong>${outputFilename}</strong>
+            </div>
+            <a href="${exec.downloadUrl}" class="btn btn-sm btn-success" download="${outputFilename}">
+              <i class="bi bi-download me-1"></i>Download
+            </a>
+          </div>
+        </div>
+      `;
+      
+      completedFilesList.appendChild(fileCard);
+      
+      // Fetch the extracted text content
+      try {
+        const textResponse = await fetch(exec.downloadUrl);
+        if (textResponse.ok) {
+          const extractedText = await textResponse.text();
+          exec.extractedText = extractedText;
+          
+          // Display the extracted text
+          if (extractedTextArea && textResultSection) {
+            extractedTextArea.value = extractedText;
+            textResultSection.style.display = 'block';
+          }
+        }
+      } catch (textError) {
+        console.error('Failed to fetch extracted text:', textError);
+      }
+    }
+  }
+  
+  // Show download all button if multiple files
+  const downloadAllBtn = document.getElementById('downloadAllBtn');
+  if (completedFiles > 1) {
+    downloadAllBtn.style.display = 'block';
+    downloadAllBtn.onclick = downloadAllFiles;
+  } else {
+    downloadAllBtn.style.display = 'none';
+  }
+  
+  // Show results section
+  resultSection.style.display = 'block';
+  
+  // Re-enable extract button
+  const extractBtn = document.getElementById('extractBtn');
+  extractBtn.disabled = false;
+  extractBtn.innerHTML = '<i class="bi bi-file-text me-2"></i>Extract Text from Image';
+  
+  // Refresh history one more time
+  if (typeof ToolHistory !== 'undefined') {
+    setTimeout(() => {
+      ToolHistory.loadHistory('ocr-tool');
+    }, 1000);
+  }
+  
+  // Scroll to text result if available
+  if (textResultSection && textResultSection.style.display !== 'none') {
+    textResultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } else {
+    resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+// Download all completed files
+async function downloadAllFiles() {
+  const completedExecutions = Object.keys(executionData).filter(id => 
+    executionData[id].status === 'completed' && executionData[id].downloadUrl
+  );
+  
+  if (completedExecutions.length === 0) {
+    return;
+  }
+  
+  for (let i = 0; i < completedExecutions.length; i++) {
+    const exec = executionData[completedExecutions[i]];
+    const outputFilename = exec.outputFilename || exec.filename.replace(/\.(jpg|jpeg|png|bmp|tiff|tif|webp)$/i, '.txt');
+    
+    const link = document.createElement('a');
+    link.href = exec.downloadUrl;
+    link.download = outputFilename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    if (i < completedExecutions.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
+  
+  MagicToolbox.showNotification(`Downloaded ${completedExecutions.length} file${completedExecutions.length !== 1 ? 's' : ''}`, 'success');
+}
+
+// Copy text to clipboard
+function copyExtractedText() {
+  const extractedTextArea = document.getElementById('extractedText');
+  if (extractedTextArea) {
+    extractedTextArea.select();
+    document.execCommand('copy');
+    MagicToolbox.showNotification('Text copied to clipboard!', 'success');
+  }
+}
+
+// Initialize history on page load
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof ToolHistory !== 'undefined') {
+    ToolHistory.loadHistory('ocr-tool', {
+      onDeleteSuccess: function() {
+        MagicToolbox.showNotification('Item deleted successfully', 'success');
+      },
+      onDeleteError: function(error) {
+        MagicToolbox.showNotification('Failed to delete item: ' + error, 'error');
+      }
+    });
+    
+    // Manual refresh button
+    document.getElementById('refreshHistoryBtn')?.addEventListener('click', function() {
+      ToolHistory.loadHistory('ocr-tool');
+    });
+  }
+});
+</script>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteHistoryModal" tabindex="-1" aria-labelledby="deleteHistoryModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteHistoryModalLabel">
+          <i class="bi bi-trash me-2"></i>Delete Extraction
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete this OCR extraction?</p>
+        <p class="text-muted small mb-0">
+          <i class="bi bi-info-circle me-1"></i>
+          This will permanently delete both the input image and extracted text file.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+          <i class="bi bi-trash me-1"></i>Delete
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

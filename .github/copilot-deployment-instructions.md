@@ -1,18 +1,19 @@
 ---
 description: Deployment and infrastructure guidelines for MagicToolbox
-applyTo: '{docker/**,kubernetes/**,terraform/**,*.dockerfile,docker-compose.yml,.github/workflows/**}'
+applyTo: '{docker/**,bicep/**,*.dockerfile,docker-compose.yml,.github/workflows/**}'
 ---
 
-# Deployment & Infrastructure Guidelines
+# Deployment & Infrastructure Guidelines (Azure Container Apps)
 
 ## Docker Best Practices
 
-### Backend Dockerfile
+### Backend Dockerfile (Django)
 - Use official Python slim images
 - Multi-stage builds for smaller images
 - Run as non-root user
 - Cache dependencies separately
 - Use .dockerignore to exclude unnecessary files
+- Collect static files for Django
 
 ```dockerfile
 # backend/Dockerfile
@@ -23,16 +24,23 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    postgresql-client \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-COPY requirements.txt .
+COPY requirements/production.txt requirements.txt
 RUN pip install --user --no-cache-dir -r requirements.txt
 
 # Final stage
 FROM python:3.11-slim
 
 WORKDIR /app
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy Python dependencies from builder
 COPY --from=builder /root/.local /root/.local
@@ -45,9 +53,12 @@ USER appuser
 # Copy application code
 COPY --chown=appuser:appuser . .
 
+# Collect static files
+RUN python manage.py collectstatic --noinput
+
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["gunicorn", "magictoolbox.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4"]
 ```
 
 ### Frontend Dockerfile
@@ -184,156 +195,248 @@ volumes:
   upload-storage:
 ```
 
-## Kubernetes Deployment
+## Azure Container Apps Deployment
 
-### Backend Deployment
-- Use deployments for stateless apps
-- Configure resource requests/limits
-- Implement liveness and readiness probes
-- Use ConfigMaps for configuration
-- Use Secrets for sensitive data
+### Infrastructure as Code (Bicep)
+- Use Bicep for all Azure resources
+- Modular structure with separate files per resource type
+- Parameterize for different environments (dev, staging, prod)
 
-```yaml
-# kubernetes/backend-deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: magictoolbox-backend
-  labels:
-    app: magictoolbox
-    component: backend
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: magictoolbox
-      component: backend
-  template:
-    metadata:
-      labels:
-        app: magictoolbox
-        component: backend
-    spec:
-      containers:
-      - name: backend
-        image: magictoolbox/backend:latest
-        ports:
-        - containerPort: 8000
-          name: http
-        env:
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: magictoolbox-secrets
-              key: database-url
-        - name: REDIS_URL
-          valueFrom:
-            configMapKeyRef:
-              name: magictoolbox-config
-              key: redis-url
-        resources:
-          requests:
-            cpu: 250m
-            memory: 512Mi
-          limits:
-            cpu: 1000m
-            memory: 1Gi
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 8000
-          initialDelaySeconds: 10
-          periodSeconds: 5
-          timeoutSeconds: 3
-          failureThreshold: 3
-        volumeMounts:
-        - name: upload-storage
-          mountPath: /app/uploads
-      volumes:
-      - name: upload-storage
-        persistentVolumeClaim:
-          claimName: upload-storage-pvc
+```bicep
+// main.bicep
+param location string = resourceGroup().location
+param environmentName string = 'production'
+param containerRegistryName string
+param storageAccountName string
+
+// Container Apps Environment
+resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01' = {
+  name: 'magictoolbox-env-${environmentName}'
+  location: location
+  properties: {
+    daprAIInstrumentationKey: appInsights.properties.InstrumentationKey
+    appLogsConfiguration: {
+      destination: 'log-analytics'
+      logAnalyticsConfiguration: {
+        customerId: logAnalytics.properties.customerId
+        sharedKey: logAnalytics.listKeys().primarySharedKey
+      }
+    }
+  }
+}
+
+// Backend Container App
+resource backendApp 'Microsoft.App/containerApps@2023-05-01' = {
+  name: 'magictoolbox-backend'
+  location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    managedEnvironmentId: containerAppsEnvironment.id
+    configuration: {
+      ingress: {
+        external: true
+        targetPort: 8000
+        allowInsecure: false
+        traffic: [
+          {
+            latestRevision: true
+            weight: 100
+          }
+        ]
+      }
+      secrets: [
+        {
+          name: 'database-url'
+          keyVaultUrl: '${keyVault.properties.vaultUri}secrets/database-url'
+          identity: 'system'
+        }
+        {
+          name: 'django-secret-key'
+          keyVaultUrl: '${keyVault.properties.vaultUri}secrets/django-secret-key'
+          identity: 'system'
+        }
+      ]
+      registries: [
+        {
+          server: '${containerRegistryName}.azurecr.io'
+          identity: 'system'
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'backend'
+          image: '${containerRegistryName}.azurecr.io/magictoolbox-backend:latest'
+          resources: {
+            cpu: json('0.5')
+            memory: '1Gi'
+          }
+          env: [
+            {
+              name: 'DATABASE_URL'
+              secretRef: 'database-url'
+            }
+            {
+              name: 'DJANGO_SETTINGS_MODULE'
+              value: 'magictoolbox.settings.production'
+            }
+            {
+              name: 'AZURE_STORAGE_CONNECTION_STRING'
+              secretRef: 'storage-connection-string'
+            }
+          ]
+          probes: [
+            {
+              type: 'liveness'
+              httpGet: {
+                path: '/health'
+                port: 8000
+              }
+              initialDelaySeconds: 30
+              periodSeconds: 10
+            }
+            {
+              type: 'readiness'
+              httpGet: {
+                path: '/ready'
+                port: 8000
+              }
+              initialDelaySeconds: 10
+              periodSeconds: 5
+            }
+          ]
+        }
+      ]
+      scale: {
+        minReplicas: 1
+        maxReplicas: 10
+        rules: [
+          {
+            name: 'http-scaling'
+            http: {
+              metadata: {
+                concurrentRequests: '100'
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+
+// Frontend Container App
+resource frontendApp 'Microsoft.App/containerApps@2023-05-01' = {
+  name: 'magictoolbox-frontend'
+  location: location
+  properties: {
+    managedEnvironmentId: containerAppsEnvironment.id
+    configuration: {
+      ingress: {
+        external: true
+        targetPort: 80
+        allowInsecure: false
+      }
+      registries: [
+        {
+          server: '${containerRegistryName}.azurecr.io'
+          identity: 'system'
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'frontend'
+          image: '${containerRegistryName}.azurecr.io/magictoolbox-frontend:latest'
+          resources: {
+            cpu: json('0.25')
+            memory: '0.5Gi'
+          }
+        }
+      ]
+      scale: {
+        minReplicas: 1
+        maxReplicas: 5
+      }
+    }
+  }
+}
 ```
 
-### Service Configuration
-- Use ClusterIP for internal services
-- Use LoadBalancer or Ingress for external access
-- Configure session affinity if needed
+### Azure Resources Setup
 
-```yaml
-# kubernetes/backend-service.yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: magictoolbox-backend
-  labels:
-    app: magictoolbox
-    component: backend
-spec:
-  type: ClusterIP
-  selector:
-    app: magictoolbox
-    component: backend
-  ports:
-  - port: 8000
-    targetPort: 8000
-    protocol: TCP
-    name: http
-  sessionAffinity: None
+```bicep
+// database.bicep
+resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-03-01-preview' = {
+  name: 'magictoolbox-db-${environmentName}'
+  location: location
+  sku: {
+    name: 'Standard_B2s'
+    tier: 'Burstable'
+  }
+  properties: {
+    version: '15'
+    administratorLogin: 'magictoolboxadmin'
+    administratorLoginPassword: adminPassword
+    storage: {
+      storageSizeGB: 32
+    }
+    backup: {
+      backupRetentionDays: 7
+      geoRedundantBackup: 'Disabled'
+    }
+    highAvailability: {
+      mode: 'Disabled'
+    }
+  }
+}
+
+// redis.bicep
+resource redis 'Microsoft.Cache/redis@2023-04-01' = {
+  name: 'magictoolbox-redis-${environmentName}'
+  location: location
+  properties: {
+    sku: {
+      name: 'Basic'
+      family: 'C'
+      capacity: 1
+    }
+    enableNonSslPort: false
+    minimumTlsVersion: '1.2'
+    redisConfiguration: {
+      maxmemory-policy: 'allkeys-lru'
+    }
+  }
+}
+
+// storage.bicep
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
+  name: storageAccountName
+  location: location
+  sku: {
+    name: 'Standard_LRS'
+  }
+  kind: 'StorageV2'
+  properties: {
+    supportsHttpsTrafficOnly: true
+    minimumTlsVersion: 'TLS1_2'
+    allowBlobPublicAccess: false
+  }
+}
+
+resource blobContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  name: '${storageAccount.name}/default/media'
+  properties: {
+    publicAccess: 'None'
+  }
+}
 ```
 
-### Ingress Configuration
-- Use cert-manager for TLS certificates
-- Configure rate limiting
-- Implement proper CORS headers
-- Set up URL rewrites if needed
-
-```yaml
-# kubernetes/ingress.yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: magictoolbox-ingress
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/rate-limit: "100"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/enable-cors: "true"
-spec:
-  ingressClassName: nginx
-  tls:
-  - hosts:
-    - magictoolbox.example.com
-    secretName: magictoolbox-tls
-  rules:
-  - host: magictoolbox.example.com
-    http:
-      paths:
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: magictoolbox-backend
-            port:
-              number: 8000
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: magictoolbox-frontend
-            port:
-              number: 80
-```
-
-## CI/CD Pipeline (GitHub Actions)
+## CI/CD Pipeline (GitHub Actions for Azure)
 
 ### Build and Test Pipeline
 ```yaml
@@ -351,9 +454,10 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: postgres:15
         env:
           POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: test_magictoolbox
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -378,12 +482,15 @@ jobs:
     - name: Install dependencies
       working-directory: ./backend
       run: |
-        pip install -r requirements.txt
-        pip install pytest pytest-cov pytest-asyncio
+        pip install -r requirements/development.txt
+        pip install pytest pytest-django pytest-cov
     
     - name: Run tests
       working-directory: ./backend
-      run: pytest --cov=app --cov-report=xml
+      env:
+        DATABASE_URL: postgresql://postgres:testpass@localhost:5432/test_magictoolbox
+        REDIS_URL: redis://localhost:6379/0
+      run: pytest --cov=apps --cov-report=xml
     
     - name: Upload coverage
       uses: codecov/codecov-action@v3
@@ -437,10 +544,10 @@ jobs:
         sarif_file: 'trivy-results.sarif'
 ```
 
-### Deployment Pipeline
+### Deployment Pipeline (Azure Container Apps)
 ```yaml
 # .github/workflows/deploy.yml
-name: Deploy
+name: Deploy to Azure Container Apps
 
 on:
   push:
@@ -448,137 +555,269 @@ on:
     tags:
       - 'v*'
 
+env:
+  AZURE_CONTAINER_REGISTRY: magictoolboxacr
+  RESOURCE_GROUP: magictoolbox-rg
+  LOCATION: eastus
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    
-    - name: Login to Container Registry
-      uses: docker/login-action@v3
+    - name: Azure Login
+      uses: azure/login@v1
       with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
     
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
+    - name: Login to Azure Container Registry
+      uses: azure/docker-login@v1
       with:
-        images: ghcr.io/${{ github.repository }}
-        tags: |
-          type=ref,event=branch
-          type=semver,pattern={{version}}
-          type=sha
+        login-server: ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
     
-    - name: Build and push backend
-      uses: docker/build-push-action@v5
-      with:
-        context: ./backend
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+    - name: Build and push backend image
+      working-directory: ./backend
+      run: |
+        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/magictoolbox-backend:${{ github.sha }} .
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/magictoolbox-backend:${{ github.sha }}
+        docker tag ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/magictoolbox-backend:${{ github.sha }} \
+          ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/magictoolbox-backend:latest
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/magictoolbox-backend:latest
     
-    - name: Build and push frontend
-      uses: docker/build-push-action@v5
-      with:
-        context: ./frontend
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+    - name: Build and push frontend image
+      working-directory: ./frontend
+      run: |
+        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/magictoolbox-frontend:${{ github.sha }} .
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/magictoolbox-frontend:${{ github.sha }}
+        docker tag ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/magictoolbox-frontend:${{ github.sha }} \
+          ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/magictoolbox-frontend:latest
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/magictoolbox-frontend:latest
 
-  deploy-production:
+  deploy-infrastructure:
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.ref == 'refs/heads/main'
+    
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up kubectl
-      uses: azure/setup-kubectl@v3
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
     
-    - name: Configure kubectl
-      run: |
-        echo "${{ secrets.KUBECONFIG }}" | base64 -d > kubeconfig
-        export KUBECONFIG=./kubeconfig
+    - name: Deploy Bicep template
+      uses: azure/arm-deploy@v1
+      with:
+        resourceGroupName: ${{ env.RESOURCE_GROUP }}
+        template: ./bicep/main.bicep
+        parameters: |
+          environmentName=production
+          containerRegistryName=${{ env.AZURE_CONTAINER_REGISTRY }}
+          storageAccountName=magictoolboxstorage
+        failOnStdErr: false
+
+  deploy-container-apps:
+    needs: [build-and-push, deploy-infrastructure]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     
-    - name: Deploy to Kubernetes
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Update Backend Container App
+      uses: azure/container-apps-deploy-action@v1
+      with:
+        containerAppName: magictoolbox-backend
+        resourceGroup: ${{ env.RESOURCE_GROUP }}
+        imageToDeploy: ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/magictoolbox-backend:${{ github.sha }}
+    
+    - name: Update Frontend Container App
+      uses: azure/container-apps-deploy-action@v1
+      with:
+        containerAppName: magictoolbox-frontend
+        resourceGroup: ${{ env.RESOURCE_GROUP }}
+        imageToDeploy: ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/magictoolbox-frontend:${{ github.sha }}
+    
+    - name: Run Database Migrations
       run: |
-        kubectl apply -f kubernetes/
-        kubectl rollout status deployment/magictoolbox-backend
-        kubectl rollout status deployment/magictoolbox-frontend
+        az containerapp exec \
+          --name magictoolbox-backend \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --command "python manage.py migrate --noinput"
 ```
 
-## Infrastructure as Code (Terraform)
+## Azure Key Vault Configuration
 
-### Provider Configuration
-```hcl
-# terraform/main.tf
-terraform {
-  required_version = ">= 1.6"
-  
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
+```bicep
+// keyvault.bicep
+resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' = {
+  name: 'kv-magictoolbox-${environmentName}'
+  location: location
+  properties: {
+    sku: {
+      family: 'A'
+      name: 'standard'
     }
-  }
-  
-  backend "s3" {
-    bucket = "magictoolbox-terraform-state"
-    key    = "production/terraform.tfstate"
-    region = "us-east-1"
-    encrypt = true
+    tenantId: subscription().tenantId
+    enableRbacAuthorization: true
+    enabledForDeployment: false
+    enabledForTemplateDeployment: true
+    enableSoftDelete: true
+    softDeleteRetentionInDays: 90
   }
 }
 
-provider "aws" {
-  region = var.aws_region
-  
-  default_tags {
-    tags = {
-      Project     = "MagicToolbox"
-      Environment = var.environment
-      ManagedBy   = "Terraform"
-    }
+// Grant Container Apps access to Key Vault
+resource keyVaultAccessPolicy 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: keyVault
+  name: guid(keyVault.id, backendApp.id, 'SecretsUser')
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6') // Key Vault Secrets User
+    principalId: backendApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Secrets
+resource djangoSecretKey 'Microsoft.KeyVault/vaults/secrets@2023-02-01' = {
+  parent: keyVault
+  name: 'django-secret-key'
+  properties: {
+    value: djangoSecret
+  }
+}
+
+resource databaseUrl 'Microsoft.KeyVault/vaults/secrets@2023-02-01' = {
+  parent: keyVault
+  name: 'database-url'
+  properties: {
+    value: 'postgresql://${postgresServer.properties.administratorLogin}:${adminPassword}@${postgresServer.properties.fullyQualifiedDomainName}:5432/magictoolbox'
   }
 }
 ```
 
-## Monitoring & Logging
+## Monitoring & Logging (Azure)
+
+### Application Insights Configuration
+- Integrate Application Insights with Django
+- Track custom events and metrics
+- Monitor exceptions and performance
+- Set up alerts for critical issues
+
+```python
+# settings/production.py
+from opencensus.ext.azure.log_exporter import AzureLogHandler
+from opencensus.ext.azure import metrics_exporter
+
+APPLICATION_INSIGHTS_CONNECTION_STRING = config('APPLICATIONINSIGHTS_CONNECTION_STRING')
+
+# Application Insights middleware
+MIDDLEWARE += [
+    'opencensus.ext.django.middleware.OpencensusMiddleware',
+]
+
+OPENCENSUS = {
+    'TRACE': {
+        'SAMPLER': 'opencensus.trace.samplers.ProbabilitySampler(rate=1.0)',
+        'EXPORTER': f'opencensus.ext.azure.trace_exporter.AzureExporter(connection_string="{APPLICATION_INSIGHTS_CONNECTION_STRING}")',
+    }
+}
+```
 
 ### Health Check Endpoints
 - Implement `/health` for liveness checks
-- Implement `/ready` for readiness checks
-- Include dependency status in ready endpoint
+- Implement `/ready` for readiness checks with dependency status
 - Return appropriate HTTP status codes
+- Monitor with Azure Container Apps health probes
 
-### Structured Logging
-- Use JSON format for logs
-- Include correlation IDs
-- Log levels: DEBUG, INFO, WARNING, ERROR
-- Never log sensitive data
-- Centralize logs (CloudWatch, Datadog, etc.)
+### Azure Monitor Integration
+- Log aggregation via Log Analytics Workspace
+- Custom dashboards for key metrics
+- Alert rules for critical conditions
+- Auto-scaling based on metrics
 
-### Metrics Collection
-- Expose Prometheus metrics endpoint
-- Track request rates, latency, errors
-- Monitor resource usage (CPU, memory)
-- Set up alerts for critical metrics
+```bicep
+// monitoring.bicep
+resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
+  name: 'magictoolbox-logs'
+  location: location
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 30
+  }
+}
 
-## Security Checklist
-- [ ] All images scanned for vulnerabilities
-- [ ] Secrets stored in secret management system
-- [ ] TLS certificates configured and auto-renewed
-- [ ] Network policies configured in Kubernetes
-- [ ] RBAC properly configured
-- [ ] Resource limits set on all containers
-- [ ] Non-root users in containers
-- [ ] Regular security updates applied
-- [ ] Backup and disaster recovery plan in place
-- [ ] Monitoring and alerting configured
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: 'magictoolbox-insights'
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logAnalytics.id
+  }
+}
+
+resource metricAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
+  name: 'high-error-rate'
+  location: 'global'
+  properties: {
+    severity: 2
+    enabled: true
+    scopes: [backendApp.id]
+    evaluationFrequency: 'PT1M'
+    windowSize: 'PT5M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.MultipleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          name: 'ErrorRate'
+          metricName: 'Requests'
+          dimensions: [
+            {
+              name: 'ResultCode'
+              operator: 'Include'
+              values: ['500', '502', '503']
+            }
+          ]
+          operator: 'GreaterThan'
+          threshold: 10
+          timeAggregation: 'Count'
+        }
+      ]
+    }
+    actions: []
+  }
+}
+```
+
+## Security Checklist (Azure)
+- [ ] All container images scanned for vulnerabilities (Trivy in CI/CD)
+- [ ] Secrets stored in Azure Key Vault (never in code or environment variables)
+- [ ] TLS certificates managed by Azure Container Apps (automatic HTTPS)
+- [ ] Managed Identity enabled for all Container Apps
+- [ ] Azure RBAC configured for least privilege access
+- [ ] Resource limits set on all containers (CPU, memory)
+- [ ] Non-root users in Dockerfiles
+- [ ] Regular security updates applied (automated with Renovate)
+- [ ] Database firewall rules configured (Azure PostgreSQL)
+- [ ] Backup configured for database and storage
+- [ ] Application Insights monitoring and alerting configured
+- [ ] DDoS protection enabled
+- [ ] Private endpoints for database and storage (production)
+- [ ] Network isolation for Container Apps Environment
