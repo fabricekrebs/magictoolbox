@@ -1,8 +1,19 @@
 # MagicToolbox Documentation Index
 
-**Last Updated:** December 16, 2025
+**Last Updated:** December 20, 2025
 
 This index provides quick access to all documentation organized by topic.
+
+---
+
+## 📜 Project Constitution
+
+- **[Constitution](../.specify/memory/constitution.md)** - **⚠️ REQUIRED READING** - Core principles, quality standards, and governance (v1.0.0)
+  - Code Quality & Type Safety
+  - Test-First Development (TDD)
+  - User Experience Consistency
+  - Performance Requirements
+  - Security by Design
 
 ---
 

@@ -148,8 +148,8 @@ class GPXKMLConverter(BaseTool):
             file_ext = Path(input_file.name).suffix
             blob_name = f"{execution_id}{file_ext}"
             blob_client = blob_service.get_blob_client(
-                container="gpx-uploads",
-                blob=blob_name
+                container="uploads",
+                blob=f"gpx/{blob_name}"
             )
 
             # Prepare metadata for Azure Function
@@ -190,7 +190,7 @@ class GPXKMLConverter(BaseTool):
                     function_url = f"{base_url}/gpx/convert"
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": f"gpx-uploads/{blob_name}",  # Full path: gpx-uploads/{uuid}.gpx
+                        "blob_name": f"gpx/{blob_name}",  # FR-011: uploads container, gpx/ subdirectory
                         "conversion_type": conversion_type  # Add conversion type to payload
                     }
                     self.logger.info(f"   Function URL: {function_url}")

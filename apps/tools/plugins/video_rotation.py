@@ -144,10 +144,10 @@ class VideoRotation(BaseTool):
             # Get blob service client
             blob_service = self._get_blob_service_client()
 
-            # Upload to video-uploads container
-            blob_name = f"{execution_id}{Path(input_file.name).suffix}"
+            # Upload to uploads container with video/ subdirectory (FR-011 compliance)
+            blob_name = f"video/{execution_id}{Path(input_file.name).suffix}"
             blob_client = blob_service.get_blob_client(
-                container="video-uploads",
+                container="uploads",
                 blob=blob_name
             )
 
@@ -168,8 +168,8 @@ class VideoRotation(BaseTool):
             )
 
             self.logger.info(f"✅ Video uploaded successfully to Azure Blob Storage")
-            self.logger.info(f"   Blob name: {blob_name}")
-            self.logger.info(f"   Container: video-uploads")
+            self.logger.info(f"   Blob path: {blob_name}")
+            self.logger.info(f"   Container: uploads")
             self.logger.info(f"   Size: {len(file_content):,} bytes")
 
             # Note: Azure Function trigger happens in the rotate-video endpoint

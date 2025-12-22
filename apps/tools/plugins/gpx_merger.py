@@ -183,8 +183,8 @@ class GPXMerger(BaseTool):
                 self.logger.info(f"   File size: {input_file.size:,} bytes")
 
                 blob_client = blob_service.get_blob_client(
-                    container="gpx-uploads",
-                    blob=blob_name
+                    container="uploads",
+                    blob=f"gpx/{blob_name}"
                 )
 
                 # Prepare metadata for each file
@@ -232,7 +232,7 @@ class GPXMerger(BaseTool):
                     # Prepare payload with all blob names
                     payload = {
                         "execution_id": execution_id,
-                        "blob_names": [f"gpx-uploads/{blob}" for blob in uploaded_blobs],
+                        "blob_names": [f"gpx/{blob}" for blob in uploaded_blobs],
                         "merge_mode": merge_mode,
                         "output_name": output_name,
                         "file_count": len(input_files)

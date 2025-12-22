@@ -210,7 +210,7 @@ class OCRTool(BaseTool):
 
             # Get blob client
             self.logger.info(f"📦 Getting blob client for container: ocr-uploads, blob: {blob_name}")
-            blob_client = blob_service.get_blob_client(container="ocr-uploads", blob=blob_name)
+            blob_client = blob_service.get_blob_client(container="uploads", blob=f"ocr/{blob_name}")
             self.logger.info("✅ Blob client obtained")
 
             # Prepare metadata for Azure Function
@@ -250,7 +250,7 @@ class OCRTool(BaseTool):
                     input_format = file_ext.lstrip('.')
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": f"ocr-uploads/{blob_name}",
+                        "blob_name": f"ocr/{blob_name}",
                         "input_format": input_format,
                         "language": metadata["language"],
                         "ocr_mode": metadata["ocr_mode"],

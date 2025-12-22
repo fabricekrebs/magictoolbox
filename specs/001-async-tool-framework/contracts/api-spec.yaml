@@ -1,0 +1,625 @@
+openapi: 3.0.3
+info:
+  title: MagicToolbox Tool Framework API
+  version: 1.0.0
+  description: |
+    RESTful API for the MagicToolbox plugin-based tool framework. Supports both synchronous and asynchronous tool execution with status tracking and history management.
+    
+    **Base URL**: `/api/v1`
+    
+    **Authentication**: Session-based (optional for anonymous tool usage)
+    
+    **Key Features**:
+    - Automatic tool discovery and registration
+    - Synchronous and asynchronous processing support
+    - Real-time status polling for async operations
+    - Execution history with download and delete actions
+    - Consistent error handling across all endpoints
+
+servers:
+  - url: https://magictoolbox.azurewebsites.net/api/v1
+    description: Production server
+  - url: http://localhost:8000/api/v1
+    description: Local development server
+
+tags:
+  - name: Tools
+    description: Tool discovery and listing
+  - name: Tool Execution
+    description: Tool processing and execution management
+  - name: Execution Management
+    description: Status tracking, downloads, and history
+
+paths:
+  /tools/:
+    get:
+      tags: [Tools]
+      summary: List all available tools
+      description: Returns metadata for all registered tools, organized by category
+      operationId: listTools
+      parameters:
+        - name: category
+          in: query
+          description: Filter tools by category
+          schema:
+            type: string
+            enum: [DOCUMENT, IMAGE, VIDEO, GPS, TEXT, CONVERSION]
+      responses:
+        '200':
+          description: Successful response with tool list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tools:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ToolMetadata'
+              example:
+                tools:
+                  - name: pdf-docx-converter
+                    displayName: PDF to DOCX Converter
+                    description: Convert PDF documents to editable DOCX format with layout preservation
+                    category: DOCUMENT
+                    supportedFormats: [".pdf"]
+                    maxFileSizeMb: 50
+                    isAsync: true
+                    icon: bi-file-pdf
+                  - name: base64-encoder
+                    displayName: Base64 Encoder
+                    description: Encode text or files to Base64 format
+                    category: TEXT
+                    supportedFormats: []
+                    maxFileSizeMb: 10
+                    isAsync: false
+                    icon: bi-code-square
+
+  /tools/{toolName}/:
+    get:
+      tags: [Tools]
+      summary: Get tool details
+      description: Returns detailed metadata for a specific tool
+      operationId: getToolDetails
+      parameters:
+        - name: toolName
+          in: path
+          required: true
+          description: URL-safe tool name (e.g., "pdf-docx-converter")
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tool details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolMetadata'
+        '404':
+          description: Tool not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tools/{toolName}/process/:
+    post:
+      tags: [Tool Execution]
+      summary: Execute a tool
+      description: |
+        Processes input using the specified tool. For synchronous tools, returns result immediately. 
+        For asynchronous tools, uploads file and returns execution ID for status polling.
+      operationId: executeTool
+      parameters:
+        - name: toolName
+          in: path
+          required: true
+          description: URL-safe tool name
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Input file (for file-processing tools)
+                parameters:
+                  type: object
+                  description: Tool-specific parameters (JSON object)
+                  additionalProperties: true
+              required: [file]
+            examples:
+              videoRotation:
+                summary: Video Rotation Tool
+                value:
+                  file: (binary video file)
+                  parameters: '{"rotation": 90}'
+              textEncoder:
+                summary: Base64 Encoder (sync)
+                value:
+                  parameters: '{"text": "Hello World"}'
+      responses:
+        '200':
+          description: Tool execution initiated (async) or completed (sync)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AsyncExecutionResponse'
+                  - $ref: '#/components/schemas/SyncExecutionResponse'
+              examples:
+                asyncResponse:
+                  summary: Async tool response
+                  value:
+                    executionId: 550e8400-e29b-41d4-a716-446655440000
+                    status: pending
+                    message: File uploaded successfully. Processing will begin shortly.
+                    statusUrl: /api/v1/executions/550e8400-e29b-41d4-a716-446655440000/status/
+                syncResponse:
+                  summary: Sync tool response
+                  value:
+                    result:
+                      encodedText: SGVsbG8gV29ybGQ=
+                    executionId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              example:
+                error: Validation failed
+                details:
+                  - field: file
+                    message: File size exceeds maximum allowed (50MB)
+                  - field: rotation
+                    message: Rotation must be one of 90, 180, 270, -90
+        '404':
+          description: Tool not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /executions/{executionId}/status/:
+    get:
+      tags: [Execution Management]
+      summary: Get execution status
+      description: |
+        Returns current status of an async execution. Client should poll this endpoint every 2-3 seconds 
+        until status is "completed", "failed", or "cancelled".
+      operationId: getExecutionStatus
+      parameters:
+        - name: executionId
+          in: path
+          required: true
+          description: UUID of the execution
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Execution status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionStatus'
+              examples:
+                pending:
+                  summary: Pending execution
+                  value:
+                    executionId: 550e8400-e29b-41d4-a716-446655440000
+                    status: pending
+                    toolName: pdf-docx-converter
+                    inputFileName: document.pdf
+                    createdAt: '2025-12-21T10:30:00Z'
+                    elapsedSeconds: 5
+                processing:
+                  summary: Processing execution
+                  value:
+                    executionId: 550e8400-e29b-41d4-a716-446655440000
+                    status: processing
+                    toolName: pdf-docx-converter
+                    inputFileName: document.pdf
+                    createdAt: '2025-12-21T10:30:00Z'
+                    elapsedSeconds: 45
+                completed:
+                  summary: Completed execution
+                  value:
+                    executionId: 550e8400-e29b-41d4-a716-446655440000
+                    status: completed
+                    toolName: pdf-docx-converter
+                    inputFileName: document.pdf
+                    outputFileName: document.docx
+                    downloadUrl: /api/v1/executions/550e8400-e29b-41d4-a716-446655440000/download/
+                    createdAt: '2025-12-21T10:30:00Z'
+                    completedAt: '2025-12-21T10:31:23Z'
+                    processingTimeSeconds: 83.5
+                failed:
+                  summary: Failed execution
+                  value:
+                    executionId: 550e8400-e29b-41d4-a716-446655440000
+                    status: failed
+                    toolName: pdf-docx-converter
+                    inputFileName: document.pdf
+                    error: PDF file is corrupted or password-protected
+                    createdAt: '2025-12-21T10:30:00Z'
+                    completedAt: '2025-12-21T10:30:15Z'
+        '404':
+          description: Execution not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /executions/{executionId}/download/:
+    get:
+      tags: [Execution Management]
+      summary: Download processed file
+      description: |
+        Downloads the output file from a completed execution. Only available for completed async executions.
+      operationId: downloadExecution
+      parameters:
+        - name: executionId
+          in: path
+          required: true
+          description: UUID of the execution
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: File download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+              description: Attachment with original filename
+              example: 'attachment; filename="document.docx"'
+        '400':
+          description: Execution not completed or is a sync tool
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Execution not found or file no longer available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /executions/:
+    get:
+      tags: [Execution Management]
+      summary: List execution history
+      description: |
+        Returns paginated list of user's execution history. Can filter by tool name and status.
+        Used for displaying history sidebar in tool pages.
+      operationId: listExecutions
+      parameters:
+        - name: toolName
+          in: query
+          description: Filter by specific tool
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter by execution status
+          schema:
+            type: string
+            enum: [pending, processing, completed, failed, cancelled]
+        - name: limit
+          in: query
+          description: Number of results to return (default 10, max 100)
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: Pagination offset
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: Execution history list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    description: Total number of executions matching filters
+                  next:
+                    type: string
+                    nullable: true
+                    description: URL for next page
+                  previous:
+                    type: string
+                    nullable: true
+                    description: URL for previous page
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ExecutionSummary'
+              example:
+                count: 47
+                next: /api/v1/executions/?limit=10&offset=10
+                previous: null
+                results:
+                  - executionId: 550e8400-e29b-41d4-a716-446655440000
+                    toolName: pdf-docx-converter
+                    status: completed
+                    inputFileName: document.pdf
+                    outputFileName: document.docx
+                    createdAt: '2025-12-21T10:30:00Z'
+                    processingTimeSeconds: 83.5
+                  - executionId: 123e4567-e89b-12d3-a456-426614174000
+                    toolName: video-rotation
+                    status: processing
+                    inputFileName: video.mp4
+                    createdAt: '2025-12-21T09:15:00Z'
+
+  /executions/{executionId}/:
+    delete:
+      tags: [Execution Management]
+      summary: Delete execution record
+      description: |
+        Deletes execution record and associated blob files. Only allowed for terminal statuses 
+        (completed, failed, cancelled). Cannot delete pending or processing executions.
+      operationId: deleteExecution
+      parameters:
+        - name: executionId
+          in: path
+          required: true
+          description: UUID of the execution
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Execution deleted successfully
+        '400':
+          description: Cannot delete execution (still processing)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Cannot delete execution while processing
+                message: Execution is currently being processed. Please wait for completion or cancel first.
+        '404':
+          description: Execution not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    ToolMetadata:
+      type: object
+      properties:
+        name:
+          type: string
+          description: URL-safe tool identifier
+          example: pdf-docx-converter
+        displayName:
+          type: string
+          description: Human-readable tool name
+          example: PDF to DOCX Converter
+        description:
+          type: string
+          description: Brief tool description
+          example: Convert PDF documents to editable DOCX format with layout preservation
+        category:
+          type: string
+          enum: [DOCUMENT, IMAGE, VIDEO, GPS, TEXT, CONVERSION]
+          description: Tool category
+        supportedFormats:
+          type: array
+          items:
+            type: string
+          description: Accepted file extensions
+          example: [".pdf"]
+        maxFileSizeMb:
+          type: integer
+          description: Maximum file size in megabytes
+          example: 50
+        isAsync:
+          type: boolean
+          description: Whether tool uses async processing
+          example: true
+        icon:
+          type: string
+          description: CSS icon class (Bootstrap Icons)
+          example: bi-file-pdf
+      required:
+        - name
+        - displayName
+        - description
+        - category
+        - supportedFormats
+        - maxFileSizeMb
+        - isAsync
+
+    AsyncExecutionResponse:
+      type: object
+      properties:
+        executionId:
+          type: string
+          format: uuid
+          description: Unique execution identifier for status polling
+        status:
+          type: string
+          enum: [pending]
+          description: Initial status is always "pending"
+        message:
+          type: string
+          description: User-friendly message
+          example: File uploaded successfully. Processing will begin shortly.
+        statusUrl:
+          type: string
+          description: URL for status polling
+          example: /api/v1/executions/550e8400-e29b-41d4-a716-446655440000/status/
+      required:
+        - executionId
+        - status
+        - statusUrl
+
+    SyncExecutionResponse:
+      type: object
+      properties:
+        result:
+          type: object
+          description: Tool-specific result data
+          additionalProperties: true
+        executionId:
+          type: string
+          format: uuid
+          description: Execution ID (stored for history)
+      required:
+        - result
+        - executionId
+
+    ExecutionStatus:
+      type: object
+      properties:
+        executionId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, processing, completed, failed, cancelled]
+        toolName:
+          type: string
+        inputFileName:
+          type: string
+        outputFileName:
+          type: string
+          nullable: true
+          description: Only present when status is "completed"
+        downloadUrl:
+          type: string
+          nullable: true
+          description: Only present when status is "completed"
+        error:
+          type: string
+          nullable: true
+          description: Only present when status is "failed"
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        elapsedSeconds:
+          type: number
+          format: float
+          description: Time elapsed since creation
+        processingTimeSeconds:
+          type: number
+          format: float
+          nullable: true
+          description: Total processing time (only when completed)
+      required:
+        - executionId
+        - status
+        - toolName
+        - inputFileName
+        - createdAt
+
+    ExecutionSummary:
+      type: object
+      description: Condensed execution info for history lists
+      properties:
+        executionId:
+          type: string
+          format: uuid
+        toolName:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, completed, failed, cancelled]
+        inputFileName:
+          type: string
+        outputFileName:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        processingTimeSeconds:
+          type: number
+          format: float
+          nullable: true
+      required:
+        - executionId
+        - toolName
+        - status
+        - inputFileName
+        - createdAt
+
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Validation failed
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: Name of the field that failed validation
+              message:
+                type: string
+                description: User-friendly error message
+            required:
+              - field
+              - message
+      required:
+        - error
+        - details
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type or title
+        message:
+          type: string
+          description: Detailed error message
+      required:
+        - error
+        - message
+
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+      description: Django session cookie (optional for anonymous usage)
+
+security:
+  - sessionAuth: []
+  - {}  # Allow anonymous access

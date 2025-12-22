@@ -122,8 +122,8 @@ class GPXSpeedModifier(BaseTool):
             # Upload to gpx container
             blob_name = f"{execution_id}.gpx"
             blob_client = blob_service.get_blob_client(
-                container="gpx-uploads",
-                blob=blob_name
+                container="uploads",
+                blob=f"gpx/{blob_name}"
             )
 
             # Prepare metadata for Azure Function
@@ -163,7 +163,7 @@ class GPXSpeedModifier(BaseTool):
                     function_url = f"{base_url}/gpx/speed"
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": f"gpx-uploads/{blob_name}",  # Full path: gpx-uploads/{uuid}.gpx
+                        "blob_name": f"gpx/{blob_name}",  # FR-011: uploads container, gpx/ subdirectory
                         "speed_multiplier": speed_multiplier  # Add speed multiplier to payload
                     }
                     self.logger.info(f"   Function URL: {function_url}")

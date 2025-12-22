@@ -1,0 +1,162 @@
+<!-- Status Section Include -->
+<!-- Use with: {% include 'tools/includes/status_section.html' with execution_id=execution_id %} -->
+
+<div class="card shadow-sm mb-4" id="statusCard" style="display: none;">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-hourglass-split"></i> Processing Status</h5>
+    </div>
+    <div class="card-body">
+        <!-- Progress Bar -->
+        <div class="mb-3">
+            <div class="progress" style="height: 30px;">
+                <div 
+                    class="progress-bar progress-bar-striped progress-bar-animated" 
+                    role="progressbar" 
+                    id="progressBar"
+                    aria-valuenow="0" 
+                    aria-valuemin="0" 
+                    aria-valuemax="100"
+                    style="width: 0%;"
+                >
+                    <span id="progressText">Initializing...</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Status Information -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <p class="mb-1"><strong>Status:</strong> <span id="statusText" class="badge bg-secondary">Pending</span></p>
+            </div>
+            <div class="col-md-6">
+                <p class="mb-1"><strong>Elapsed Time:</strong> <span id="elapsedTime">0s</span></p>
+            </div>
+        </div>
+        
+        <!-- Execution ID (for debugging) -->
+        <details class="mb-3">
+            <summary class="text-muted small" style="cursor: pointer;">Execution Details</summary>
+            <div class="mt-2">
+                <code id="executionId" class="small"></code>
+            </div>
+        </details>
+        
+        <!-- Result/Error Area -->
+        <div id="resultArea" style="display: none;">
+            <!-- Success message -->
+            <div id="successMessage" class="alert alert-success" role="alert" style="display: none;">
+                <h6 class="alert-heading"><i class="bi bi-check-circle"></i> Processing Complete!</h6>
+                <p class="mb-0">Your file has been processed successfully.</p>
+                <hr>
+                <div class="d-grid gap-2">
+                    <a href="#" id="downloadBtn" class="btn btn-success" download>
+                        <i class="bi bi-download"></i> Download Result
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Error message -->
+            <div id="errorMessage" class="alert alert-danger" role="alert" style="display: none;" role="alert" aria-live="assertive">
+                <h6 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Processing Failed</h6>
+                <p id="errorText" class="mb-0"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Status tracking variables
+let executionStartTime = null;
+let elapsedTimeInterval = null;
+
+// Update elapsed time display
+function updateElapsedTime() {
+    if (!executionStartTime) return;
+    
+    const elapsed = Math.floor((Date.now() - executionStartTime) / 1000);
+    const minutes = Math.floor(elapsed / 60);
+    const seconds = elapsed % 60;
+    
+    const timeStr = minutes > 0 
+        ? `${minutes}m ${seconds}s` 
+        : `${seconds}s`;
+    
+    document.getElementById('elapsedTime').textContent = timeStr;
+}
+
+// Show status card
+function showStatusCard(executionId) {
+    const card = document.getElementById('statusCard');
+    card.style.display = 'block';
+    
+    document.getElementById('executionId').textContent = executionId;
+    
+    executionStartTime = Date.now();
+    elapsedTimeInterval = setInterval(updateElapsedTime, 1000);
+}
+
+// Update status display
+function updateStatus(status, progress = 0, message = '') {
+    const statusBadge = document.getElementById('statusText');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    
+    // Update badge
+    statusBadge.className = 'badge';
+    switch (status) {
+        case 'pending':
+            statusBadge.classList.add('bg-secondary');
+            statusBadge.textContent = 'Pending';
+            break;
+        case 'processing':
+            statusBadge.classList.add('bg-primary');
+            statusBadge.textContent = 'Processing';
+            break;
+        case 'completed':
+            statusBadge.classList.add('bg-success');
+            statusBadge.textContent = 'Completed';
+            clearInterval(elapsedTimeInterval);
+            break;
+        case 'failed':
+            statusBadge.classList.add('bg-danger');
+            statusBadge.textContent = 'Failed';
+            clearInterval(elapsedTimeInterval);
+            break;
+    }
+    
+    // Update progress bar
+    progressBar.style.width = progress + '%';
+    progressBar.setAttribute('aria-valuenow', progress);
+    progressText.textContent = message || status;
+    
+    if (status === 'completed' || status === 'failed') {
+        progressBar.classList.remove('progress-bar-animated');
+    }
+}
+
+// Show success result
+function showSuccess(downloadUrl) {
+    const resultArea = document.getElementById('resultArea');
+    const successMessage = document.getElementById('successMessage');
+    const downloadBtn = document.getElementById('downloadBtn');
+    
+    resultArea.style.display = 'block';
+    successMessage.style.display = 'block';
+    downloadBtn.href = downloadUrl;
+    
+    updateStatus('completed', 100, 'Complete!');
+}
+
+// Show error
+function showError(errorMessage) {
+    const resultArea = document.getElementById('resultArea');
+    const errorDiv = document.getElementById('errorMessage');
+    const errorText = document.getElementById('errorText');
+    
+    resultArea.style.display = 'block';
+    errorDiv.style.display = 'block';
+    errorText.textContent = errorMessage;
+    
+    updateStatus('failed', 0, 'Failed');
+}
+</script>

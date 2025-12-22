@@ -222,8 +222,8 @@ class PdfDocxConverter(BaseTool):
                 self.logger.info("✅ BlobServiceClient created successfully")
 
             # Get blob client
-            self.logger.info(f"📦 Getting blob client for container: pdf-uploads, blob: {blob_name}")
-            blob_client = blob_service.get_blob_client(container="pdf-uploads", blob=blob_name)
+            self.logger.info(f"📦 Getting blob client for uploads container, blob: pdf/{blob_name}")
+            blob_client = blob_service.get_blob_client(container="uploads", blob=f"pdf/{blob_name}")
             self.logger.info("✅ Blob client obtained")
 
             # Prepare metadata for Azure Function
@@ -245,8 +245,8 @@ class PdfDocxConverter(BaseTool):
             blob_client.upload_blob(file_content, metadata=metadata, overwrite=True)
             
             self.logger.info("✅ PDF uploaded successfully to Azure Blob Storage")
-            self.logger.info(f"   Blob name: {blob_name}")
-            self.logger.info(f"   Container: pdf-uploads")
+            self.logger.info(f"   Blob path: pdf/{blob_name}")
+            self.logger.info(f"   Container: uploads")
             self.logger.info(f"   Size: {len(file_content):,} bytes")
             self.logger.info(f"   Execution ID: {execution_id}")
 
@@ -262,7 +262,7 @@ class PdfDocxConverter(BaseTool):
                     function_url = f"{base_url}/pdf/convert"
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": f"pdf-uploads/{blob_name}"  # Full path: pdf-uploads/{uuid}.pdf
+                        "blob_name": f"pdf/{blob_name}"  # FR-011: uploads container, pdf/ subdirectory
                     }
                     self.logger.info(f"   Function URL: {function_url}")
                     self.logger.info(f"   Payload: {payload}")

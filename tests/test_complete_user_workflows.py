@@ -18,14 +18,14 @@ Each test validates:
 - User data isolation
 
 Tools Tested (via API):
-Async Tools (use Azure Functions + Blob Storage):
-- pdf-docx-converter → pdf-uploads/pdf-processed containers
-- image-format-converter → image-uploads/image-processed containers
-- video-rotation → video-uploads/video-processed containers
-- ocr-tool → ocr-uploads/ocr-processed containers
-- gpx-kml-converter → gpx-uploads/gpx-processed containers
-- gpx-merger → gpx-uploads/gpx-processed containers
-- gpx-speed-modifier → gpx-uploads/gpx-processed containers
+Async Tools (use Azure Functions + Blob Storage with FR-011 standardized naming):
+- pdf-docx-converter → uploads/pdf/, processed/pdf/ subdirectories
+- image-format-converter → uploads/image/, processed/image/ subdirectories
+- video-rotation → uploads/video/, processed/video/ subdirectories
+- ocr-tool → uploads/ocr/, processed/ocr/ subdirectories
+- gpx-kml-converter → uploads/gpx/, processed/gpx/ subdirectories
+- gpx-merger → uploads/gpx/, processed/gpx/ subdirectories
+- gpx-speed-modifier → uploads/gpx/, processed/gpx/ subdirectories
 
 Sync Tools (direct processing, no blob storage):
 - base64-encoder
@@ -1733,7 +1733,7 @@ startxref
         1. Upload MP4 file
         2. Verify 202 response with execution ID
         3. Poll status until completion
-        4. Verify blob uploaded to video-uploads container
+        4. Verify blob uploaded to uploads/video/ subdirectory (FR-011)
         """
         print(f"\n{'='*60}")
         print(f"🧪 API TEST 8: Video Rotation (Async)")
@@ -1804,7 +1804,7 @@ startxref
         Test OCR Tool via API (async):
         1. Upload image file
         2. Verify 202 response with execution ID
-        3. Verify blob uploaded to ocr-uploads container
+        3. Verify blob uploaded to uploads/ocr/ subdirectory (FR-011)
         """
         print(f"\n{'='*60}")
         print(f"🧪 API TEST 9: OCR Tool (Async)")
@@ -1852,7 +1852,7 @@ startxref
         Test GPX Merger via API (async):
         1. Upload multiple GPX files
         2. Verify 202 response with execution ID
-        3. Verify blobs uploaded to gpx-uploads container
+        3. Verify blobs uploaded to uploads/gpx/ subdirectory (FR-011)
         """
         print(f"\n{'='*60}")
         print(f"🧪 API TEST 10: GPX Merger (Async)")
@@ -1963,13 +1963,13 @@ startxref
         print(f"  ✅ GET /api/v1/executions/?tool_name={{name}} - List execution history")
         print(f"  ✅ DELETE /api/v1/executions/{{id}}/ - Delete execution")
         print(f"\nAsync Tools Tested (Azure Functions + Blob Storage):")
-        print(f"  ✅ pdf-docx-converter → pdf-uploads/pdf-processed containers")
-        print(f"  ✅ image-format-converter → image-uploads/image-processed containers")
-        print(f"  ✅ video-rotation → video-uploads/video-processed containers")
-        print(f"  ✅ ocr-tool → ocr-uploads/ocr-processed containers")
-        print(f"  ✅ gpx-kml-converter → gpx-uploads/gpx-processed containers")
-        print(f"  ✅ gpx-merger → gpx-uploads/gpx-processed containers")
-        print(f"  ✅ gpx-speed-modifier → gpx-uploads/gpx-processed containers")
+        print(f"  ✅ pdf-docx-converter → uploads/pdf/, processed/pdf/ (FR-011)")
+        print(f"  ✅ image-format-converter → uploads/image/, processed/image/ (FR-011)")
+        print(f"  ✅ video-rotation → uploads/video/, processed/video/ (FR-011)")
+        print(f"  ✅ ocr-tool → uploads/ocr/, processed/ocr/ (FR-011)")
+        print(f"  ✅ gpx-kml-converter → uploads/gpx/, processed/gpx/ (FR-011)")
+        print(f"  ✅ gpx-merger → uploads/gpx/, processed/gpx/ (FR-011)")
+        print(f"  ✅ gpx-speed-modifier → uploads/gpx/, processed/gpx/ (FR-011)")
         print(f"\nSync Tools Tested (Direct Processing):")
         print(f"  ✅ unit-converter (no file upload)")
         print(f"  ✅ base64-encoder")

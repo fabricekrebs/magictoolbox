@@ -1238,14 +1238,11 @@ class ToolViewSet(viewsets.ViewSet):
                     }
                     rotation_degrees = rotation_map.get(rotation, 90)
                     
-                    # Fix blob_name to include container name
-                    # blob_name format: "video/xxxxx.mp4" from video-uploads container
-                    # Azure Function expects: "video-uploads/video/xxxxx.mp4"
-                    full_blob_path = f"video-uploads/{blob_name}" if not blob_name.startswith("video-uploads/") else blob_name
-                    
+                    # blob_name already includes category prefix (e.g., "video/xxxxx.mp4")
+                    # FR-011: All uploads go to 'uploads' container with category subdirectories
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": full_blob_path,
+                        "blob_name": blob_name,  # Format: video/{execution_id}.mp4
                         "rotation": rotation_degrees
                     }
                     logger.info(f"🚀 Triggering video rotation (async): {function_url}")

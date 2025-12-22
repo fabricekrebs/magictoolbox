@@ -315,12 +315,12 @@ az storage container list \
 - ✅ Azure Key Vault (with private endpoint)
 - ✅ Azure Cache for Redis (with private endpoint)
 - ✅ PostgreSQL Flexible Server (with private endpoint)
-- ✅ Storage Account with containers:
-  - `pdf-uploads`, `pdf-processed`
-  - `image-uploads`, `image-processed`
-  - `video-uploads`, `video-processed`
-  - `gpx-uploads`, `gpx-processed`
-  - `ocr-uploads`, `ocr-processed`
+- ✅ Storage Account with FR-011 standardized containers:
+  - `static` - Static web assets
+  - `deployments` - Function App deployment packages
+  - `uploads` - Input files (organized by category: uploads/pdf/, uploads/image/, uploads/video/, uploads/gpx/, uploads/ocr/)
+  - `processed` - Output files (organized by category: processed/pdf/, processed/image/, etc.)
+  - `temp` - Temporary files (auto-cleanup after 24h via lifecycle policy)
 - ✅ Container Apps Environment
 - ✅ Azure Function App (Flex Consumption)
 

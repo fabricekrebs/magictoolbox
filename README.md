@@ -1,4 +1,67 @@
-# MagicToolbox Backend
+# MagicToolbox
+
+**A comprehensive web-based utility platform for file conversion, GPS tracking, text processing, and image manipulation.**
+
+## 🎯 What is MagicToolbox?
+
+MagicToolbox is a modular Django-based web application that provides users with a powerful collection of tools for everyday file conversion and data transformation needs. Whether you're a developer, fitness enthusiast, content creator, or power user, MagicToolbox offers professional-grade utilities accessible through a clean, responsive web interface.
+
+### Tool Categories
+
+#### 📄 Document Processing
+- **PDF to DOCX Converter**: Convert PDF documents to editable Word format with layout preservation
+- Async processing via Azure Functions for large files
+
+#### 🖼️ Image Tools
+- **Image Format Converter**: Convert between 15+ formats (JPEG, PNG, WebP, HEIC, TIFF, BMP, ICO, and more)
+- **EXIF Metadata Extractor**: Extract camera settings, GPS coordinates, timestamps, and technical details
+- **OCR Text Extractor**: Extract text from images in 14+ languages (English, Spanish, French, German, Chinese, Japanese, Korean, Arabic, and more)
+- Automatic image preprocessing for optimal OCR accuracy
+
+#### 🎥 Video Tools
+- **Video Rotation**: Rotate videos 90°, 180°, or 270° with async processing
+- Support for MP4, AVI, MOV, MKV formats
+
+#### 🗺️ GPS & Fitness Tracking
+- **GPX Track Analyzer**: Comprehensive analysis with distance, elevation, speed, and interactive charts
+- **GPX Merger**: Combine multiple GPX files with 3 merge modes (chronological, sequential, preserve order)
+- **GPX ↔ KML Converter**: Bidirectional conversion between GPS formats with bulk conversion support
+- **GPX Speed Modifier**: Adjust track speeds for privacy or simulation
+
+#### ✍️ Text Utilities
+- **Base64 Encoder/Decoder**: Bidirectional Base64 conversion with text or file input
+- **Hash Generators**: Generate MD5, SHA-1, SHA-256, SHA-512 hashes
+- **JSON Formatter**: Format and validate JSON with syntax highlighting
+
+#### 🔢 Unit Conversion
+- **Universal Unit Converter**: Convert 160+ units across 18 categories
+- Categories: Length, area, volume, weight, temperature, speed, time, energy, power, pressure, data storage, currency, angle, force, torque, fuel consumption, and more
+- Bidirectional conversion: edit either source or destination value
+
+### 🏗️ Architecture
+
+**Backend**: Django 5.0+ with REST API (Django REST Framework)  
+**Frontend**: Django Templates + Bootstrap 5 (responsive, mobile-first)  
+**Async Processing**: Azure Functions (Python) for heavy file operations  
+**Database**: PostgreSQL (Azure Database for PostgreSQL Flexible Server)  
+**Cache**: Redis (Azure Cache for Redis)  
+**Storage**: Azure Blob Storage for file uploads and processing  
+**Deployment**: Azure Container Apps with auto-scaling  
+**Infrastructure**: Bicep templates for reproducible deployments  
+
+### ✨ Key Features
+
+- **Responsive Design**: Works seamlessly on desktop, tablet, and mobile devices
+- **Async Processing**: Long-running operations processed in background with real-time status updates
+- **History Tracking**: View and manage past conversions with download/delete actions
+- **Plugin Architecture**: Easy to add new tools following established patterns
+- **Security First**: Input validation, rate limiting, Azure Key Vault for secrets
+- **WCAG 2.1 AA Accessibility**: Inclusive design for all users
+- **High Performance**: Caching, CDN, optimized database queries (<200ms p95)
+
+---
+
+## 🚀 Quick Start
 
 Django backend for the MagicToolbox file conversion application.
 
@@ -248,16 +311,16 @@ magictoolbox/
 ┌─────────────────────────────────────────────────────────────────────┐
 │              Azure Blob Storage (Standard LRS)                       │
 │  ┌───────────────────────────────────────────────────────────────┐  │
-│  │  Containers:                                                  │  │
-│  │  - uploads/       (input files: pdf/, image/, video/, gpx/)   │  │
-│  │  - processed/     (output files: same structure)              │  │
-│  │  - video-uploads/ (video-specific inputs)                     │  │
-│  │  - video-processed/ (video-specific outputs)                  │  │
+│  │  FR-011 Standardized Containers:                              │  │
+│  │  - uploads/       (organized: pdf/, image/, video/, gpx/, ocr/)│ │
+│  │  - processed/     (same category structure as uploads/)       │  │
 │  │  - temp/          (lifecycle: auto-delete after 24h)          │  │
+│  │  - static/        (web assets: CSS, JS, images)               │  │
+│  │  - deployments/   (Function App packages)                     │  │
 │  └───────────────────────────────────────────────────────────────┘  │
 │                                                                      │
-│  Access: Public blob access (for Functions runtime)                 │
-│  Authentication: Managed Identity + Access Keys                     │
+│  Access: Private (VNet + Managed Identity)                          │
+│  Authentication: Managed Identity (production), Connection String   │
 └──────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────┐

@@ -1,0 +1,86 @@
+<!-- Upload Form Include -->
+<!-- Use with: {% include 'tools/includes/upload_form.html' with form=form tool=tool %} -->
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-cloud-upload"></i> Upload File</h5>
+    </div>
+    <div class="card-body">
+        <form id="uploadForm" method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+            {% csrf_token %}
+            
+            {% if tool.allowed_input_types %}
+            <div class="mb-3">
+                <label for="fileInput" class="form-label fw-bold">
+                    Select File
+                    <span class="text-muted">({{ tool.allowed_input_types|join:", " }})</span>
+                </label>
+                <input 
+                    type="file" 
+                    class="form-control" 
+                    id="fileInput" 
+                    name="file" 
+                    accept="{{ tool.allowed_input_types|join:',' }}"
+                    required
+                    aria-describedby="fileHelp"
+                >
+                <div class="form-text" id="fileHelp">
+                    Maximum file size: {{ tool.max_file_size|filesizeformat }}
+                </div>
+                <div class="invalid-feedback">
+                    Please select a valid file.
+                </div>
+            </div>
+            {% else %}
+            <!-- Text-based tool input -->
+            <div class="mb-3">
+                <label for="textInput" class="form-label fw-bold">Input Text</label>
+                <textarea 
+                    class="form-control" 
+                    id="textInput" 
+                    name="text" 
+                    rows="6"
+                    required
+                    aria-describedby="textHelp"
+                ></textarea>
+                <div class="form-text" id="textHelp">
+                    Enter the text you want to process.
+                </div>
+                <div class="invalid-feedback">
+                    Please enter some text.
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Tool-specific parameters (if any) -->
+            <div id="toolParameters">
+                {% block tool_parameters %}
+                <!-- Override this block in tool-specific templates for custom parameters -->
+                {% endblock %}
+            </div>
+            
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                    <i class="bi bi-play-circle"></i> Process
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Form validation
+(function() {
+    'use strict';
+    const form = document.getElementById('uploadForm');
+    if (form) {
+        form.addEventListener('submit', function(event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        }, false);
+    }
+})();
+</script>

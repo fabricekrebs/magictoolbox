@@ -109,7 +109,7 @@ az storage container list --account-name $STORAGE_ACCOUNT --auth-mode login --ou
 ```
 
 - [ ] Virtual Network deployed
-- [ ] Storage Account with containers: `pdf-uploads`, `pdf-processed`, `image-uploads`, `image-processed`, `video-uploads`, `video-processed`, `gpx-uploads`, `gpx-processed`, `ocr-uploads`, `ocr-processed`
+- [ ] Storage Account with FR-011 standardized containers: `static`, `deployments`, `uploads` (with pdf/, image/, video/, gpx/, ocr/ subdirectories), `processed` (with matching subdirectories), `temp` (auto-cleanup enabled)
 - [ ] PostgreSQL Flexible Server deployed
 - [ ] Azure Cache for Redis deployed
 - [ ] Key Vault deployed

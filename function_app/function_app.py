@@ -95,20 +95,13 @@ def health_check(req: func.HttpRequest) -> func.HttpResponse:
     try:
         blob_service = get_blob_service_client()
         
-        # All containers used by tools
+        # All containers used by tools (FR-011: uploads, processed, temp)
         containers_to_check = [
             'static',
             'deployments',
-            'pdf-uploads',
-            'pdf-processed',
-            'image-uploads',
-            'image-processed',
-            'gpx-uploads',
-            'gpx-processed',
-            'video-uploads',
-            'video-processed',
-            'ocr-uploads',
-            'ocr-processed'
+            'uploads',      # Single uploads container (contains video/, pdf/, image/, gpx/, ocr/ subdirs)
+            'processed',    # Single processed container (contains category subdirs)
+            'temp'          # Temporary files
         ]
         
         container_status = {}
@@ -253,11 +246,12 @@ def rotate_video(req: func.HttpRequest) -> func.HttpResponse:
         logger.info("📥 Downloading video from blob storage...")
         blob_service_client = get_blob_service_client()
         
-        # Extract container and blob path
-        parts = blob_name.split('/', 1)
-        container_name = parts[0] if len(parts) > 1 else 'video-uploads'
-        blob_path = parts[1] if len(parts) > 1 else blob_name
+        # FR-011: blob_name format is "video/{uuid}.mp4" (category subdirectory)
+        # All uploads are in 'uploads' container with category subdirectories
+        container_name = 'uploads'
+        blob_path = blob_name  # Already includes category prefix: video/{uuid}.mp4
         
+        logger.info(f"📦 Container: {container_name}, Blob: {blob_path}")
         blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_path)
         
         # Create temp file for input
@@ -306,19 +300,19 @@ def rotate_video(req: func.HttpRequest) -> func.HttpResponse:
         output_size = os.path.getsize(temp_output_path)
         logger.info(f"✅ Rotated video: {output_size:,} bytes")
         
-        # Upload result to 'video-processed' container
-        output_blob_name = f"video-processed/{execution_id}.mp4"
-        logger.info(f"📤 Uploading to: {output_blob_name}")
+        # FR-011: Upload result to 'processed' container with video/ subdirectory
+        output_blob_path = f"video/{execution_id}.mp4"
+        logger.info(f"📤 Uploading to processed container: {output_blob_path}")
         
         output_blob_client = blob_service_client.get_blob_client(
-            container='video-processed',
-            blob=f"{execution_id}.mp4"
+            container='processed',
+            blob=output_blob_path
         )
         
         with open(temp_output_path, 'rb') as f:
             output_blob_client.upload_blob(f, overwrite=True)
         
-        logger.info(f"✅ Upload complete: {output_blob_name}")
+        logger.info(f"✅ Upload complete: {output_blob_path}")
         
         # Determine output filename (preserve original name, keep .mp4 extension)
         if input_filename:
@@ -338,7 +332,7 @@ def rotate_video(req: func.HttpRequest) -> func.HttpResponse:
                     completed_at = NOW(),
                     updated_at = NOW()
                 WHERE id = %s
-            """, (output_blob_name, output_filename, execution_id))
+            """, (output_blob_path, output_filename, execution_id))
             conn.commit()
             cursor.close()
             conn.close()
@@ -466,10 +460,11 @@ def convert_pdf_to_docx(req: func.HttpRequest) -> func.HttpResponse:
         logger.info("📥 Downloading PDF...")
         blob_service = get_blob_service_client()
         
-        parts = blob_name.split('/', 1)
-        container_name = parts[0] if len(parts) > 1 else 'pdf-uploads'
-        blob_path = parts[1] if len(parts) > 1 else blob_name
+        # FR-011: blob_name format is "pdf/{uuid}.pdf"
+        container_name = 'uploads'
+        blob_path = blob_name
         
+        logger.info(f"📦 Container: {container_name}, Blob: {blob_path}")
         blob_client = blob_service.get_blob_client(container=container_name, blob=blob_path)
         
         temp_pdf_path = tempfile.mktemp(suffix='.pdf')
@@ -492,12 +487,12 @@ def convert_pdf_to_docx(req: func.HttpRequest) -> func.HttpResponse:
         logger.info(f"✅ Converted: {docx_size:,} bytes")
         
         # Upload result
-        output_blob_name = f"pdf-processed/{execution_id}.docx"
-        logger.info(f"📤 Uploading to: {output_blob_name}")
+        output_blob_path = f"pdf/{execution_id}.docx"
+        logger.info(f"📤 Uploading to processed container: {output_blob_path}")
         
         output_blob_client = blob_service.get_blob_client(
-            container='pdf-processed',
-            blob=f"{execution_id}.docx"
+            container='processed',
+            blob=output_blob_path
         )
         
         with open(temp_docx_path, 'rb') as f:
@@ -752,10 +747,11 @@ def convert_gpx_kml(req: func.HttpRequest) -> func.HttpResponse:
         logger.info("📥 Downloading file...")
         blob_service = get_blob_service_client()
         
-        parts = blob_name.split('/', 1)
-        container_name = parts[0] if len(parts) > 1 else 'gpx-uploads'
-        blob_path = parts[1] if len(parts) > 1 else blob_name
+        # FR-011: blob_name format is "gpx/{uuid}.gpx" or "gpx/{uuid}.kml"
+        container_name = 'uploads'
+        blob_path = blob_name
         
+        logger.info(f"📦 Container: {container_name}, Blob: {blob_path}")
         blob_client = blob_service.get_blob_client(container=container_name, blob=blob_path)
         
         input_ext = '.gpx' if conversion_type == 'gpx_to_kml' else '.kml'
@@ -786,13 +782,13 @@ def convert_gpx_kml(req: func.HttpRequest) -> func.HttpResponse:
         output_size = os.path.getsize(temp_output_path)
         logger.info(f"✅ Converted: {output_size:,} bytes")
         
-        # Upload result
-        output_blob_name = f"gpx-processed/{execution_id}{output_ext}"
-        logger.info(f"📤 Uploading to: {output_blob_name}")
+        # Upload result (FR-011: processed/{category}/ pattern)
+        output_blob_path = f"gpx/{execution_id}{output_ext}"
+        logger.info(f"📤 Uploading to: processed/{output_blob_path}")
         
         output_blob_client = blob_service.get_blob_client(
-            container='gpx-processed',
-            blob=f"{execution_id}{output_ext}"
+            container='processed',
+            blob=output_blob_path
         )
         
         with open(temp_output_path, 'rb') as f:
@@ -949,12 +945,12 @@ def convert_image(req: func.HttpRequest) -> func.HttpResponse:
         except Exception as db_error:
             logger.warning(f"⚠️  Database update failed: {db_error}")
         
-        # Download input image from blob storage
+        # Download input image from blob storage (FR-011: uploads/{category}/ pattern)
         input_ext = f".{input_format}" if input_format != 'jpeg' else '.jpg'
-        blob_path = f"{execution_id}{input_ext}"
-        logger.info(f"📥 Downloading from blob: image-uploads/{blob_path}")
+        blob_path = f"image/{execution_id}{input_ext}"
+        logger.info(f"📥 Downloading from blob: uploads/{blob_path}")
         
-        blob_client = get_blob_client("image-uploads", blob_path)
+        blob_client = get_blob_client("uploads", blob_path)
         temp_input_path = f"/tmp/{execution_id}_input{input_ext}"
         
         with open(temp_input_path, "wb") as f:
@@ -1014,9 +1010,9 @@ def convert_image(req: func.HttpRequest) -> func.HttpResponse:
         
         # Upload to processed container
         output_blob_path = f"{execution_id}{output_ext}"
-        logger.info(f"📤 Uploading to blob: image-processed/{output_blob_path}")
+        logger.info(f"📤 Uploading to blob: processed/image/{output_blob_path}")
         
-        output_blob_client = get_blob_client("image-processed", output_blob_path)
+        output_blob_client = get_blob_client("processed", f"image/{output_blob_path}")
         with open(temp_output_path, "rb") as f:
             output_blob_client.upload_blob(f, overwrite=True)
         logger.info("✅ Uploaded converted image")
@@ -1031,8 +1027,8 @@ def convert_image(req: func.HttpRequest) -> func.HttpResponse:
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
-            # Set output_blob_path to include container and blob path for download endpoint
-            output_blob_full_path = f"image-processed/{execution_id}{output_ext}"
+            # Set output_blob_path to include container and blob path for download endpoint (FR-011: processed/{category}/)
+            output_blob_full_path = f"processed/image/{execution_id}{output_ext}"
             cursor.execute("""
                 UPDATE tool_executions
                 SET status = 'completed',
@@ -1138,11 +1134,11 @@ def modify_gpx_speed(req: func.HttpRequest) -> func.HttpResponse:
         except Exception as db_error:
             logger.warning(f"⚠️  Database update failed: {db_error}")
         
-        # Download input GPX from blob storage
-        blob_path = f"{execution_id}.gpx"
-        logger.info(f"📥 Downloading from blob: gpx-uploads/{blob_path}")
+        # Download input GPX from blob storage (FR-011: uploads/{category}/ pattern)
+        blob_path = f"gpx/{execution_id}.gpx"
+        logger.info(f"📥 Downloading from blob: uploads/{blob_path}")
         
-        blob_client = get_blob_client("gpx-uploads", blob_path)
+        blob_client = get_blob_client("uploads", blob_path)
         temp_input_path = f"/tmp/{execution_id}_input.gpx"
         
         with open(temp_input_path, "wb") as f:
@@ -1164,11 +1160,11 @@ def modify_gpx_speed(req: func.HttpRequest) -> func.HttpResponse:
         
         logger.info(f"✅ Modified GPX: {os.path.getsize(temp_output_path)} bytes")
         
-        # Upload to processed container
-        output_blob_path = f"{execution_id}.gpx"
-        logger.info(f"📤 Uploading to blob: gpx-processed/{output_blob_path}")
+        # Upload to processed container (FR-011: processed/{category}/ pattern)
+        output_blob_path = f"gpx/{execution_id}.gpx"
+        logger.info(f"📤 Uploading to blob: processed/{output_blob_path}")
         
-        output_blob_client = get_blob_client("gpx-processed", output_blob_path)
+        output_blob_client = get_blob_client("processed", output_blob_path)
         with open(temp_output_path, "rb") as f:
             output_blob_client.upload_blob(f, overwrite=True)
         logger.info("✅ Uploaded modified GPX")
@@ -1199,7 +1195,8 @@ def modify_gpx_speed(req: func.HttpRequest) -> func.HttpResponse:
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
-            output_blob_full_path = f"gpx-processed/{execution_id}.gpx"
+            # FR-011: processed/{category}/ pattern
+            output_blob_full_path = f"processed/gpx/{execution_id}.gpx"
             cursor.execute("""
                 UPDATE tool_executions
                 SET status = 'completed',
@@ -1306,19 +1303,13 @@ def list_blobs(req: func.HttpRequest) -> func.HttpResponse:
         logger.info("📂 Listing blobs in storage containers")
         
         blob_service = get_blob_service_client()
+        # FR-011: Standardized container structure
         containers = [
             'static',
             'deployments',
-            'pdf-uploads',
-            'pdf-processed',
-            'image-uploads',
-            'image-processed',
-            'gpx-uploads',
-            'gpx-processed',
-            'video-uploads',
-            'video-processed',
-            'ocr-uploads',
-            'ocr-processed'
+            'uploads',
+            'processed',
+            'temp'
         ]
         
         result = {}
@@ -1399,12 +1390,13 @@ def extract_text_ocr(req: func.HttpRequest) -> func.HttpResponse:
         except Exception as db_error:
             logger.warning(f"⚠️  Database update failed: {db_error}")
         
-        # Download input image from blob storage
+        # Download input image from blob storage (FR-011: uploads/{category}/ pattern)
+        # blob_path already includes 'image/' prefix from tool plugin
         input_ext = f".{input_format}"
         blob_path = f"image/{execution_id}{input_ext}"
-        logger.info(f"📥 Downloading from blob: ocr-uploads/{blob_path}")
+        logger.info(f"📥 Downloading from blob: uploads/{blob_path}")
         
-        blob_client = get_blob_client("ocr-uploads", blob_path)
+        blob_client = get_blob_client("uploads", blob_path)
         temp_input_path = f"/tmp/{execution_id}_input{input_ext}"
         
         with open(temp_input_path, "wb") as f:
@@ -1465,12 +1457,12 @@ def extract_text_ocr(req: func.HttpRequest) -> func.HttpResponse:
             f.write(extracted_text)
         logger.info(f"✅ Saved text: {os.path.getsize(temp_output_path)} bytes")
         
-        # Upload to processed container
-        output_blob_path = f"{execution_id}.txt"
-        full_output_blob_path = f"ocr-processed/{output_blob_path}"
+        # Upload to processed container (FR-011: processed/{category}/ pattern)
+        output_blob_path = f"ocr/{execution_id}.txt"
+        full_output_blob_path = f"processed/{output_blob_path}"
         logger.info(f"📤 Uploading to blob: {full_output_blob_path}")
         
-        output_blob_client = get_blob_client("ocr-processed", output_blob_path)
+        output_blob_client = get_blob_client("processed", output_blob_path)
         with open(temp_output_path, "rb") as f:
             output_blob_client.upload_blob(f, overwrite=True)
         logger.info("✅ Uploaded OCR result")
@@ -1604,15 +1596,15 @@ def merge_gpx_files(req: func.HttpRequest) -> func.HttpResponse:
         except Exception as db_error:
             logger.warning(f"⚠️  Database update failed: {db_error}")
         
-        # Download all GPX files from blob storage
+        # Download all GPX files from blob storage (FR-011: uploads/{category}/ pattern)
         import xml.etree.ElementTree as ET
         
         gpx_roots = []
         for i in range(file_count):
-            blob_path = f"{execution_id}_{i:03d}.gpx"
-            logger.info(f"📥 Downloading [{i+1}/{file_count}]: gpx-uploads/{blob_path}")
+            blob_path = f"gpx/{execution_id}_{i:03d}.gpx"
+            logger.info(f"📥 Downloading [{i+1}/{file_count}]: uploads/{blob_path}")
             
-            blob_client = get_blob_client("gpx-uploads", blob_path)
+            blob_client = get_blob_client("uploads", blob_path)
             temp_path = f"/tmp/{execution_id}_input_{i}.gpx"
             temp_files.append(temp_path)
             
@@ -1646,11 +1638,11 @@ def merge_gpx_files(req: func.HttpRequest) -> func.HttpResponse:
         
         logger.info(f"✅ Merged GPX: {os.path.getsize(temp_output_path)} bytes")
         
-        # Upload to processed container
-        output_blob_path = f"{execution_id}.gpx"
-        logger.info(f"📤 Uploading to blob: gpx-processed/{output_blob_path}")
+        # Upload to processed container (FR-011: processed/{category}/ pattern)
+        output_blob_path = f"gpx/{execution_id}.gpx"
+        logger.info(f"📤 Uploading to blob: processed/{output_blob_path}")
         
-        output_blob_client = get_blob_client("gpx-processed", output_blob_path)
+        output_blob_client = get_blob_client("processed", output_blob_path)
         with open(temp_output_path, "rb") as f:
             output_blob_client.upload_blob(f, overwrite=True)
         logger.info("✅ Uploaded merged GPX")
@@ -1681,7 +1673,8 @@ def merge_gpx_files(req: func.HttpRequest) -> func.HttpResponse:
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
-            output_blob_full_path = f"gpx-processed/{execution_id}.gpx"
+            # FR-011: processed/{category}/ pattern
+            output_blob_full_path = f"processed/gpx/{execution_id}.gpx"
             cursor.execute("""
                 UPDATE tool_executions
                 SET status = 'completed',

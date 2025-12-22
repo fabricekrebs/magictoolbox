@@ -226,8 +226,8 @@ class ImageFormatConverter(BaseTool):
             normalized_ext = f".{input_format}"
             blob_name = f"{execution_id}{normalized_ext}"
             blob_client = blob_service.get_blob_client(
-                container="image-uploads",
-                blob=blob_name
+                container="uploads",
+                blob=f"image/{blob_name}"
             )
 
             # Prepare metadata for Azure Function
@@ -273,7 +273,7 @@ class ImageFormatConverter(BaseTool):
                     function_url = f"{base_url}/image/convert"
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": f"image-uploads/{blob_name}",  # Full path: image-uploads/{uuid}.ext
+                        "blob_name": f"image/{blob_name}",  # FR-011: uploads container, image/ subdirectory
                         "input_format": input_format,  # Add input format from file extension
                         "output_format": output_format,
                         "quality": quality

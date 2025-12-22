@@ -124,92 +124,69 @@ resource deploymentsContainer 'Microsoft.Storage/storageAccounts/blobServices/co
 }
 
 // ============================================================================
-// TOOL-SPECIFIC CONTAINERS (Recommended Architecture)
-// Each tool has dedicated upload and processed containers for better isolation
+// STANDARDIZED CONTAINER ARCHITECTURE (FR-011 Specification)
+// Three containers with virtual subdirectories: uploads/{category}/, processed/{category}/, temp/
+// This approach simplifies container management and aligns with Azure blob naming best practices
 // ============================================================================
 
-// PDF Tool Containers
-resource pdfUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
+// Container for input files (uploads/{category}/)
+resource uploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
   parent: blobService
-  name: 'pdf-uploads'
+  name: 'uploads'
   properties: {
     publicAccess: 'None'
   }
 }
 
-resource pdfProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
+// Container for processed/output files (processed/{category}/)
+resource processedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
   parent: blobService
-  name: 'pdf-processed'
+  name: 'processed'
   properties: {
     publicAccess: 'None'
   }
 }
 
-// Image Tool Containers
-resource imageUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
+// Container for temporary files with lifecycle management
+resource tempContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
   parent: blobService
-  name: 'image-uploads'
+  name: 'temp'
   properties: {
     publicAccess: 'None'
   }
 }
 
-resource imageProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
-  parent: blobService
-  name: 'image-processed'
+// Lifecycle management policy for automatic cleanup of temp files
+resource lifecyclePolicy 'Microsoft.Storage/storageAccounts/managementPolicies@2025-06-01' = {
+  parent: storageAccount
+  name: 'default'
   properties: {
-    publicAccess: 'None'
-  }
-}
-
-// GPX Tool Containers
-resource gpxUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
-  parent: blobService
-  name: 'gpx-uploads'
-  properties: {
-    publicAccess: 'None'
-  }
-}
-
-resource gpxProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
-  parent: blobService
-  name: 'gpx-processed'
-  properties: {
-    publicAccess: 'None'
-  }
-}
-
-// Video Tool Containers
-resource videoUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
-  parent: blobService
-  name: 'video-uploads'
-  properties: {
-    publicAccess: 'None'
-  }
-}
-
-resource videoProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
-  parent: blobService
-  name: 'video-processed'
-  properties: {
-    publicAccess: 'None'
-  }
-}
-
-// OCR Tool Containers
-resource ocrUploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
-  parent: blobService
-  name: 'ocr-uploads'
-  properties: {
-    publicAccess: 'None'
-  }
-}
-
-resource ocrProcessedContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
-  parent: blobService
-  name: 'ocr-processed'
-  properties: {
-    publicAccess: 'None'
+    policy: {
+      rules: [
+        {
+          enabled: true
+          name: 'delete-old-temp-files'
+          type: 'Lifecycle'
+          definition: {
+            actions: {
+              baseBlob: {
+                delete: {
+                  daysAfterModificationGreaterThan: 1 // Delete files older than 24 hours
+                }
+              }
+            }
+            filters: {
+              blobTypes: [
+                'blockBlob'
+              ]
+              prefixMatch: [
+                'temp/'
+              ]
+            }
+          }
+        }
+      ]
+    }
   }
 }
 
