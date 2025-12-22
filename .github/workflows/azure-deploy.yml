@@ -1,4 +1,5 @@
 name: Release and Deploy
+# Force deployment - v1.0.0
 
 on:
   push:
