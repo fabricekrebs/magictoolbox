@@ -185,6 +185,7 @@ module containerApps './modules/container-apps.bicep' = {
     functionAppUrl: 'https://${functionApp.outputs.functionAppHostName}/api'
     imageTag: imageTag
     userAssignedIdentityId: managedIdentity.outputs.managedIdentityId
+    userAssignedIdentityClientId: managedIdentity.outputs.managedIdentityClientId
   }
 }
 
