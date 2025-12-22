@@ -1250,15 +1250,26 @@ class ToolViewSet(viewsets.ViewSet):
                     }
                     logger.info(f"🚀 Triggering video rotation (async): {function_url}")
                     logger.info(f"Payload: {payload}")
-                    # Fire-and-forget: trigger the function without waiting for completion
-                    # Frontend will poll status endpoint to check progress
-                    response = requests.post(function_url, json=payload, timeout=5)
-                    logger.info(f"✅ Azure Function triggered: {response.status_code}")
-                except requests.exceptions.Timeout:
-                    # Expected for async operations - function is processing in background
-                    logger.info(f"⏱️ Azure Function processing asynchronously (timeout OK)")
+                    
+                    # Use background thread to avoid blocking
+                    import threading
+                    
+                    def trigger_function():
+                        try:
+                            # Give enough time for the request to be sent and received
+                            response = requests.post(function_url, json=payload, timeout=30)
+                            logger.info(f"✅ Azure Function triggered: {response.status_code}")
+                            if response.status_code == 200:
+                                logger.info(f"Response: {response.text[:200]}")
+                        except Exception as e:
+                            logger.error(f"❌ Failed to trigger Azure Function: {e}")
+                    
+                    thread = threading.Thread(target=trigger_function, daemon=True)
+                    thread.start()
+                    logger.info(f"🎯 Azure Function trigger initiated in background")
+                    
                 except Exception as func_error:
-                    logger.error(f"❌ Failed to trigger Azure Function: {func_error}", exc_info=True)
+                    logger.error(f"❌ Failed to setup Azure Function trigger: {func_error}", exc_info=True)
             
             return Response({
                 "execution_id": execution_id,
