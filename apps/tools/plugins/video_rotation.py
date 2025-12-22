@@ -98,7 +98,10 @@ class VideoRotation(BaseTool):
         # Check file extension
         file_ext = Path(input_file.name).suffix.lower()
         if file_ext not in self.allowed_input_types:
-            return False, f"Unsupported file type: {file_ext}. Allowed: {', '.join(self.allowed_input_types)}"
+            return (
+                False,
+                f"Unsupported file type: {file_ext}. Allowed: {', '.join(self.allowed_input_types)}",
+            )
 
         # Check rotation parameter
         rotation = parameters.get("rotation")
@@ -131,7 +134,7 @@ class VideoRotation(BaseTool):
             ToolExecutionError: If upload fails
         """
         rotation = parameters.get("rotation")
-        
+
         # Generate execution ID if not provided
         if not execution_id:
             execution_id = str(uuid.uuid4())
@@ -146,10 +149,7 @@ class VideoRotation(BaseTool):
 
             # Upload to video-uploads container
             blob_name = f"{execution_id}{Path(input_file.name).suffix}"
-            blob_client = blob_service.get_blob_client(
-                container="video-uploads",
-                blob=blob_name
-            )
+            blob_client = blob_service.get_blob_client(container="video-uploads", blob=blob_name)
 
             # Upload file with metadata
             metadata = {
@@ -161,15 +161,11 @@ class VideoRotation(BaseTool):
 
             self.logger.info(f"Uploading to blob: {blob_name}")
             file_content = input_file.read()
-            blob_client.upload_blob(
-                file_content,
-                overwrite=True,
-                metadata=metadata
-            )
+            blob_client.upload_blob(file_content, overwrite=True, metadata=metadata)
 
-            self.logger.info(f"✅ Video uploaded successfully to Azure Blob Storage")
+            self.logger.info("✅ Video uploaded successfully to Azure Blob Storage")
             self.logger.info(f"   Blob name: {blob_name}")
-            self.logger.info(f"   Container: video-uploads")
+            self.logger.info("   Container: video-uploads")
             self.logger.info(f"   Size: {len(file_content):,} bytes")
 
             # Note: Azure Function trigger happens in the rotate-video endpoint
@@ -185,7 +181,7 @@ class VideoRotation(BaseTool):
     def _get_blob_service_client(self) -> BlobServiceClient:
         """
         Get Azure Blob Storage client.
-        
+
         Uses connection string for local Azurite, DefaultAzureCredential for Azure.
         This matches the pattern used in PDF converter.
         """
@@ -205,18 +201,22 @@ class VideoRotation(BaseTool):
             )
 
         account_url = f"https://{storage_account_name}.blob.core.windows.net"
-        
+
         # Use AzureCliCredential for local/testing, DefaultAzureCredential for production
         # Check for explicit flag or if running in local development
         use_cli_auth = os.getenv("USE_AZURE_CLI_AUTH", "false").lower() == "true" or settings.DEBUG
-        
+
         if use_cli_auth:
-            self.logger.info(f"🔐 Using Azure CLI credential for storage account: {storage_account_name}")
+            self.logger.info(
+                f"🔐 Using Azure CLI credential for storage account: {storage_account_name}"
+            )
             credential = AzureCliCredential()
         else:
-            self.logger.info(f"🔐 Using Azure Managed Identity for storage account: {storage_account_name}")
+            self.logger.info(
+                f"🔐 Using Azure Managed Identity for storage account: {storage_account_name}"
+            )
             credential = DefaultAzureCredential()
-        
+
         return BlobServiceClient(account_url=account_url, credential=credential)
 
     def cleanup(self, *file_paths: str) -> None:

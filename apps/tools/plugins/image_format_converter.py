@@ -221,14 +221,11 @@ class ImageFormatConverter(BaseTool):
             # Upload to image uploads container
             file_ext = Path(input_file.name).suffix
             # Extract input format from file extension (remove the dot and normalize to lowercase)
-            input_format = file_ext.lstrip('.').lower() if file_ext else 'jpg'
+            input_format = file_ext.lstrip(".").lower() if file_ext else "jpg"
             # Use normalized lowercase extension for blob storage path
             normalized_ext = f".{input_format}"
             blob_name = f"{execution_id}{normalized_ext}"
-            blob_client = blob_service.get_blob_client(
-                container="image-uploads",
-                blob=blob_name
-            )
+            blob_client = blob_service.get_blob_client(container="image-uploads", blob=blob_name)
 
             # Prepare metadata for Azure Function
             metadata = {
@@ -249,25 +246,23 @@ class ImageFormatConverter(BaseTool):
             # Upload file
             self.logger.info(f"⬆️  Uploading image to blob storage: {blob_name}")
             file_content = input_file.read()
-            blob_client.upload_blob(
-                file_content,
-                overwrite=True,
-                metadata=metadata
-            )
+            blob_client.upload_blob(file_content, overwrite=True, metadata=metadata)
 
             self.logger.info("✅ Image uploaded successfully to Azure Blob Storage")
             self.logger.info(f"   Blob name: {blob_name}")
-            self.logger.info(f"   Container: image-uploads")
+            self.logger.info("   Container: image-uploads")
             self.logger.info(f"   Size: {len(file_content):,} bytes")
 
             # Trigger Azure Function via HTTP (workaround for Flex Consumption blob trigger limitations)
             self.logger.info("=" * 80)
             self.logger.info("🚀 TRIGGERING AZURE FUNCTION FOR IMAGE CONVERSION")
             try:
-                import requests
                 import threading
+
+                import requests
+
                 base_url = getattr(settings, "AZURE_FUNCTION_BASE_URL", None)
-                
+
                 if base_url:
                     # Construct full URL by appending endpoint
                     function_url = f"{base_url}/image/convert"
@@ -276,7 +271,7 @@ class ImageFormatConverter(BaseTool):
                         "blob_name": f"image-uploads/{blob_name}",  # Full path: image-uploads/{uuid}.ext
                         "input_format": input_format,  # Add input format from file extension
                         "output_format": output_format,
-                        "quality": quality
+                        "quality": quality,
                     }
                     # Add optional resize parameters if provided
                     if resize_width:
@@ -285,16 +280,16 @@ class ImageFormatConverter(BaseTool):
                         payload["resize_height"] = int(resize_height)
                     self.logger.info(f"   Function URL: {function_url}")
                     self.logger.info(f"   Payload: {payload}")
-                    self.logger.info(f"   Sending async POST request...")
-                    
+                    self.logger.info("   Sending async POST request...")
+
                     # Use a background thread to avoid blocking the upload response
                     def trigger_function_async():
                         """Background thread to trigger Azure Function."""
                         try:
                             response = requests.post(function_url, json=payload, timeout=300)
-                            self.logger.info(f"📨 Response received from Azure Function")
+                            self.logger.info("📨 Response received from Azure Function")
                             self.logger.info(f"   Status code: {response.status_code}")
-                            
+
                             if response.status_code == 200:
                                 self.logger.info("✅ Azure Function triggered successfully")
                             else:
@@ -303,7 +298,7 @@ class ImageFormatConverter(BaseTool):
                                 )
                         except Exception as e:
                             self.logger.error(f"❌ Azure Function call failed in background: {e}")
-                    
+
                     # Start background thread and return immediately
                     thread = threading.Thread(target=trigger_function_async, daemon=True)
                     thread.start()

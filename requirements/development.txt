@@ -17,6 +17,16 @@ mypy>=1.8,<1.9
 django-stubs>=4.2,<4.3
 djangorestframework-stubs>=3.14,<3.15
 
+# Security
+bandit[toml]>=1.7,<1.8
+safety>=3.0,<4.0
+
+# Code complexity analysis
+radon>=6.0,<7.0
+
+# Pre-commit hooks
+pre-commit>=3.6,<4.0
+
 # Development tools
 django-extensions>=3.2,<3.3
 ipython>=8.20

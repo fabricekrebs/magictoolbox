@@ -30,12 +30,14 @@ class Base64Encoder(BaseTool):
     def get_metadata(self) -> Dict[str, Any]:
         """Return tool metadata."""
         base_metadata = super().get_metadata()
-        base_metadata.update({
-            "modes": ["encode", "decode"],
-            "max_text_size": self.max_file_size,
-            "requires_file_upload": False,
-            "supports_text_input": True,
-        })
+        base_metadata.update(
+            {
+                "modes": ["encode", "decode"],
+                "max_text_size": self.max_file_size,
+                "requires_file_upload": False,
+                "supports_text_input": True,
+            }
+        )
         return base_metadata
 
     def validate(
@@ -83,7 +85,7 @@ class Base64Encoder(BaseTool):
 
         # Validate text input size
         if text_input:
-            text_size = len(text_input.encode('utf-8'))
+            text_size = len(text_input.encode("utf-8"))
             if text_size > self.max_file_size:
                 max_mb = self.max_file_size / (1024 * 1024)
                 return False, f"Text input exceeds maximum limit of {max_mb}MB."
@@ -95,7 +97,7 @@ class Base64Encoder(BaseTool):
                 # Read a sample from file to validate
                 try:
                     input_file.seek(0)
-                    test_text = input_file.read(1000).decode('utf-8')
+                    test_text = input_file.read(1000).decode("utf-8")
                     input_file.seek(0)  # Reset for later processing
                 except Exception as e:
                     return False, f"Cannot read file for validation: {str(e)}"
@@ -103,7 +105,8 @@ class Base64Encoder(BaseTool):
             if test_text:
                 # Basic base64 validation (check if it looks like base64)
                 import re
-                if not re.match(r'^[A-Za-z0-9+/]*={0,2}$', test_text.strip()):
+
+                if not re.match(r"^[A-Za-z0-9+/]*={0,2}$", test_text.strip()):
                     return False, "Invalid Base64 format. Text contains invalid characters."
 
         return True, None
@@ -137,7 +140,7 @@ class Base64Encoder(BaseTool):
             if input_file:
                 self.logger.info(f"📄 Processing file: {input_file.name}")
                 input_file.seek(0)
-                content = input_file.read().decode('utf-8')
+                content = input_file.read().decode("utf-8")
             else:
                 self.logger.info("📝 Processing direct text input")
                 content = text_input
@@ -145,15 +148,15 @@ class Base64Encoder(BaseTool):
             # Perform operation
             if mode == "encode":
                 self.logger.info("🔒 Encoding to Base64")
-                encoded_bytes = base64.b64encode(content.encode('utf-8'))
-                result = encoded_bytes.decode('ascii')
+                encoded_bytes = base64.b64encode(content.encode("utf-8"))
+                result = encoded_bytes.decode("ascii")
                 operation = "encoded"
             else:  # decode
                 self.logger.info("🔓 Decoding from Base64")
                 # Remove whitespace/newlines that might have been added for readability
-                clean_content = content.replace('\n', '').replace('\r', '').replace(' ', '')
+                clean_content = content.replace("\n", "").replace("\r", "").replace(" ", "")
                 decoded_bytes = base64.b64decode(clean_content)
-                result = decoded_bytes.decode('utf-8')
+                result = decoded_bytes.decode("utf-8")
                 operation = "decoded"
 
             self.logger.info(f"✅ Successfully {operation} {len(content)} characters")
@@ -166,17 +169,17 @@ class Base64Encoder(BaseTool):
                 "input_length": len(content),
                 "output_length": len(result),
             }
-            
-            import tempfile
+
             import json
             import os
-            
+            import tempfile
+
             temp_fd, temp_path = tempfile.mkstemp(suffix=".json", prefix="base64_")
             os.close(temp_fd)
-            
+
             with open(temp_path, "w", encoding="utf-8") as f:
                 json.dump(result_data, f, indent=2, ensure_ascii=False)
-            
+
             # Return path to JSON file and filename
             return temp_path, "base64_result.json"
 

@@ -250,10 +250,7 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE
 
 # Azure Functions Configuration
 # Single base URL for all Azure Function endpoints
-AZURE_FUNCTION_BASE_URL = config(
-    "AZURE_FUNCTION_BASE_URL",
-    default=""
-)
+AZURE_FUNCTION_BASE_URL = config("AZURE_FUNCTION_BASE_URL", default="")
 # Example: "https://func-magictoolbox-dev-xyz.azurewebsites.net/api"
 # Tools append their endpoint: f"{AZURE_FUNCTION_BASE_URL}/pdf/convert"
 

@@ -4,11 +4,14 @@ Tests for EXIF Metadata Extractor tool.
 
 import io
 import json
-import pytest
+
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+
 from rest_framework import status
 from rest_framework.test import APIClient
-from django.core.files.uploadedfile import SimpleUploadedFile
+
+import pytest
 from PIL import Image
 from PIL.ExifTags import TAGS
 
@@ -28,20 +31,20 @@ def exif_tool():
 def sample_image_with_exif():
     """Create a sample image with EXIF data."""
     # Create a simple image
-    img = Image.new('RGB', (100, 100), color='red')
-    
-    # Add EXIF data
-    exif_dict = {
-        271: "Test Camera Make",  # Make
-        272: "Test Camera Model",  # Model
-        306: "2024:12:14 10:30:00",  # DateTime
-    }
-    
+    img = Image.new("RGB", (100, 100), color="red")
+
+    # EXIF data structure (not used as pillow requires binary format)
+    # exif_dict = {
+    #     271: "Test Camera Make",  # Make
+    #     272: "Test Camera Model",  # Model
+    #     306: "2024:12:14 10:30:00",  # DateTime
+    # }
+
     # Save to bytes
     img_bytes = io.BytesIO()
-    img.save(img_bytes, format='JPEG', exif=b'')  # Basic JPEG
+    img.save(img_bytes, format="JPEG", exif=b"")  # Basic JPEG
     img_bytes.seek(0)
-    
+
     return SimpleUploadedFile(
         name="test_image.jpg",
         content=img_bytes.read(),
@@ -52,11 +55,11 @@ def sample_image_with_exif():
 @pytest.fixture
 def sample_image_no_exif():
     """Create a sample image without EXIF data."""
-    img = Image.new('RGB', (50, 50), color='blue')
+    img = Image.new("RGB", (50, 50), color="blue")
     img_bytes = io.BytesIO()
-    img.save(img_bytes, format='PNG')
+    img.save(img_bytes, format="PNG")
     img_bytes.seek(0)
-    
+
     return SimpleUploadedFile(
         name="no_exif.png",
         content=img_bytes.read(),
@@ -115,11 +118,11 @@ class TestEXIFExtractorTool:
     def test_validate_file_too_large(self, exif_tool):
         """Test validation fails with file too large."""
         from unittest.mock import MagicMock
-        
+
         large_file = MagicMock()
         large_file.name = "large_image.jpg"
         large_file.size = 21 * 1024 * 1024  # 21MB
-        
+
         is_valid, error_msg = exif_tool.validate(large_file, {})
         assert is_valid is False
         assert "exceeds maximum" in error_msg.lower()
@@ -131,7 +134,7 @@ class TestEXIFExtractorTool:
             content=b"not an image",
             content_type="text/plain",
         )
-        
+
         is_valid, error_msg = exif_tool.validate(invalid_file, {})
         assert is_valid is False
         assert "not supported" in error_msg.lower()
@@ -143,7 +146,7 @@ class TestEXIFExtractorTool:
             content=b"corrupted image data",
             content_type="image/jpeg",
         )
-        
+
         is_valid, error_msg = exif_tool.validate(corrupted_file, {})
         assert is_valid is False
         assert "invalid" in error_msg.lower()
@@ -153,7 +156,7 @@ class TestEXIFExtractorTool:
         parameters = {"export_format": "json"}
         is_valid, error_msg = exif_tool.validate(sample_image_with_exif, parameters)
         assert is_valid is True
-        
+
         parameters = {"export_format": "csv"}
         is_valid, error_msg = exif_tool.validate(sample_image_with_exif, parameters)
         assert is_valid is True
@@ -168,13 +171,13 @@ class TestEXIFExtractorTool:
     def test_process_image_basic(self, exif_tool, sample_image_with_exif):
         """Test processing image and extracting basic info."""
         result, filename = exif_tool.process(sample_image_with_exif, {})
-        
+
         assert filename is None  # Synchronous tool
         assert isinstance(result, dict)
         assert "image_info" in result
         assert "exif_data" in result
         assert "has_exif" in result
-        
+
         # Check image info
         assert result["image_info"]["Filename"] == "test_image.jpg"
         assert result["image_info"]["Format"] == "JPEG"
@@ -184,7 +187,7 @@ class TestEXIFExtractorTool:
     def test_process_image_no_exif(self, exif_tool, sample_image_no_exif):
         """Test processing image without EXIF data."""
         result, filename = exif_tool.process(sample_image_no_exif, {})
-        
+
         assert result["has_exif"] is False
         assert result["exif_data"] is None or len(result["exif_data"]) == 0
         assert result["has_gps"] is False
@@ -193,10 +196,10 @@ class TestEXIFExtractorTool:
         """Test processing with JSON export."""
         parameters = {"export_format": "json"}
         result, filename = exif_tool.process(sample_image_with_exif, parameters)
-        
+
         assert "export_data" in result
         assert result["export_format"] == "json"
-        
+
         # Verify it's valid JSON
         export_data = result["export_data"]
         parsed = json.loads(export_data)
@@ -208,13 +211,13 @@ class TestEXIFExtractorTool:
         """Test processing with CSV export."""
         parameters = {"export_format": "csv"}
         result, filename = exif_tool.process(sample_image_with_exif, parameters)
-        
+
         assert "export_data" in result
         assert result["export_format"] == "csv"
-        
+
         # Verify CSV structure
         export_data = result["export_data"]
-        lines = export_data.strip().split('\n')
+        lines = export_data.strip().split("\n")
         assert len(lines) > 0
         assert "Category,Tag,Value" in lines[0]
 
@@ -252,7 +255,7 @@ class TestEXIFExtractorAPI:
         client, user = authenticated_client
 
         sample_image_with_exif.seek(0)
-        
+
         response = client.post(
             "/api/v1/tools/exif-extractor/convert/",
             {
@@ -272,7 +275,7 @@ class TestEXIFExtractorAPI:
         client, user = authenticated_client
 
         sample_image_with_exif.seek(0)
-        
+
         response = client.post(
             "/api/v1/tools/exif-extractor/convert/",
             {
@@ -292,7 +295,7 @@ class TestEXIFExtractorAPI:
         client, user = authenticated_client
 
         sample_image_with_exif.seek(0)
-        
+
         response = client.post(
             "/api/v1/tools/exif-extractor/convert/",
             {

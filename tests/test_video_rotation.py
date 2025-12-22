@@ -7,11 +7,13 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+
 from rest_framework import status
 from rest_framework.test import APIClient
+
+import pytest
 
 from apps.tools.plugins.video_rotation import VideoRotation
 from apps.tools.registry import tool_registry
@@ -157,9 +159,7 @@ class TestVideoRotationTool:
                     os.unlink(temp_output_path)
 
     @patch("subprocess.run")
-    def test_process_90_counterclockwise(
-        self, mock_run, video_rotation_tool, sample_video_file
-    ):
+    def test_process_90_counterclockwise(self, mock_run, video_rotation_tool, sample_video_file):
         """Test video rotation 90 degrees counter-clockwise."""
         mock_run.return_value = MagicMock(returncode=0, stderr=b"")
 
@@ -220,9 +220,7 @@ class TestVideoRotationTool:
     def test_process_ffmpeg_failure(self, mock_run, video_rotation_tool, sample_video_file):
         """Test handling of FFmpeg failure."""
         # Mock FFmpeg failure
-        mock_run.return_value = MagicMock(
-            returncode=1, stderr=b"FFmpeg error: Invalid input"
-        )
+        mock_run.return_value = MagicMock(returncode=1, stderr=b"FFmpeg error: Invalid input")
 
         parameters = {"rotation": "90_cw"}
 

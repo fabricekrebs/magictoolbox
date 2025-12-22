@@ -3,16 +3,19 @@ Tests for OCR Tool (Optical Character Recognition).
 """
 
 import json
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+
 from django.contrib.auth import get_user_model
-from rest_framework import status
-from rest_framework.test import APIClient
 from django.core.files.uploadedfile import SimpleUploadedFile
 
+from rest_framework import status
+from rest_framework.test import APIClient
+
+import pytest
+
+from apps.tools.models import ToolExecution
 from apps.tools.plugins.ocr_tool import OCRTool
 from apps.tools.registry import tool_registry
-from apps.tools.models import ToolExecution
 
 User = get_user_model()
 
@@ -28,11 +31,11 @@ def sample_image():
     """Create a sample image file."""
     # Simple 1x1 pixel PNG
     png_data = (
-        b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01'
-        b'\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01'
-        b'\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82'
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+        b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01"
+        b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
     )
-    
+
     return SimpleUploadedFile(
         name="test_image.png",
         content=png_data,
@@ -97,7 +100,7 @@ class TestOCRTool:
         large_file = Mock()
         large_file.name = "large_image.png"
         large_file.size = 51 * 1024 * 1024  # 51MB
-        
+
         parameters = {"language": "eng"}
         is_valid, error_msg = ocr_tool.validate(large_file, parameters)
         assert is_valid is False
@@ -110,7 +113,7 @@ class TestOCRTool:
             content=b"not an image",
             content_type="text/plain",
         )
-        
+
         parameters = {"language": "eng"}
         is_valid, error_msg = ocr_tool.validate(invalid_file, parameters)
         assert is_valid is False
@@ -126,10 +129,22 @@ class TestOCRTool:
     def test_validate_all_supported_languages(self, ocr_tool, sample_image):
         """Test validation succeeds for all supported languages."""
         supported_languages = [
-            "eng", "fra", "deu", "spa", "ita", "por", "nld",
-            "rus", "jpn", "chi_sim", "chi_tra", "kor", "ara", "hin"
+            "eng",
+            "fra",
+            "deu",
+            "spa",
+            "ita",
+            "por",
+            "nld",
+            "rus",
+            "jpn",
+            "chi_sim",
+            "chi_tra",
+            "kor",
+            "ara",
+            "hin",
         ]
-        
+
         for lang in supported_languages:
             parameters = {"language": lang}
             is_valid, error_msg = ocr_tool.validate(sample_image, parameters)
@@ -155,7 +170,7 @@ class TestOCRTool:
         parameters = {"language": "eng", "preprocessing": "true"}
         is_valid, error_msg = ocr_tool.validate(sample_image, parameters)
         assert is_valid is True
-        
+
         parameters = {"language": "eng", "preprocessing": "false"}
         is_valid, error_msg = ocr_tool.validate(sample_image, parameters)
         assert is_valid is True
@@ -168,34 +183,30 @@ class TestOCRTool:
         # Mock blob storage
         mock_container_client = MagicMock()
         mock_blob_client.return_value.get_container_client.return_value = mock_container_client
-        
+
         # Mock Azure Function trigger
         mock_response = Mock()
         mock_response.status_code = 202
         mock_response.json.return_value = {"status": "processing"}
         mock_post.return_value = mock_response
-        
-        parameters = {
-            "language": "eng",
-            "ocr_mode": "3",
-            "preprocessing": "true"
-        }
-        
+
+        parameters = {"language": "eng", "ocr_mode": "3", "preprocessing": "true"}
+
         execution_id, filename = ocr_tool.process(sample_image, parameters)
-        
+
         # Verify async response
         assert execution_id is not None
         assert filename is None
-        
+
         # Verify ToolExecution was created
         execution = ToolExecution.objects.get(id=execution_id)
         assert execution.tool_name == "ocr-tool"
         assert execution.status == "pending"
         assert execution.input_filename == "test_image.png"
-        
+
         # Verify blob upload was called
         mock_container_client.upload_blob.assert_called_once()
-        
+
         # Verify Azure Function was triggered
         mock_post.assert_called_once()
         call_args = mock_post.call_args
@@ -208,14 +219,14 @@ class TestOCRTool:
         """Test that blob is uploaded to correct path."""
         mock_container_client = MagicMock()
         mock_blob_client.return_value.get_container_client.return_value = mock_container_client
-        
+
         mock_response = Mock()
         mock_response.status_code = 202
         mock_post.return_value = mock_response
-        
+
         parameters = {"language": "eng"}
         execution_id, _ = ocr_tool.process(sample_image, parameters)
-        
+
         # Check blob path
         upload_call = mock_container_client.upload_blob.call_args
         blob_name = upload_call[1]["name"]
@@ -226,27 +237,25 @@ class TestOCRTool:
     @pytest.mark.django_db
     @patch("apps.tools.plugins.ocr_tool.BlobServiceClient")
     @patch("apps.tools.plugins.ocr_tool.requests.post")
-    def test_process_azure_function_payload(self, mock_post, mock_blob_client, ocr_tool, sample_image):
+    def test_process_azure_function_payload(
+        self, mock_post, mock_blob_client, ocr_tool, sample_image
+    ):
         """Test Azure Function is called with correct payload."""
         mock_container_client = MagicMock()
         mock_blob_client.return_value.get_container_client.return_value = mock_container_client
-        
+
         mock_response = Mock()
         mock_response.status_code = 202
         mock_post.return_value = mock_response
-        
-        parameters = {
-            "language": "fra",
-            "ocr_mode": "6",
-            "preprocessing": "true"
-        }
-        
+
+        parameters = {"language": "fra", "ocr_mode": "6", "preprocessing": "true"}
+
         execution_id, _ = ocr_tool.process(sample_image, parameters)
-        
+
         # Verify payload
         call_args = mock_post.call_args
         payload = call_args[1]["json"]
-        
+
         assert payload["execution_id"] == str(execution_id)
         assert payload["language"] == "fra"
         assert payload["ocr_mode"] == "6"
@@ -259,32 +268,34 @@ class TestOCRTool:
         mock_container_client = MagicMock()
         mock_container_client.upload_blob.side_effect = Exception("Blob upload failed")
         mock_blob_client.return_value.get_container_client.return_value = mock_container_client
-        
+
         parameters = {"language": "eng"}
-        
+
         with pytest.raises(Exception) as exc_info:
             ocr_tool.process(sample_image, parameters)
-        
+
         assert "blob upload failed" in str(exc_info.value).lower()
 
     @pytest.mark.django_db
     @patch("apps.tools.plugins.ocr_tool.BlobServiceClient")
     @patch("apps.tools.plugins.ocr_tool.requests.post")
-    def test_process_azure_function_failure(self, mock_post, mock_blob_client, ocr_tool, sample_image):
+    def test_process_azure_function_failure(
+        self, mock_post, mock_blob_client, ocr_tool, sample_image
+    ):
         """Test error handling when Azure Function trigger fails."""
         mock_container_client = MagicMock()
         mock_blob_client.return_value.get_container_client.return_value = mock_container_client
-        
+
         mock_response = Mock()
         mock_response.status_code = 500
         mock_response.json.return_value = {"error": "Function failed"}
         mock_post.return_value = mock_response
-        
+
         parameters = {"language": "eng"}
-        
+
         with pytest.raises(Exception) as exc_info:
             ocr_tool.process(sample_image, parameters)
-        
+
         assert "azure function" in str(exc_info.value).lower()
 
 
@@ -297,19 +308,19 @@ class TestOCRToolAPI:
     def test_ocr_endpoint(self, mock_post, mock_blob_client, authenticated_client, sample_image):
         """Test OCR extraction via API endpoint."""
         client, user = authenticated_client
-        
+
         # Mock blob storage
         mock_container_client = MagicMock()
         mock_blob_client.return_value.get_container_client.return_value = mock_container_client
-        
+
         # Mock Azure Function
         mock_response = Mock()
         mock_response.status_code = 202
         mock_response.json.return_value = {"status": "processing"}
         mock_post.return_value = mock_response
-        
+
         sample_image.seek(0)
-        
+
         response = client.post(
             "/api/v1/tools/ocr-tool/convert/",
             {
@@ -345,7 +356,7 @@ class TestOCRToolAPI:
         client, user = authenticated_client
 
         sample_image.seek(0)
-        
+
         response = client.post(
             "/api/v1/tools/ocr-tool/convert/",
             {
@@ -360,19 +371,21 @@ class TestOCRToolAPI:
     @pytest.mark.django_db
     @patch("apps.tools.plugins.ocr_tool.BlobServiceClient")
     @patch("apps.tools.plugins.ocr_tool.requests.post")
-    def test_ocr_default_parameters(self, mock_post, mock_blob_client, authenticated_client, sample_image):
+    def test_ocr_default_parameters(
+        self, mock_post, mock_blob_client, authenticated_client, sample_image
+    ):
         """Test OCR with default parameters."""
         client, user = authenticated_client
-        
+
         mock_container_client = MagicMock()
         mock_blob_client.return_value.get_container_client.return_value = mock_container_client
-        
+
         mock_response = Mock()
         mock_response.status_code = 202
         mock_post.return_value = mock_response
-        
+
         sample_image.seek(0)
-        
+
         response = client.post(
             "/api/v1/tools/ocr-tool/convert/",
             {
@@ -396,30 +409,30 @@ class TestOCRToolIntegration:
         # Setup mocks
         mock_container_client = MagicMock()
         mock_blob_client.return_value.get_container_client.return_value = mock_container_client
-        
+
         mock_response = Mock()
         mock_response.status_code = 202
         mock_response.json.return_value = {"status": "processing"}
         mock_post.return_value = mock_response
-        
+
         # Step 1: Upload and trigger
         parameters = {"language": "eng", "preprocessing": "true"}
         execution_id, _ = ocr_tool.process(sample_image, parameters)
-        
+
         # Verify execution created
         execution = ToolExecution.objects.get(id=execution_id)
         assert execution.status == "pending"
-        
+
         # Step 2: Simulate Azure Function processing
         execution.status = "processing"
         execution.save()
-        
+
         # Step 3: Simulate completion
         execution.status = "completed"
         execution.output_filename = f"{execution_id}.txt"
         execution.result_data = {"extracted_text": "Test OCR result"}
         execution.save()
-        
+
         # Verify final state
         execution.refresh_from_db()
         assert execution.status == "completed"
@@ -432,21 +445,21 @@ class TestOCRToolIntegration:
         """Test OCR workflow with failure scenario."""
         mock_container_client = MagicMock()
         mock_blob_client.return_value.get_container_client.return_value = mock_container_client
-        
+
         mock_response = Mock()
         mock_response.status_code = 202
         mock_post.return_value = mock_response
-        
+
         # Upload
         parameters = {"language": "eng"}
         execution_id, _ = ocr_tool.process(sample_image, parameters)
-        
+
         # Simulate failure
         execution = ToolExecution.objects.get(id=execution_id)
         execution.status = "failed"
         execution.error_message = "OCR processing failed"
         execution.save()
-        
+
         # Verify error state
         execution.refresh_from_db()
         assert execution.status == "failed"

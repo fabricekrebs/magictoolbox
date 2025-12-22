@@ -75,3 +75,21 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "if TYPE_CHECKING:",
 ]
+
+[tool.bandit]
+exclude_dirs = [
+    "tests",
+    "*/tests/*",
+    "*/test_*.py",
+    "*_test.py",
+    ".venv",
+    "venv",
+    "*/migrations/*",
+]
+skips = [
+    "B101",  # assert_used - we use asserts in tests
+    "B601",  # paramiko_calls - not applicable
+]
+
+[tool.bandit.assert_used]
+skips = ["*_test.py", "test_*.py"]

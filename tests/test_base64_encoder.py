@@ -2,11 +2,13 @@
 Tests for Base64 Encoder/Decoder tool.
 """
 
-import pytest
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+
 from rest_framework import status
 from rest_framework.test import APIClient
-from django.core.files.uploadedfile import SimpleUploadedFile
+
+import pytest
 
 from apps.tools.plugins.base64_encoder import Base64Encoder
 from apps.tools.registry import tool_registry
@@ -107,11 +109,11 @@ class TestBase64EncoderTool:
     def test_validate_file_too_large(self, base64_tool):
         """Test validation fails with file too large."""
         from unittest.mock import MagicMock
-        
+
         large_file = MagicMock()
         large_file.name = "large.txt"
         large_file.size = 11 * 1024 * 1024  # 11MB
-        
+
         parameters = {"mode": "encode"}
         is_valid, error_msg = base64_tool.validate(large_file, parameters)
         assert is_valid is False
@@ -128,7 +130,7 @@ class TestBase64EncoderTool:
         """Test encoding plain text to Base64."""
         parameters = {"mode": "encode", "text": "Hello World"}
         result, filename = base64_tool.process(None, parameters)
-        
+
         assert filename is None  # Synchronous tool
         assert isinstance(result, dict)
         assert result["result"] == "SGVsbG8gV29ybGQ="
@@ -141,7 +143,7 @@ class TestBase64EncoderTool:
         """Test decoding Base64 to plain text."""
         parameters = {"mode": "decode", "text": "SGVsbG8gV29ybGQ="}
         result, filename = base64_tool.process(None, parameters)
-        
+
         assert filename is None
         assert isinstance(result, dict)
         assert result["result"] == "Hello World"
@@ -159,7 +161,7 @@ class TestBase64EncoderTool:
         )
         parameters = {"mode": "encode"}
         result, filename = base64_tool.process(test_file, parameters)
-        
+
         assert result["result"] == "VGVzdCBjb250ZW50"
         assert result["operation"] == "encoded"
 
@@ -172,17 +174,17 @@ class TestBase64EncoderTool:
         )
         parameters = {"mode": "decode"}
         result, filename = base64_tool.process(test_file, parameters)
-        
+
         assert result["result"] == "Test content"
         assert result["operation"] == "decoded"
 
     def test_process_invalid_base64_decode(self, base64_tool):
         """Test error handling for invalid Base64 during decode."""
         parameters = {"mode": "decode", "text": "NotValidBase64!!!"}
-        
+
         with pytest.raises(Exception) as exc_info:
             base64_tool.process(None, parameters)
-        
+
         assert "invalid" in str(exc_info.value).lower()
 
     def test_process_unicode_text(self, base64_tool):
@@ -190,13 +192,13 @@ class TestBase64EncoderTool:
         unicode_text = "Hello 世界 🌍"
         parameters = {"mode": "encode", "text": unicode_text}
         result, _ = base64_tool.process(None, parameters)
-        
+
         encoded = result["result"]
-        
+
         # Now decode it back
         decode_params = {"mode": "decode", "text": encoded}
         decode_result, _ = base64_tool.process(None, decode_params)
-        
+
         assert decode_result["result"] == unicode_text
 
     def test_process_multiline_text(self, base64_tool):
@@ -204,11 +206,11 @@ class TestBase64EncoderTool:
         multiline = "Line 1\nLine 2\nLine 3"
         parameters = {"mode": "encode", "text": multiline}
         result, _ = base64_tool.process(None, parameters)
-        
+
         # Decode back
         decode_params = {"mode": "decode", "text": result["result"]}
         decode_result, _ = base64_tool.process(None, decode_params)
-        
+
         assert decode_result["result"] == multiline
 
 
@@ -221,10 +223,7 @@ class TestBase64EncoderAPI:
 
         response = client.post(
             "/api/v1/tools/base64-encoder/convert/",
-            {
-                "mode": "encode",
-                "text": "Hello World"
-            },
+            {"mode": "encode", "text": "Hello World"},
             format="json",
         )
 
@@ -239,10 +238,7 @@ class TestBase64EncoderAPI:
 
         response = client.post(
             "/api/v1/tools/base64-encoder/convert/",
-            {
-                "mode": "decode",
-                "text": "SGVsbG8gV29ybGQ="
-            },
+            {"mode": "decode", "text": "SGVsbG8gV29ybGQ="},
             format="json",
         )
 
@@ -257,9 +253,7 @@ class TestBase64EncoderAPI:
 
         response = client.post(
             "/api/v1/tools/base64-encoder/convert/",
-            {
-                "text": "Hello World"
-            },
+            {"text": "Hello World"},
             format="json",
         )
 
@@ -271,10 +265,7 @@ class TestBase64EncoderAPI:
 
         response = client.post(
             "/api/v1/tools/base64-encoder/convert/",
-            {
-                "mode": "invalid",
-                "text": "Hello World"
-            },
+            {"mode": "invalid", "text": "Hello World"},
             format="json",
         )
 

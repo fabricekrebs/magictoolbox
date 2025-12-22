@@ -177,15 +177,14 @@ class GPXMerger(BaseTool):
             for idx, input_file in enumerate(input_files):
                 file_ext = Path(input_file.name).suffix
                 blob_name = f"{execution_id}_{idx:03d}{file_ext}"
-                
-                self.logger.info(f"📦 Uploading file {idx + 1}/{len(input_files)}: {input_file.name}")
+
+                self.logger.info(
+                    f"📦 Uploading file {idx + 1}/{len(input_files)}: {input_file.name}"
+                )
                 self.logger.info(f"   Target blob: {blob_name}")
                 self.logger.info(f"   File size: {input_file.size:,} bytes")
 
-                blob_client = blob_service.get_blob_client(
-                    container="gpx-uploads",
-                    blob=blob_name
-                )
+                blob_client = blob_service.get_blob_client(container="gpx-uploads", blob=blob_name)
 
                 # Prepare metadata for each file
                 metadata = {
@@ -199,78 +198,81 @@ class GPXMerger(BaseTool):
 
                 # Upload file
                 file_content = input_file.read()
-                blob_client.upload_blob(
-                    file_content,
-                    overwrite=True,
-                    metadata=metadata
-                )
+                blob_client.upload_blob(file_content, overwrite=True, metadata=metadata)
 
                 uploaded_blobs.append(blob_name)
                 total_size += len(file_content)
 
-                self.logger.info(f"   ✅ Uploaded successfully")
+                self.logger.info("   ✅ Uploaded successfully")
 
             self.logger.info("=" * 80)
             self.logger.info(f"✅ ALL {len(input_files)} FILES UPLOADED SUCCESSFULLY")
-            self.logger.info(f"   Total size: {total_size:,} bytes ({total_size / (1024*1024):.2f} MB)")
+            self.logger.info(
+                f"   Total size: {total_size:,} bytes ({total_size / (1024*1024):.2f} MB)"
+            )
             self.logger.info(f"   Uploaded blobs: {len(uploaded_blobs)}")
             self.logger.info("=" * 80)
 
             # Trigger Azure Function via HTTP
             self.logger.info("🚀 TRIGGERING AZURE FUNCTION FOR GPX MERGE")
-            
+
             try:
-                import requests
                 import threading
-                
+
+                import requests
+
                 base_url = getattr(settings, "AZURE_FUNCTION_BASE_URL", None)
-                
+
                 if base_url:
                     # Construct full URL
                     function_url = f"{base_url}/gpx/merge"
-                    
+
                     # Prepare payload with all blob names
                     payload = {
                         "execution_id": execution_id,
                         "blob_names": [f"gpx-uploads/{blob}" for blob in uploaded_blobs],
                         "merge_mode": merge_mode,
                         "output_name": output_name,
-                        "file_count": len(input_files)
+                        "file_count": len(input_files),
                     }
-                    
+
                     self.logger.info(f"   Function URL: {function_url}")
                     self.logger.info(f"   Payload: {payload}")
-                    self.logger.info(f"   Sending async POST request...")
-                    
+                    self.logger.info("   Sending async POST request...")
+
                     # Use background thread to avoid blocking
                     def trigger_function():
                         try:
-                            response = requests.post(
-                                function_url,
-                                json=payload,
-                                timeout=10
+                            response = requests.post(function_url, json=payload, timeout=10)
+                            self.logger.info(
+                                f"   ✅ Azure Function triggered: {response.status_code}"
                             )
-                            self.logger.info(f"   ✅ Azure Function triggered: {response.status_code}")
                         except Exception as e:
                             self.logger.error(f"   ⚠️  Failed to trigger Azure Function: {e}")
-                    
+
                     thread = threading.Thread(target=trigger_function)
                     thread.daemon = True
                     thread.start()
-                    
+
                     self.logger.info("   🎯 Background trigger initiated")
                 else:
-                    self.logger.warning("   ⚠️  AZURE_FUNCTION_BASE_URL not configured - skipping trigger")
-                    self.logger.warning("   Azure Function will need manual triggering or blob trigger")
+                    self.logger.warning(
+                        "   ⚠️  AZURE_FUNCTION_BASE_URL not configured - skipping trigger"
+                    )
+                    self.logger.warning(
+                        "   Azure Function will need manual triggering or blob trigger"
+                    )
 
             except ImportError:
-                self.logger.warning("   ⚠️  'requests' library not available - skipping HTTP trigger")
+                self.logger.warning(
+                    "   ⚠️  'requests' library not available - skipping HTTP trigger"
+                )
             except Exception as e:
                 self.logger.warning(f"   ⚠️  Failed to trigger Azure Function: {e}")
 
             self.logger.info("=" * 80)
             self.logger.info("📋 MERGE OPERATION SUMMARY")
-            self.logger.info(f"   Status: Pending (async processing)")
+            self.logger.info("   Status: Pending (async processing)")
             self.logger.info(f"   Execution ID: {execution_id}")
             self.logger.info(f"   Files merged: {len(input_files)}")
             self.logger.info(f"   Expected output: {output_name}.gpx")
@@ -319,13 +321,19 @@ class GPXMerger(BaseTool):
             account_url = f"https://{storage_account_name}.blob.core.windows.net"
 
             # Use AzureCliCredential for local/testing, DefaultAzureCredential for production
-            use_cli_auth = os.getenv("USE_AZURE_CLI_AUTH", "false").lower() == "true" or settings.DEBUG
+            use_cli_auth = (
+                os.getenv("USE_AZURE_CLI_AUTH", "false").lower() == "true" or settings.DEBUG
+            )
 
             if use_cli_auth:
-                self.logger.info(f"🔐 Using Azure CLI credential for storage: {storage_account_name}")
+                self.logger.info(
+                    f"🔐 Using Azure CLI credential for storage: {storage_account_name}"
+                )
                 credential = AzureCliCredential()
             else:
-                self.logger.info(f"🔐 Using Azure Managed Identity for storage: {storage_account_name}")
+                self.logger.info(
+                    f"🔐 Using Azure Managed Identity for storage: {storage_account_name}"
+                )
                 credential = DefaultAzureCredential()
 
             return BlobServiceClient(account_url=account_url, credential=credential)

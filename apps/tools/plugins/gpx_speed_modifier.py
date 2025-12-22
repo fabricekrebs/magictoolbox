@@ -121,10 +121,7 @@ class GPXSpeedModifier(BaseTool):
 
             # Upload to gpx container
             blob_name = f"{execution_id}.gpx"
-            blob_client = blob_service.get_blob_client(
-                container="gpx-uploads",
-                blob=blob_name
-            )
+            blob_client = blob_service.get_blob_client(container="gpx-uploads", blob=blob_name)
 
             # Prepare metadata for Azure Function
             metadata = {
@@ -139,45 +136,43 @@ class GPXSpeedModifier(BaseTool):
             # Upload file
             self.logger.info(f"⬆️  Uploading GPX file to blob storage: {blob_name}")
             file_content = input_file.read()
-            blob_client.upload_blob(
-                file_content,
-                overwrite=True,
-                metadata=metadata
-            )
+            blob_client.upload_blob(file_content, overwrite=True, metadata=metadata)
 
             self.logger.info("✅ GPX file uploaded successfully to Azure Blob Storage")
             self.logger.info(f"   Blob name: {blob_name}")
-            self.logger.info(f"   Container: gpx-uploads")
+            self.logger.info("   Container: gpx-uploads")
             self.logger.info(f"   Size: {len(file_content):,} bytes")
 
             # Trigger Azure Function via HTTP (workaround for Flex Consumption blob trigger limitations)
             self.logger.info("=" * 80)
             self.logger.info("🚀 TRIGGERING AZURE FUNCTION FOR GPX SPEED MODIFICATION")
             try:
-                import requests
                 import threading
+
+                import requests
+
                 base_url = getattr(settings, "AZURE_FUNCTION_BASE_URL", None)
-                
+
                 if base_url:
                     # Construct full URL by appending endpoint
                     function_url = f"{base_url}/gpx/speed"
                     payload = {
                         "execution_id": execution_id,
                         "blob_name": f"gpx-uploads/{blob_name}",  # Full path: gpx-uploads/{uuid}.gpx
-                        "speed_multiplier": speed_multiplier  # Add speed multiplier to payload
+                        "speed_multiplier": speed_multiplier,  # Add speed multiplier to payload
                     }
                     self.logger.info(f"   Function URL: {function_url}")
                     self.logger.info(f"   Payload: {payload}")
-                    self.logger.info(f"   Sending async POST request...")
-                    
+                    self.logger.info("   Sending async POST request...")
+
                     # Use a background thread to avoid blocking the upload response
                     def trigger_function_async():
                         """Background thread to trigger Azure Function."""
                         try:
                             response = requests.post(function_url, json=payload, timeout=300)
-                            self.logger.info(f"📨 Response received from Azure Function")
+                            self.logger.info("📨 Response received from Azure Function")
                             self.logger.info(f"   Status code: {response.status_code}")
-                            
+
                             if response.status_code == 200:
                                 self.logger.info("✅ Azure Function triggered successfully")
                             else:
@@ -186,7 +181,7 @@ class GPXSpeedModifier(BaseTool):
                                 )
                         except Exception as e:
                             self.logger.error(f"❌ Azure Function call failed in background: {e}")
-                    
+
                     # Start background thread and return immediately
                     thread = threading.Thread(target=trigger_function_async, daemon=True)
                     thread.start()

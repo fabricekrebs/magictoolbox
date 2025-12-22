@@ -6,11 +6,13 @@ import uuid
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+
 from rest_framework import status
 from rest_framework.test import APIClient
+
+import pytest
 
 from apps.tools.plugins.gpx_merger import GPXMerger
 from apps.tools.registry import tool_registry

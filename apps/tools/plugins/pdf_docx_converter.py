@@ -108,7 +108,9 @@ class PdfDocxConverter(BaseTool):
 
         return True, None
 
-    def process(self, input_file: UploadedFile, parameters: Dict[str, Any], execution_id: str = None) -> Tuple[str, str]:
+    def process(
+        self, input_file: UploadedFile, parameters: Dict[str, Any], execution_id: str = None
+    ) -> Tuple[str, str]:
         """
         Convert PDF to DOCX format using Azure Functions.
 
@@ -171,7 +173,7 @@ class PdfDocxConverter(BaseTool):
 
         # Create blob name (simplified - no subdirectory)
         blob_name = f"{execution_id}.pdf"
-        
+
         self.logger.info("=" * 80)
         self.logger.info("📤 STARTING PDF UPLOAD FOR ASYNC PROCESSING")
         self.logger.info(f"   Execution ID: {execution_id}")
@@ -202,11 +204,13 @@ class PdfDocxConverter(BaseTool):
 
                 account_url = f"https://{storage_account_name}.blob.core.windows.net"
                 self.logger.info(f"   Storage URL: {account_url}")
-                
+
                 # Use AzureCliCredential for local/testing, DefaultAzureCredential for production
-                # Check for explicit flag or if running in local development  
-                use_cli_auth = os.getenv("USE_AZURE_CLI_AUTH", "false").lower() == "true" or settings.DEBUG
-                
+                # Check for explicit flag or if running in local development
+                use_cli_auth = (
+                    os.getenv("USE_AZURE_CLI_AUTH", "false").lower() == "true" or settings.DEBUG
+                )
+
                 if use_cli_auth:
                     self.logger.info(
                         f"🔐 Using Azure CLI credential for storage account: {storage_account_name}"
@@ -217,7 +221,7 @@ class PdfDocxConverter(BaseTool):
                         f"🔐 Using Azure Managed Identity for storage account: {storage_account_name}"
                     )
                     credential = DefaultAzureCredential()
-                
+
                 blob_service = BlobServiceClient(account_url=account_url, credential=credential)
                 self.logger.info("✅ BlobServiceClient created successfully")
 
@@ -241,12 +245,12 @@ class PdfDocxConverter(BaseTool):
             self.logger.info(f"⬆️  Uploading PDF to blob storage: {blob_name}")
             file_content = input_file.read()
             self.logger.info(f"   Read {len(file_content):,} bytes from uploaded file")
-            
+
             blob_client.upload_blob(file_content, metadata=metadata, overwrite=True)
-            
+
             self.logger.info("✅ PDF uploaded successfully to Azure Blob Storage")
             self.logger.info(f"   Blob name: {blob_name}")
-            self.logger.info(f"   Container: pdf-uploads")
+            self.logger.info("   Container: pdf-uploads")
             self.logger.info(f"   Size: {len(file_content):,} bytes")
             self.logger.info(f"   Execution ID: {execution_id}")
 
@@ -255,84 +259,117 @@ class PdfDocxConverter(BaseTool):
             self.logger.info("🚀 TRIGGERING AZURE FUNCTION FOR PDF CONVERSION")
             try:
                 import requests
+
                 base_url = getattr(settings, "AZURE_FUNCTION_BASE_URL", None)
-                
+
                 if base_url:
                     # Construct full URL by appending endpoint
                     function_url = f"{base_url}/pdf/convert"
                     payload = {
                         "execution_id": execution_id,
-                        "blob_name": f"pdf-uploads/{blob_name}"  # Full path: pdf-uploads/{uuid}.pdf
+                        "blob_name": f"pdf-uploads/{blob_name}",  # Full path: pdf-uploads/{uuid}.pdf
                     }
                     self.logger.info(f"   Function URL: {function_url}")
                     self.logger.info(f"   Payload: {payload}")
-                    self.logger.info(f"   Timeout: 30 seconds (async trigger only)")
+                    self.logger.info("   Timeout: 30 seconds (async trigger only)")
                     self.logger.info("   Sending async POST request...")
-                    
+
                     # Use a background thread to avoid blocking the upload response
                     import threading
-                    
+
                     def trigger_function_async():
                         """Background thread to trigger Azure Function and update database."""
                         try:
                             response = requests.post(function_url, json=payload, timeout=300)
-                            
-                            self.logger.info(f"📨 Response received from Azure Function")
+
+                            self.logger.info("📨 Response received from Azure Function")
                             self.logger.info(f"   Status code: {response.status_code}")
-                            
+
                             if response.status_code == 200:
                                 self.logger.info("✅ Azure Function triggered successfully")
                                 try:
                                     response_json = response.json()
                                     self.logger.info(f"   Response JSON: {response_json}")
-                                    
+
                                     # Update the database if Azure Function succeeded
-                                    if response_json.get('status') == 'success':
+                                    if response_json.get("status") == "success":
                                         self.logger.info("=" * 80)
-                                        self.logger.info("📝 UPDATING DATABASE FROM AZURE FUNCTION RESPONSE")
-                                        from apps.tools.models import ToolExecution
+                                        self.logger.info(
+                                            "📝 UPDATING DATABASE FROM AZURE FUNCTION RESPONSE"
+                                        )
                                         from django.utils import timezone
-                                        
+
+                                        from apps.tools.models import ToolExecution
+
                                         try:
                                             execution = ToolExecution.objects.get(id=execution_id)
-                                            
+
                                             # Extract output filename from blob path
                                             # e.g., "processed/docx/uuid.docx" -> "uuid.docx"
-                                            output_blob = response_json.get('output_blob', '')
-                                            output_filename = output_blob.split('/')[-1] if output_blob else ''
-                                            
+                                            output_blob = response_json.get("output_blob", "")
+                                            output_filename = (
+                                                output_blob.split("/")[-1] if output_blob else ""
+                                            )
+
                                             # Calculate duration in seconds
                                             completed_at = timezone.now()
                                             duration_seconds = None
                                             if execution.created_at:
-                                                duration_seconds = (completed_at - execution.created_at).total_seconds()
-                                            
+                                                duration_seconds = (
+                                                    completed_at - execution.created_at
+                                                ).total_seconds()
+
                                             # Update all fields
-                                            execution.status = 'completed'
+                                            execution.status = "completed"
                                             execution.output_blob_path = output_blob
                                             execution.output_filename = output_filename
-                                            execution.output_size = response_json.get('output_size_bytes')
+                                            execution.output_size = response_json.get(
+                                                "output_size_bytes"
+                                            )
                                             execution.completed_at = completed_at
                                             execution.duration_seconds = duration_seconds
-                                            execution.save(update_fields=[
-                                                'status', 'output_blob_path', 'output_filename', 
-                                                'output_size', 'completed_at', 'duration_seconds', 'updated_at'
-                                            ])
-                                            
-                                            self.logger.info(f"✅ Database updated successfully")
-                                            self.logger.info(f"   Status: completed")
-                                            self.logger.info(f"   Output filename: {output_filename}")
-                                            self.logger.info(f"   Output blob: {execution.output_blob_path}")
-                                            self.logger.info(f"   Output size: {execution.output_size:,} bytes")
-                                            self.logger.info(f"   Duration: {duration_seconds:.2f} seconds" if duration_seconds else "   Duration: N/A")
+                                            execution.save(
+                                                update_fields=[
+                                                    "status",
+                                                    "output_blob_path",
+                                                    "output_filename",
+                                                    "output_size",
+                                                    "completed_at",
+                                                    "duration_seconds",
+                                                    "updated_at",
+                                                ]
+                                            )
+
+                                            self.logger.info("✅ Database updated successfully")
+                                            self.logger.info("   Status: completed")
+                                            self.logger.info(
+                                                f"   Output filename: {output_filename}"
+                                            )
+                                            self.logger.info(
+                                                f"   Output blob: {execution.output_blob_path}"
+                                            )
+                                            self.logger.info(
+                                                f"   Output size: {execution.output_size:,} bytes"
+                                            )
+                                            self.logger.info(
+                                                f"   Duration: {duration_seconds:.2f} seconds"
+                                                if duration_seconds
+                                                else "   Duration: N/A"
+                                            )
                                         except ToolExecution.DoesNotExist:
-                                            self.logger.error(f"❌ ToolExecution not found: {execution_id}")
+                                            self.logger.error(
+                                                f"❌ ToolExecution not found: {execution_id}"
+                                            )
                                         except Exception as db_err:
-                                            self.logger.error(f"❌ Failed to update database: {db_err}")
+                                            self.logger.error(
+                                                f"❌ Failed to update database: {db_err}"
+                                            )
                                         finally:
                                             self.logger.info("=" * 80)
                                 except Exception as json_err:
-                                    self.logger.warning(f"⚠️  Failed to parse JSON response: {json_err}")
+                                    self.logger.warning(
+                                        f"⚠️  Failed to parse JSON response: {json_err}"
+                                    )
                             else:
                                 self.logger.warning(
                                     f"⚠️  Azure Function returned non-200 status: {response.status_code}"
@@ -340,12 +377,14 @@ class PdfDocxConverter(BaseTool):
                                 self.logger.warning(f"   Response: {response.text}")
                         except Exception as e:
                             self.logger.error(f"❌ Azure Function call failed in background: {e}")
-                    
+
                     # Start background thread and return immediately
                     thread = threading.Thread(target=trigger_function_async, daemon=True)
                     thread.start()
                     self.logger.info("✅ Azure Function trigger started in background thread")
-                    self.logger.info("   Upload will return immediately, conversion continues in background")
+                    self.logger.info(
+                        "   Upload will return immediately, conversion continues in background"
+                    )
                 else:
                     self.logger.warning(
                         "⚠️  AZURE_FUNCTION_BASE_URL not configured. "
@@ -356,24 +395,24 @@ class PdfDocxConverter(BaseTool):
                 self.logger.error(f"   Error type: {type(http_error).__name__}")
                 self.logger.error(f"   Error details: {str(http_error)}")
                 # Don't fail the upload - the blob trigger might still work
-            
+
             # Return execution ID to signal async processing
             # The caller should create a ToolExecution record with this ID
             self.logger.info("=" * 80)
             self.logger.info("✅ ASYNC PDF UPLOAD AND TRIGGER COMPLETED")
             self.logger.info(f"   Execution ID: {execution_id}")
-            self.logger.info(f"   Status: Pending async processing")
+            self.logger.info("   Status: Pending async processing")
             self.logger.info("=" * 80)
             return execution_id, None
 
         except Exception as e:
             self.logger.error("=" * 80)
-            self.logger.error(f"❌ FAILED TO UPLOAD PDF TO BLOB STORAGE")
+            self.logger.error("❌ FAILED TO UPLOAD PDF TO BLOB STORAGE")
             self.logger.error(f"   Execution ID: {execution_id}")
             self.logger.error(f"   Error type: {type(e).__name__}")
             self.logger.error(f"   Error message: {str(e)}")
             self.logger.error("=" * 80)
-            self.logger.error(f"Full traceback:", exc_info=True)
+            self.logger.error("Full traceback:", exc_info=True)
             raise ToolExecutionError(f"Failed to upload PDF for processing: {str(e)}")
 
     def _process_sync(

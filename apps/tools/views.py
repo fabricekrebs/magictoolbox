@@ -34,14 +34,15 @@ logger = logging.getLogger(__name__)
 def get_blob_service_client():
     """
     Get Azure Blob Storage client.
-    
+
     Uses connection string for local Azurite, DefaultAzureCredential for Azure.
     This matches the pattern used in PDF and video converter plugins.
     """
     from django.conf import settings
-    from azure.storage.blob import BlobServiceClient
+
     from azure.identity import DefaultAzureCredential
-    
+    from azure.storage.blob import BlobServiceClient
+
     connection_string = getattr(settings, "AZURE_STORAGE_CONNECTION_STRING", None)
 
     # Check for local development (Azurite)
@@ -50,7 +51,9 @@ def get_blob_service_client():
         return BlobServiceClient.from_connection_string(connection_string)
 
     # Production: Use Managed Identity / DefaultAzureCredential
-    storage_account_name = getattr(settings, "AZURE_STORAGE_ACCOUNT_NAME", None) or getattr(settings, "AZURE_ACCOUNT_NAME", None)
+    storage_account_name = getattr(settings, "AZURE_STORAGE_ACCOUNT_NAME", None) or getattr(
+        settings, "AZURE_ACCOUNT_NAME", None
+    )
     if not storage_account_name:
         logger.error("❌ Storage account name not configured")
         raise Exception(
@@ -93,41 +96,48 @@ def tool_detail(request, tool_slug):
 
     # Handle POST request - process the file
     if request.method == "POST":
-        logger.info(f"POST request to {tool_slug}, FILES: {list(request.FILES.keys())}, POST: {list(request.POST.keys())}")
+        logger.info(
+            f"POST request to {tool_slug}, FILES: {list(request.FILES.keys())}, POST: {list(request.POST.keys())}"
+        )
         form = ToolForm(request.POST, request.FILES)
         logger.info(f"Form valid: {form.is_valid()}, Has FILES: {bool(request.FILES)}")
-        if form.is_valid() or request.FILES:  # Allow processing even if form validation fails if we have files
+        if (
+            form.is_valid() or request.FILES
+        ):  # Allow processing even if form validation fails if we have files
             try:
                 # Support both 'file' and 'input_file' for flexibility
-                uploaded_file = request.FILES.get('file') or request.FILES.get('input_file')
+                uploaded_file = request.FILES.get("file") or request.FILES.get("input_file")
                 logger.info(f"Uploaded file: {uploaded_file.name if uploaded_file else 'None'}")
                 if not uploaded_file:
                     raise ValueError("No file uploaded")
-                
+
                 # Extract parameters from POST data
                 parameters = {}
                 for key, value in request.POST.items():
-                    if key not in ['csrfmiddlewaretoken', 'file']:
+                    if key not in ["csrfmiddlewaretoken", "file"]:
                         parameters[key] = value
-                
+
                 # Validate the file using the tool
                 is_valid, error_message = tool_instance.validate(uploaded_file, parameters)
                 if not is_valid:
                     logger.warning(f"Validation failed for {tool_slug}: {error_message}")
-                    messages.error(request, error_message or 'Invalid file')
+                    messages.error(request, error_message or "Invalid file")
                     context = {"tool": metadata, "form": form}
                     template_name = f'tools/{tool_slug.replace("-", "_")}.html'
                     try:
                         return render(request, template_name, context)
                     except Exception:
                         return render(request, "tools/tool_detail.html", context)
-                
+
                 # Create ToolExecution record
                 import uuid
+
                 execution_id = str(uuid.uuid4())
-                
-                logger.info(f"Creating ToolExecution for {tool_slug}, user={request.user.username}, file={uploaded_file.name}")
-                
+
+                logger.info(
+                    f"Creating ToolExecution for {tool_slug}, user={request.user.username}, file={uploaded_file.name}"
+                )
+
                 execution = ToolExecution.objects.create(
                     id=execution_id,
                     user=request.user,
@@ -137,23 +147,23 @@ def tool_detail(request, tool_slug):
                     parameters=parameters,
                     status="pending",
                 )
-                
+
                 logger.info(f"Created ToolExecution {execution_id} successfully")
-                
+
                 # Process the file
                 try:
                     output_filename, output_path = tool_instance.process(
                         uploaded_file, parameters, execution_id=execution_id
                     )
-                    
+
                     # Update execution status
                     execution.status = "completed"
                     execution.output_filename = output_filename
                     execution.save()
-                    
+
                     logger.info(f"File processed successfully for execution {execution_id}")
                     messages.success(request, f"File processed successfully: {output_filename}")
-                    
+
                     # Re-render the form with success message
                     form = ToolForm()
                     context = {"tool": metadata, "form": form, "execution": execution}
@@ -162,21 +172,23 @@ def tool_detail(request, tool_slug):
                         return render(request, template_name, context)
                     except Exception:
                         return render(request, "tools/tool_detail.html", context)
-                    
+
                 except Exception as process_error:
-                    logger.error(f"Error processing file with {tool_slug}: {process_error}", exc_info=True)
+                    logger.error(
+                        f"Error processing file with {tool_slug}: {process_error}", exc_info=True
+                    )
                     execution.status = "failed"
                     execution.error_message = str(process_error)
                     execution.save()
                     messages.error(request, f"Error processing file: {str(process_error)}")
-                
+
             except Exception as e:
                 logger.error(f"Error in tool_detail POST for {tool_slug}: {e}", exc_info=True)
                 messages.error(request, f"Error: {str(e)}")
         else:
             logger.warning(f"Invalid form submission for {tool_slug}")
             messages.error(request, "Invalid form submission")
-    
+
     # Handle GET request - display the form
     else:
         form = ToolForm()
@@ -597,7 +609,14 @@ class ToolViewSet(viewsets.ViewSet):
             parameters["preprocess"] = request.data.get("preprocess")
 
         # Special handling for async tools (PDF converter, Video rotation, Image converter, GPX tools, OCR)
-        if pk in ["pdf-docx-converter", "video-rotation", "image-format-converter", "gpx-kml-converter", "gpx-speed-modifier", "ocr-tool"]:
+        if pk in [
+            "pdf-docx-converter",
+            "video-rotation",
+            "image-format-converter",
+            "gpx-kml-converter",
+            "gpx-speed-modifier",
+            "ocr-tool",
+        ]:
             # Handle single file upload for async processing
             if len(files) == 1:
                 file = files[0]
@@ -608,10 +627,13 @@ class ToolViewSet(viewsets.ViewSet):
                 try:
                     # Generate execution ID first
                     import uuid
-                    import requests
+
                     from django.conf import settings
+
+                    import requests
+
                     execution_id = str(uuid.uuid4())
-                    
+
                     # Create ToolExecution record BEFORE processing
                     # Determine container prefix based on tool type
                     # Note: prefix format is "container/subfolder" - used to construct input_blob_path
@@ -625,7 +647,7 @@ class ToolViewSet(viewsets.ViewSet):
                     }
                     container_prefix = container_prefixes.get(pk, "uploads")
                     file_ext = Path(file.name).suffix
-                    
+
                     _execution = ToolExecution.objects.create(
                         id=execution_id,
                         user=request.user,
@@ -638,23 +660,27 @@ class ToolViewSet(viewsets.ViewSet):
                         function_execution_id=execution_id,
                         input_blob_path=f"{container_prefix}/{execution_id}{file_ext}",
                     )
-                    
+
                     # Now process with the pre-created execution ID (uploads to blob)
-                    returned_execution_id, _ = tool_instance.process(file, parameters, execution_id=execution_id)
+                    returned_execution_id, _ = tool_instance.process(
+                        file, parameters, execution_id=execution_id
+                    )
 
                     # For video rotation, trigger Azure Function immediately
                     if pk == "video-rotation":
-                        function_url = getattr(settings, 'AZURE_FUNCTION_URL', None)
+                        function_url = getattr(settings, "AZURE_FUNCTION_URL", None)
                         if function_url:
                             try:
                                 rotation_endpoint = f"{function_url.rstrip('/')}/api/video/rotate"
                                 payload = {
                                     "execution_id": execution_id,
                                     "blob_name": f"video-uploads/video/{execution_id}{file_ext}",
-                                    "rotation": parameters.get("rotation")
+                                    "rotation": parameters.get("rotation"),
                                 }
                                 logger.info(f"Triggering video rotation: {rotation_endpoint}")
-                                response = requests.post(rotation_endpoint, json=payload, timeout=10)
+                                response = requests.post(
+                                    rotation_endpoint, json=payload, timeout=10
+                                )
                                 logger.info(f"Azure Function response: {response.status_code}")
                             except Exception as func_error:
                                 logger.warning(f"Failed to trigger Azure Function: {func_error}")
@@ -746,8 +772,9 @@ class ToolViewSet(viewsets.ViewSet):
                 try:
                     # Generate execution ID first
                     import uuid
+
                     execution_id = str(uuid.uuid4())
-                    
+
                     # Create ToolExecution record BEFORE processing
                     # This ensures it exists when the Azure Function response handler tries to update it
                     _execution = ToolExecution.objects.create(
@@ -762,9 +789,11 @@ class ToolViewSet(viewsets.ViewSet):
                         function_execution_id=execution_id,
                         input_blob_path=f"uploads/pdf/{execution_id}.pdf",
                     )
-                    
+
                     # Now process with the pre-created execution ID
-                    returned_execution_id, _ = tool_instance.process(file, parameters, execution_id=execution_id)
+                    returned_execution_id, _ = tool_instance.process(
+                        file, parameters, execution_id=execution_id
+                    )
 
                     return Response(
                         {
@@ -1034,183 +1063,221 @@ class ToolViewSet(viewsets.ViewSet):
     def process(self, request):
         """
         DEPRECATED: Use tool-specific endpoints instead.
-        
+
         This endpoint previously used Celery for async processing,
         but has been replaced by Azure Functions integration.
         """
         return Response(
             {
                 "error": "This endpoint is deprecated. Use tool-specific endpoints instead.",
-                "message": "For async tools like PDF converter or video rotation, use their dedicated endpoints."
+                "message": "For async tools like PDF converter or video rotation, use their dedicated endpoints.",
             },
-            status=status.HTTP_410_GONE
+            status=status.HTTP_410_GONE,
         )
 
     @action(detail=True, methods=["post"], url_path="upload-video")
     def upload_video(self, request, pk=None):
         """
         Upload a video file to blob storage without processing.
-        
+
         POST /api/v1/tools/video-rotation/upload-video/
-        
+
         Returns: {"video_id": "...", "filename": "...", "blob_url": "..."}
         """
         if pk != "video-rotation":
-            return Response({"error": "This endpoint is only for video-rotation tool"}, status=status.HTTP_400_BAD_REQUEST)
-        
+            return Response(
+                {"error": "This endpoint is only for video-rotation tool"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         file = request.FILES.get("file")
         if not file:
             return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         tool_instance = tool_registry.get_tool_instance(pk)
         if not tool_instance:
             return Response({"error": "Tool not found"}, status=status.HTTP_404_NOT_FOUND)
-        
+
         # Validate file (only size and type, not rotation)
         # Check file size
         if file.size > tool_instance.max_file_size:
-            return Response({"error": f"File size exceeds maximum of {tool_instance.max_file_size / (1024 * 1024):.0f}MB"}, status=status.HTTP_400_BAD_REQUEST)
-        
+            return Response(
+                {
+                    "error": f"File size exceeds maximum of {tool_instance.max_file_size / (1024 * 1024):.0f}MB"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # Check file extension
         from pathlib import Path
+
         file_ext = Path(file.name).suffix.lower()
         if file_ext not in tool_instance.allowed_input_types:
-            return Response({"error": f"Unsupported file type: {file_ext}. Allowed: {', '.join(tool_instance.allowed_input_types)}"}, status=status.HTTP_400_BAD_REQUEST)
-        
+            return Response(
+                {
+                    "error": f"Unsupported file type: {file_ext}. Allowed: {', '.join(tool_instance.allowed_input_types)}"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         try:
             import uuid
             from pathlib import Path
-            
+
             # Generate video ID
             video_id = str(uuid.uuid4())
             file_ext = Path(file.name).suffix
             blob_name = f"video/{video_id}{file_ext}"
-            
+
             # Get blob service client using helper function
             blob_service = get_blob_service_client()
-            
+
             # Upload to video-uploads container
             blob_client = blob_service.get_blob_client(container="video-uploads", blob=blob_name)
-            
+
             metadata = {
                 "user_id": str(request.user.id),
                 "original_filename": file.name,
                 "file_size": str(file.size),
                 "uploaded_at": str(timezone.now()),
             }
-            
+
             blob_client.upload_blob(file.read(), overwrite=True, metadata=metadata)
-            
+
             logger.info(f"Video uploaded: {blob_name} by user {request.user.email}")
-            
-            return Response({
-                "video_id": video_id,
-                "filename": file.name,
-                "blob_name": blob_name,
-                "size": file.size,
-                "message": "Video uploaded successfully"
-            }, status=status.HTTP_201_CREATED)
-            
+
+            return Response(
+                {
+                    "video_id": video_id,
+                    "filename": file.name,
+                    "blob_name": blob_name,
+                    "size": file.size,
+                    "message": "Video uploaded successfully",
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
         except Exception as e:
             logger.error(f"Video upload failed: {e}", exc_info=True)
-            return Response({"error": f"Upload failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+            return Response(
+                {"error": f"Upload failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
     @action(detail=True, methods=["get"], url_path="list-videos")
     def list_videos(self, request, pk=None):
         """
         List all uploaded videos for the current user.
-        
+
         GET /api/v1/tools/video-rotation/list-videos/
-        
+
         Returns: [{"video_id": "...", "filename": "...", "size": ..., "uploaded_at": "..."}, ...]
         """
         if pk != "video-rotation":
-            return Response({"error": "This endpoint is only for video-rotation tool"}, status=status.HTTP_400_BAD_REQUEST)
-        
+            return Response(
+                {"error": "This endpoint is only for video-rotation tool"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         try:
             from django.conf import settings
+
             # Get blob service client using helper function
             blob_service = get_blob_service_client()
-            
+
             # List blobs in video-uploads container for this user
             container_client = blob_service.get_container_client("video-uploads")
-            
+
             videos = []
             for blob in container_client.list_blobs(name_starts_with="video/"):
                 # Get blob metadata
                 blob_client = container_client.get_blob_client(blob.name)
                 properties = blob_client.get_blob_properties()
                 metadata = properties.metadata
-                
+
                 # Only include videos for this user
                 if metadata.get("user_id") == str(request.user.id):
-                    video_id = blob.name.split("/")[1].split(".")[0]  # Extract UUID from video/{uuid}.ext
-                    videos.append({
-                        "video_id": video_id,
-                        "filename": metadata.get("original_filename", blob.name),
-                        "size": blob.size,
-                        "uploaded_at": metadata.get("uploaded_at"),
-                        "blob_name": blob.name,
-                    })
-            
+                    video_id = blob.name.split("/")[1].split(".")[
+                        0
+                    ]  # Extract UUID from video/{uuid}.ext
+                    videos.append(
+                        {
+                            "video_id": video_id,
+                            "filename": metadata.get("original_filename", blob.name),
+                            "size": blob.size,
+                            "uploaded_at": metadata.get("uploaded_at"),
+                            "blob_name": blob.name,
+                        }
+                    )
+
             return Response({"videos": videos}, status=status.HTTP_200_OK)
-            
+
         except Exception as e:
             logger.error(f"Failed to list videos: {e}", exc_info=True)
-            return Response({"error": f"Failed to list videos: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+            return Response(
+                {"error": f"Failed to list videos: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
     @action(detail=True, methods=["post"], url_path="rotate-video")
     def rotate_video_from_blob(self, request, pk=None):
         """
         Rotate a video that's already uploaded to blob storage.
-        
+
         POST /api/v1/tools/video-rotation/rotate-video/
-        
+
         Body: {"video_id": "...", "rotation": "90_cw|90_ccw|180"}
-        
+
         Returns: {"execution_id": "...", "status": "pending", ...}
         """
         if pk != "video-rotation":
-            return Response({"error": "This endpoint is only for video-rotation tool"}, status=status.HTTP_400_BAD_REQUEST)
-        
+            return Response(
+                {"error": "This endpoint is only for video-rotation tool"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         video_id = request.data.get("video_id")
         rotation = request.data.get("rotation")
-        
+
         if not video_id or not rotation:
-            return Response({"error": "video_id and rotation are required"}, status=status.HTTP_400_BAD_REQUEST)
-        
+            return Response(
+                {"error": "video_id and rotation are required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
         try:
             import uuid
-            import requests
-            from django.conf import settings
             from pathlib import Path
-            
+
+            from django.conf import settings
+
+            import requests
+
             # Get blob service client using helper function
             blob_service = get_blob_service_client()
-            
+
             # Find the blob
             container_client = blob_service.get_container_client("video-uploads")
             blob_name = None
             original_filename = None
-            
+
             for blob in container_client.list_blobs(name_starts_with=f"video/{video_id}"):
                 blob_client = container_client.get_blob_client(blob.name)
                 properties = blob_client.get_blob_properties()
                 metadata = properties.metadata
-                
+
                 # Verify user owns this video
                 if metadata.get("user_id") == str(request.user.id):
                     blob_name = blob.name
                     original_filename = metadata.get("original_filename", blob.name)
                     break
-            
+
             if not blob_name:
-                return Response({"error": "Video not found or access denied"}, status=status.HTTP_404_NOT_FOUND)
-            
+                return Response(
+                    {"error": "Video not found or access denied"}, status=status.HTTP_404_NOT_FOUND
+                )
+
             # Generate execution ID
             execution_id = str(uuid.uuid4())
-            file_ext = Path(blob_name).suffix
-            
+
             # Create ToolExecution record
             _execution = ToolExecution.objects.create(
                 id=execution_id,
@@ -1224,36 +1291,36 @@ class ToolViewSet(viewsets.ViewSet):
                 function_execution_id=execution_id,
                 input_blob_path=blob_name,
             )
-            
+
             # Trigger Azure Function
-            base_url = getattr(settings, 'AZURE_FUNCTION_BASE_URL', None)
+            base_url = getattr(settings, "AZURE_FUNCTION_BASE_URL", None)
             if base_url:
                 function_url = f"{base_url}/video/rotate"
                 try:
                     # Convert rotation string to integer for Azure Function
-                    rotation_map = {
-                        "90_cw": 90,
-                        "90_ccw": 270,
-                        "180": 180
-                    }
+                    rotation_map = {"90_cw": 90, "90_ccw": 270, "180": 180}
                     rotation_degrees = rotation_map.get(rotation, 90)
-                    
+
                     # Fix blob_name to include container name
                     # blob_name format: "video/xxxxx.mp4" from video-uploads container
                     # Azure Function expects: "video-uploads/video/xxxxx.mp4"
-                    full_blob_path = f"video-uploads/{blob_name}" if not blob_name.startswith("video-uploads/") else blob_name
-                    
+                    full_blob_path = (
+                        f"video-uploads/{blob_name}"
+                        if not blob_name.startswith("video-uploads/")
+                        else blob_name
+                    )
+
                     payload = {
                         "execution_id": execution_id,
                         "blob_name": full_blob_path,
-                        "rotation": rotation_degrees
+                        "rotation": rotation_degrees,
                     }
                     logger.info(f"🚀 Triggering video rotation (async): {function_url}")
                     logger.info(f"Payload: {payload}")
-                    
+
                     # Use background thread to avoid blocking
                     import threading
-                    
+
                     def trigger_function():
                         try:
                             # Give enough time for the request to be sent and received
@@ -1263,27 +1330,35 @@ class ToolViewSet(viewsets.ViewSet):
                                 logger.info(f"Response: {response.text[:200]}")
                         except Exception as e:
                             logger.error(f"❌ Failed to trigger Azure Function: {e}")
-                    
+
                     thread = threading.Thread(target=trigger_function, daemon=True)
                     thread.start()
-                    logger.info(f"🎯 Azure Function trigger initiated in background")
-                    
+                    logger.info("🎯 Azure Function trigger initiated in background")
+
                 except Exception as func_error:
-                    logger.error(f"❌ Failed to setup Azure Function trigger: {func_error}", exc_info=True)
-            
-            return Response({
-                "execution_id": execution_id,
-                "video_id": video_id,
-                "filename": original_filename,
-                "rotation": rotation,
-                "status": "pending",
-                "statusUrl": f"/api/v1/executions/{execution_id}/status/",
-                "message": "Video rotation started"
-            }, status=status.HTTP_202_ACCEPTED)
-            
+                    logger.error(
+                        f"❌ Failed to setup Azure Function trigger: {func_error}", exc_info=True
+                    )
+
+            return Response(
+                {
+                    "execution_id": execution_id,
+                    "video_id": video_id,
+                    "filename": original_filename,
+                    "rotation": rotation,
+                    "status": "pending",
+                    "statusUrl": f"/api/v1/executions/{execution_id}/status/",
+                    "message": "Video rotation started",
+                },
+                status=status.HTTP_202_ACCEPTED,
+            )
+
         except Exception as e:
             logger.error(f"Failed to rotate video: {e}", exc_info=True)
-            return Response({"error": f"Rotation failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": f"Rotation failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class ToolExecutionViewSet(viewsets.ModelViewSet):
@@ -1296,29 +1371,29 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
 
     permission_classes = [IsAuthenticated]  # Require authentication
     serializer_class = ToolExecutionSerializer
-    http_method_names = ['get', 'delete', 'head', 'options']  # Restrict to GET and DELETE only
+    http_method_names = ["get", "delete", "head", "options"]  # Restrict to GET and DELETE only
 
     def get_queryset(self):
         """Return executions for the authenticated user only, with optional filtering."""
         queryset = ToolExecution.objects.filter(user=self.request.user)
-        
+
         # Apply query parameter filters
-        tool_name = self.request.query_params.get('tool_name', None)
-        status = self.request.query_params.get('status', None)
-        
+        tool_name = self.request.query_params.get("tool_name", None)
+        status = self.request.query_params.get("status", None)
+
         if tool_name:
             queryset = queryset.filter(tool_name=tool_name)
         if status:
             queryset = queryset.filter(status=status)
-        
-        return queryset.order_by('-created_at')
-    
+
+        return queryset.order_by("-created_at")
+
     def destroy(self, request, *args, **kwargs):
         """
         Delete execution record and associated blob files.
-        
+
         DELETE /api/v1/executions/{id}/
-        
+
         Returns:
             204 No Content on success
             404 Not Found if execution doesn't exist
@@ -1326,79 +1401,80 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
         """
         try:
             execution = self.get_object()  # Automatically filters by user via get_queryset
-            
+
             # Delete associated blob files from storage
-            from azure.storage.blob import BlobServiceClient
-            from azure.identity import DefaultAzureCredential
-            from django.conf import settings
             import logging
-            
+
+            from django.conf import settings
+
+            from azure.identity import DefaultAzureCredential
+            from azure.storage.blob import BlobServiceClient
+
             logger = logging.getLogger(__name__)
-            
+
             try:
                 # Get blob service client
-                connection_string = getattr(settings, 'AZURE_STORAGE_CONNECTION_STRING', None)
-                
+                connection_string = getattr(settings, "AZURE_STORAGE_CONNECTION_STRING", None)
+
                 if connection_string and "127.0.0.1" in connection_string:
                     # Local development with Azurite
-                    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+                    blob_service_client = BlobServiceClient.from_connection_string(
+                        connection_string
+                    )
                     logger.info("🔧 Using Azurite for blob deletion")
                 else:
                     # Production with Managed Identity
-                    storage_account_name = getattr(settings, 'AZURE_STORAGE_ACCOUNT_NAME', None)
+                    storage_account_name = getattr(settings, "AZURE_STORAGE_ACCOUNT_NAME", None)
                     if storage_account_name:
                         account_url = f"https://{storage_account_name}.blob.core.windows.net"
                         credential = DefaultAzureCredential()
-                        blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
+                        blob_service_client = BlobServiceClient(
+                            account_url=account_url, credential=credential
+                        )
                         logger.info("🔐 Using Managed Identity for blob deletion")
                     else:
                         logger.warning("⚠️ No storage configuration found, skipping blob deletion")
                         blob_service_client = None
-                
+
                 if blob_service_client:
                     # Delete input blob if exists
                     if execution.input_blob_path:
                         try:
-                            container_name = execution.input_blob_path.split('/')[0]
-                            blob_name = '/'.join(execution.input_blob_path.split('/')[1:])
+                            container_name = execution.input_blob_path.split("/")[0]
+                            blob_name = "/".join(execution.input_blob_path.split("/")[1:])
                             blob_client = blob_service_client.get_blob_client(
-                                container=container_name,
-                                blob=blob_name
+                                container=container_name, blob=blob_name
                             )
                             blob_client.delete_blob()
                             logger.info(f"✅ Deleted input blob: {execution.input_blob_path}")
                         except Exception as e:
                             logger.warning(f"⚠️ Failed to delete input blob: {e}")
-                    
+
                     # Delete output blob if exists
                     if execution.output_blob_path:
                         try:
-                            container_name = execution.output_blob_path.split('/')[0]
-                            blob_name = '/'.join(execution.output_blob_path.split('/')[1:])
+                            container_name = execution.output_blob_path.split("/")[0]
+                            blob_name = "/".join(execution.output_blob_path.split("/")[1:])
                             blob_client = blob_service_client.get_blob_client(
-                                container=container_name,
-                                blob=blob_name
+                                container=container_name, blob=blob_name
                             )
                             blob_client.delete_blob()
                             logger.info(f"✅ Deleted output blob: {execution.output_blob_path}")
                         except Exception as e:
                             logger.warning(f"⚠️ Failed to delete output blob: {e}")
-            
+
             except Exception as e:
                 logger.error(f"❌ Error during blob deletion: {e}")
                 # Continue with database deletion even if blob deletion fails
-            
+
             # Delete the database record
             execution.delete()
             logger.info(f"✅ Deleted execution record: {execution.id}")
-            
+
             return Response(status=status.HTTP_204_NO_CONTENT)
-            
+
         except ToolExecution.DoesNotExist:
-            return Response(
-                {"error": "Execution not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"error": "Execution not found"}, status=status.HTTP_404_NOT_FOUND)
 
     def get_serializer_class(self):
         """Use simplified serializer for list view."""
@@ -1544,7 +1620,7 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
             # Determine container and blob name from output_blob_path
             container_name = "processed"  # Default container
             blob_name = None
-            
+
             if execution.output_blob_path:
                 # Parse the output_blob_path which includes container/blob format
                 # Examples:
@@ -1559,17 +1635,19 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
                     blob_name = path_parts[1]
                 else:
                     blob_name = execution.output_blob_path
-                    
-                logger.info(f"Parsed output_blob_path: container={container_name}, blob={blob_name}")
+
+                logger.info(
+                    f"Parsed output_blob_path: container={container_name}, blob={blob_name}"
+                )
             elif execution.output_file and execution.output_file.name:
                 # Fallback to output_file field
                 blob_name = execution.output_file.name
                 # Remove container prefix if present
                 if blob_name.startswith("processed/"):
-                    blob_name = blob_name[len("processed/"):]
+                    blob_name = blob_name[len("processed/") :]
                 elif blob_name.startswith("video-processed/"):
                     container_name = "video-processed"
-                    blob_name = blob_name[len("video-processed/"):]
+                    blob_name = blob_name[len("video-processed/") :]
             else:
                 # Last resort: guess based on tool name
                 if execution.tool_name == "video-rotation":
@@ -1594,10 +1672,10 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
                         {"error": "Cannot determine output file location"},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     )
-            
+
             logger.info(f"Download request - Tool: {execution.tool_name}")
             logger.info(f"Using container: {container_name}, blob: {blob_name}")
-            logger.info(f"About to initialize blob service client...")
+            logger.info("About to initialize blob service client...")
 
             # Initialize blob service client using the helper function
             blob_service = get_blob_service_client()
@@ -1607,10 +1685,10 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
             blob_client = blob_service.get_blob_client(container=container_name, blob=blob_name)
 
             # Check if blob exists
-            logger.info(f"Checking if blob exists...")
+            logger.info("Checking if blob exists...")
             blob_exists = blob_client.exists()
             logger.info(f"Blob exists: {blob_exists}")
-            
+
             if not blob_exists:
                 logger.error(f"Blob not found: {blob_name}")
                 # Try alternative blob name without path
@@ -1628,14 +1706,14 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
                         status=status.HTTP_404_NOT_FOUND,
                     )
 
-            logger.info(f"Starting blob download...")
+            logger.info("Starting blob download...")
             blob_data = blob_client.download_blob().readall()
 
             logger.info(f"✅ Downloaded {len(blob_data)} bytes for execution {execution.id}")
 
             # Determine output filename and content type
             output_filename = execution.output_filename or "download"
-            
+
             # Add default extension if no filename available
             if not output_filename or output_filename == "download":
                 if execution.tool_name == "video-rotation":
@@ -1650,7 +1728,7 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
                     output_filename = "extracted_text.txt"
                 else:
                     output_filename = "download.bin"
-            
+
             file_ext = output_filename.split(".")[-1].lower()
             content_type_map = {
                 # Documents
@@ -1730,7 +1808,7 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
                 if execution.output_blob_path:
                     blob_name = execution.output_blob_path
                     if blob_name.startswith("video-processed/"):
-                        blob_name = blob_name[len("video-processed/"):]
+                        blob_name = blob_name[len("video-processed/") :]
                 else:
                     blob_name = f"video/{execution.id}.mp4"
             else:
@@ -1739,7 +1817,7 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
                 if execution.output_file and execution.output_file.name:
                     blob_name = execution.output_file.name
                     if blob_name.startswith("processed/"):
-                        blob_name = blob_name[len("processed/"):]
+                        blob_name = blob_name[len("processed/") :]
                 else:
                     blob_name = f"docx/{execution.id}.docx"
 
@@ -1747,7 +1825,7 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
             try:
                 blob_service = get_blob_service_client()
                 blob_client = blob_service.get_blob_client(container=container_name, blob=blob_name)
-                
+
                 if blob_client.exists():
                     blob_client.delete_blob()
                     logger.info(f"Deleted blob: {container_name}/{blob_name}")
@@ -1777,4 +1855,3 @@ class ToolExecutionViewSet(viewsets.ModelViewSet):
                 {"error": f"Failed to delete file: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-

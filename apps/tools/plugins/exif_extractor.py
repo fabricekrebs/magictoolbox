@@ -13,8 +13,9 @@ from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
 from django.core.files.uploadedfile import UploadedFile
+
 from PIL import Image
-from PIL.ExifTags import TAGS, GPSTAGS
+from PIL.ExifTags import GPSTAGS, TAGS
 
 from apps.tools.base import BaseTool
 
@@ -36,11 +37,13 @@ class EXIFExtractor(BaseTool):
     def get_metadata(self) -> Dict[str, Any]:
         """Return tool metadata."""
         base_metadata = super().get_metadata()
-        base_metadata.update({
-            "export_formats": ["json", "csv"],
-            "supports_gps": True,
-            "max_file_size_mb": self.max_file_size / (1024 * 1024),
-        })
+        base_metadata.update(
+            {
+                "export_formats": ["json", "csv"],
+                "supports_gps": True,
+                "max_file_size_mb": self.max_file_size / (1024 * 1024),
+            }
+        )
         return base_metadata
 
     def validate(
@@ -106,8 +109,10 @@ class EXIFExtractor(BaseTool):
             gps_data[tag_name] = val
 
         # Convert GPS coordinates to decimal format
-        if all(k in gps_data for k in ["GPSLatitude", "GPSLatitudeRef", 
-                                        "GPSLongitude", "GPSLongitudeRef"]):
+        if all(
+            k in gps_data
+            for k in ["GPSLatitude", "GPSLatitudeRef", "GPSLongitude", "GPSLongitudeRef"]
+        ):
             try:
                 lat = self._convert_to_degrees(gps_data["GPSLatitude"])
                 if gps_data["GPSLatitudeRef"] == "S":
@@ -150,8 +155,8 @@ class EXIFExtractor(BaseTool):
         """
         if isinstance(value, bytes):
             try:
-                return value.decode('utf-8', errors='ignore')
-            except:
+                return value.decode("utf-8", errors="ignore")
+            except (UnicodeDecodeError, AttributeError):
                 return str(value)
         elif isinstance(value, (tuple, list)):
             return ", ".join(str(v) for v in value)
@@ -237,15 +242,16 @@ class EXIFExtractor(BaseTool):
                 result["export_format"] = export_format
 
             self.logger.info(f"✅ Successfully extracted metadata from {input_file.name}")
-            
+
             # Save result to temp JSON file for API return
             import tempfile
+
             temp_fd, temp_path = tempfile.mkstemp(suffix=".json", prefix="exif_")
             os.close(temp_fd)
-            
+
             with open(temp_path, "w", encoding="utf-8") as f:
                 json.dump(result, f, indent=2, ensure_ascii=False)
-            
+
             # Return path to JSON file and filename
             return temp_path, "exif_data.json"
 
