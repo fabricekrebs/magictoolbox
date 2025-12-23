@@ -40,6 +40,7 @@ markers = [
     "slow: marks tests as slow",
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
+    "azure_integration: marks tests that require Azure resources",
 ]
 
 [tool.mypy]
