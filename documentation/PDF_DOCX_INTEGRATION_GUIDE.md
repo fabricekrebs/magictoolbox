@@ -1,6 +1,6 @@
 # PDF to DOCX Conversion - Integration Guide
 
-**Last Updated**: December 4, 2025  
+**Last Updated**: December 23, 2025  
 **Status**: Fixed and Ready for Testing
 
 ## 📋 Overview
@@ -18,7 +18,7 @@ This guide explains how the PDF to DOCX conversion works with Azure Functions an
    ↓
 2. Django creates ToolExecution record (status: "pending")
    ↓
-3. Django uploads PDF to Azure Blob Storage (uploads/pdf/{execution_id}.pdf)
+3. Django uploads PDF to Azure Blob Storage (pdf-uploads/{execution_id}.pdf)
    ↓
 4. Azure Function is triggered (blob trigger OR HTTP fallback)
    ↓
@@ -26,7 +26,7 @@ This guide explains how the PDF to DOCX conversion works with Azure Functions an
    ↓
 6. Function converts PDF to DOCX using pdf2docx
    ↓
-7. Function uploads DOCX to Azure Blob Storage (processed/docx/{execution_id}.docx)
+7. Function uploads DOCX to Azure Blob Storage (pdf-processed/{execution_id}.docx)
    ↓
 8. Function updates status to "completed" with output file path in database
    ↓
@@ -42,11 +42,11 @@ This guide explains how the PDF to DOCX conversion works with Azure Functions an
    - Optionally triggers HTTP endpoint
 
 2. **Azure Blob Storage**
-   - Container: `uploads` - Subdirectory: `pdf/` - Input PDFs
-   - Container: `processed` - Subdirectory: `docx/` - Output DOCX files
+   - Container: `pdf-uploads` - Input PDFs
+   - Container: `pdf-processed` - Output DOCX files
 
 3. **Azure Function** (`function_app/function_app.py`)
-   - Blob trigger on `uploads/{name}` (filters for `pdf/*.pdf`)
+   - Blob trigger on `pdf-uploads/{name}`
    - HTTP trigger at `/api/convert/pdf-to-docx` (fallback)
    - Converts using pdf2docx library
    - Updates PostgreSQL database directly

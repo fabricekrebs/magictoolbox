@@ -1,6 +1,6 @@
 # Azure Functions Integration for PDF to DOCX Conversion
 
-**Last Updated**: December 1, 2025  
+**Last Updated**: December 23, 2025  
 **Status**: Implemented - Ready for Deployment
 
 ## 📋 Overview
@@ -16,7 +16,7 @@ This document describes the Azure Functions integration for asynchronous PDF to 
 ```
 User Upload → Django API → Azure Blob Storage → Azure Function → Conversion → Result Storage → User Download
      ↓            ↓              ↓                    ↓              ↓              ↓              ↓
-  Web UI    Create Record  uploads/pdf/        Blob Trigger   PDF→DOCX    processed/docx/  Poll Status
+  Web UI    Create Record  pdf-uploads/        Blob Trigger   PDF→DOCX    pdf-processed/   Poll Status
                           {exec_id}.pdf                                    {exec_id}.docx    & Download
 ```
 
@@ -29,14 +29,14 @@ User Upload → Django API → Azure Blob Storage → Azure Function → Convers
    - Serves download links for completed conversions
 
 2. **Azure Blob Storage**
-   - Container: `uploads/pdf/` - Input PDFs
-   - Container: `processed/docx/` - Output DOCX files
+   - Container: `pdf-uploads` - Input PDFs
+   - Container: `pdf-processed` - Output DOCX files
    - Blob metadata carries conversion parameters
 
 3. **Azure Function App**
    - Python 3.11 runtime on Linux
    - Consumption plan (serverless, pay-per-execution)
-   - Blob trigger on `uploads/pdf/{name}`
+   - Blob trigger on `pdf-uploads/{name}`
    - Converts PDF using `pdf2docx` library
    - Updates ToolExecution status via PostgreSQL
 
@@ -52,7 +52,7 @@ User Upload → Django API → Azure Blob Storage → Azure Function → Convers
 
 - Azure CLI installed and authenticated
 - Existing MagicToolbox infrastructure deployed
-- Storage account with `uploads` and `processed` containers
+- Storage account with `pdf-uploads` and `pdf-processed` containers
 - PostgreSQL database accessible from Azure Functions
 
 ### **Step 1: Deploy Function App Infrastructure**

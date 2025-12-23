@@ -1,5 +1,7 @@
 # Async File Processing - Gold Standard
 
+**Last Updated**: December 23, 2025
+
 **Last Updated**: December 12, 2025  
 **Status**: ✅ Production Ready
 
@@ -91,7 +93,7 @@ class MyAsyncTool(BaseTool):
 
 **Key Requirements**:
 - ✅ Return `(execution_id, None)` from `process()` to signal async
-- ✅ Upload to standardized blob path: `{container}/{category}/{execution_id}{ext}`
+- ✅ Upload to standardized blob path: `{category}-uploads/{execution_id}{ext}`
 - ✅ Include metadata: `execution_id`, `original_filename`, `tool_name`, parameters
 - ✅ Trigger Azure Function via HTTP POST after upload
 - ✅ Support both local (Azurite) and Azure (Managed Identity) auth
@@ -944,19 +946,21 @@ AZURE_STORAGE_ACCOUNT_NAME = config("AZURE_STORAGE_ACCOUNT_NAME", default="")
 
 ### **Blob Storage Containers**
 
-**Standard Container Names**:
+**Standard Container Names** (Tool-Specific Pattern):
 ```
-uploads          # Input files organized by category
-├── pdf/
-├── video/
-├── image/
-└── document/
+{tool}-uploads      # Input files for specific tool
+├── pdf-uploads/
+├── video-uploads/
+├── image-uploads/
+├── gpx-uploads/
+└── ocr-uploads/
 
-processed        # Output files organized by category
-├── pdf/
-├── video/
-├── image/
-└── document/
+{tool}-processed    # Output files from specific tool
+├── pdf-processed/
+├── video-processed/
+├── image-processed/
+├── gpx-processed/
+└── ocr-processed/
 
 temp             # Temporary files (auto-cleanup after 24h)
 ```
@@ -1130,9 +1134,16 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
   }
 }
 
-// Storage containers
-resource containers 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = [for container in ['uploads', 'processed', 'temp']: {
-  name: container
+// Storage containers (tool-specific pattern)
+var toolCategories = ['pdf', 'video', 'image', 'gpx', 'ocr']
+resource uploadContainers 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = [for category in toolCategories: {
+  name: '${category}-uploads'
+  properties: {
+    publicAccess: 'None'
+  }
+}]
+resource processedContainers 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = [for category in toolCategories: {
+  name: '${category}-processed'
   properties: {
     publicAccess: 'None'
   }
@@ -1221,7 +1232,7 @@ Before creating a new async tool, ensure all requirements are met:
 ### **Azure Function Requirements**
 - [ ] Function route matches Django expectation: `/{category}/{action}`
 - [ ] Database status updates: `processing` on start, `completed`/`failed` on finish
-- [ ] Download from `uploads/` container, process, upload to `processed/` container
+- [ ] Download from `{category}-uploads` container, process, upload to `{category}-processed` container
 - [ ] Temp file cleanup in try/finally blocks
 - [ ] Timeout handling (max 5 minutes for HTTP-triggered functions)
 - [ ] Comprehensive logging for debugging
@@ -1231,7 +1242,7 @@ Before creating a new async tool, ensure all requirements are met:
 - [ ] Bicep templates updated with new function endpoint
 - [ ] Environment variables added to `.env.example`
 - [ ] `AZURE_FUNCTION_BASE_URL` configured in Django Container App
-- [ ] Blob storage containers configured: `uploads`, `processed`, `temp`
+- [ ] Blob storage containers configured: `{tool}-uploads`, `{tool}-processed` (tool-specific)
 - [ ] GitHub Actions workflow updated (if needed)
 - [ ] Database migrations created and applied
 

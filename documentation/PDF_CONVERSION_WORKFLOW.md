@@ -1,5 +1,7 @@
 # PDF to DOCX Conversion Workflow with Azure Functions
 
+**Last Updated**: December 23, 2025
+
 This document describes the complete workflow for PDF to DOCX conversion using Azure Functions for asynchronous processing.
 
 ## Architecture Overview

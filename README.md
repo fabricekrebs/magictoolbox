@@ -9,7 +9,7 @@ Django backend for the MagicToolbox file conversion application.
 ### Prerequisites
 
 - Python 3.11+
-- PostgreSQL 14+ (optional for development, SQLite used by default)
+- PostgreSQL 17 (optional for development, SQLite used by default)
 - Redis 7+ (optional for development)
 
 ### Installation
@@ -205,7 +205,7 @@ magictoolbox/
 │                    (Django Application)                              │
 │  ┌───────────────────────────────────────────────────────────────┐  │
 │  │  Environment: magictoolbox-env                                │  │
-│  │  Container: Django 4.x + uWSGI                                │  │
+│  │  Container: Django 5.1 + Gunicorn                            │  │
 │  │  Scale: 1-10 replicas (CPU/HTTP based)                        │  │
 │  │  Resources: 0.5 CPU, 1.0 GB RAM per replica                   │  │
 │  │  Ingress: External, HTTPS only                                │  │

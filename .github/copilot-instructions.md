@@ -162,14 +162,18 @@ User Upload → Django validates & uploads to blob → Azure Function processes 
 - ✅ Comprehensive logging with emojis for easy scanning
 
 #### Container & Blob Naming Standards
-**Containers**:
-- `uploads` - Input files (organized by category: pdf/, video/, image/)
-- `processed` - Output files (organized by category)
+**Containers** (Tool-Specific Pattern):
+- `{tool}-uploads` - Input files for specific tool (e.g., pdf-uploads, video-uploads, image-uploads)
+- `{tool}-processed` - Output files from specific tool (e.g., pdf-processed, video-processed)
 - `temp` - Temporary files (auto-cleanup)
 
 **Blob Paths**:
-- Input: `uploads/{category}/{execution_id}{original_ext}`
-- Output: `processed/{category}/{execution_id}{output_ext}`
+- Input: `{category}-uploads/{execution_id}{original_ext}`
+- Output: `{category}-processed/{execution_id}{output_ext}`
+
+**Examples**:
+- PDF conversion: `pdf-uploads/abc-123.pdf` → `pdf-processed/abc-123.docx`
+- Video rotation: `video-uploads/def-456.mp4` → `video-processed/def-456.mp4`
 
 #### Configuration Naming Convention
 **Django Settings**:
@@ -323,9 +327,9 @@ For simple tools that don't require file processing (e.g., calculators, formatte
 - Maximum file size: Configurable per tool (default 50MB, up to 500MB for video)
 - Allowed types: Whitelist approach (reject by default)
 - **Async Processing Pattern** (MANDATORY for file manipulation):
-  - Upload to Azure Blob Storage (`uploads/{category}/{execution_id}{ext}`)
+  - Upload to Azure Blob Storage (`{category}-uploads/{execution_id}{ext}`)
   - Trigger Azure Function via HTTP POST
-  - Azure Function processes and uploads to `processed/{category}/` container
+  - Azure Function processes and uploads to `{category}-processed` container
   - Client polls status endpoint every 2-3 seconds
 - **Blob Storage Authentication**:
   - Local: Connection string to Azurite
@@ -354,8 +358,8 @@ For simple tools that don't require file processing (e.g., calculators, formatte
 - **Container Registry**: Azure Container Registry (ACR)
 - **Infrastructure as Code**: Bicep templates for all Azure resources
 - **Blob Storage Containers** (auto-created by Bicep):
-  - `uploads` - Input files for async processing
-  - `processed` - Output files from Azure Functions
+  - `{tool}-uploads` - Input files for async processing (pdf-uploads, video-uploads, etc.)
+  - `{tool}-processed` - Output files from Azure Functions (pdf-processed, video-processed, etc.)
   - `temp` - Temporary files (lifecycle management: auto-delete after 24h)
 - **CI/CD**: GitHub Actions with Azure integration
 - **Monitoring**: Azure Monitor, Application Insights for telemetry

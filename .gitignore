@@ -60,6 +60,9 @@ celerybeat.pid
 .dmypy.json
 dmypy.json
 
+# Ruff cache
+.ruff_cache/
+
 # Azure Functions
 function_app/local.settings.json
 function_app/.python_packages/

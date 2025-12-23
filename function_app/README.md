@@ -106,7 +106,7 @@ Configure these in Azure Portal → Function App → Configuration:
 
 ### Blob Trigger: `pdf_to_docx_converter`
 
-**Trigger Path**: `uploads/pdf/{name}`
+**Trigger Path**: `pdf-uploads/{name}`
 
 **Input**: PDF file with metadata:
 - `execution_id`: UUID for tracking
@@ -118,11 +118,11 @@ Configure these in Azure Portal → Function App → Configuration:
 1. Read PDF from blob storage
 2. Update ToolExecution status to "processing"
 3. Convert PDF to DOCX using pdf2docx
-4. Upload DOCX to `processed/docx/`
+4. Upload DOCX to `pdf-processed/`
 5. Update ToolExecution status to "completed"
 6. On error: Update status to "failed" with error details
 
-**Output**: DOCX file in `processed/docx/{execution_id}.docx`
+**Output**: DOCX file in `pdf-processed/{execution_id}.docx`
 
 ### HTTP Trigger: `http_trigger_test`
 
@@ -213,7 +213,7 @@ requests
 
 2. **Verify RBAC permissions**: Function's Managed Identity needs "Storage Blob Data Contributor" role
 
-3. **Check blob path**: Ensure PDFs are uploaded to `uploads/pdf/` (not just `uploads/`)
+3. **Check blob path**: Ensure PDFs are uploaded to `pdf-uploads/` (tool-specific container)
 
 ### Database Connection Errors
 

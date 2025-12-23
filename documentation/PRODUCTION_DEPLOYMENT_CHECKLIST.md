@@ -1,5 +1,6 @@
 # Production Deployment Checklist
 
+**Last Updated**: December 23, 2025  
 **Quick Reference**: Use this checklist when deploying to a new Azure subscription  
 **Full Guide**: See [PRODUCTION_SUBSCRIPTION_DEPLOYMENT.md](./PRODUCTION_SUBSCRIPTION_DEPLOYMENT.md)
 
