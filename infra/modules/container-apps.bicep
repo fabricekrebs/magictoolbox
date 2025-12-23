@@ -45,6 +45,9 @@ param imageTag string = 'latest'
 @description('User-Assigned Managed Identity resource ID for ACR pull and Key Vault access')
 param userAssignedIdentityId string
 
+@description('User-Assigned Managed Identity client ID for authentication')
+param userAssignedIdentityClientId string
+
 // Location abbreviation for naming (Container Apps have 32 char limit)
 var locationAbbr = location == 'westeurope' ? 'we' : location == 'northeurope' ? 'ne' : location == 'italynorth' ? 'in' : location == 'eastus' ? 'eu' : location == 'eastus2' ? 'eu2' : 'we'
 
@@ -214,6 +217,10 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
             {
               name: 'AZURE_STORAGE_ACCOUNT_NAME'
               value: storageAccountName
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: userAssignedIdentityClientId
             }
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'

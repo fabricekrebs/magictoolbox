@@ -78,14 +78,16 @@ class OCRTool(BaseTool):
     def get_metadata(self) -> Dict[str, Any]:
         """Return tool metadata including supported languages."""
         base_metadata = super().get_metadata()
-        base_metadata.update({
-            "supported_languages": self.SUPPORTED_LANGUAGES,
-            "ocr_modes": self.OCR_MODES,
-            "default_language": "eng",
-            "default_ocr_mode": "3",
-            "supports_preprocessing": True,
-            "max_file_size_mb": self.max_file_size / (1024 * 1024),
-        })
+        base_metadata.update(
+            {
+                "supported_languages": self.SUPPORTED_LANGUAGES,
+                "ocr_modes": self.OCR_MODES,
+                "default_language": "eng",
+                "default_ocr_mode": "3",
+                "supports_preprocessing": True,
+                "max_file_size_mb": self.max_file_size / (1024 * 1024),
+            }
+        )
         return base_metadata
 
     def validate(
@@ -110,12 +112,18 @@ class OCRTool(BaseTool):
         # Validate language parameter
         language = parameters.get("language", "eng")
         if language not in self.SUPPORTED_LANGUAGES:
-            return False, f"Unsupported language '{language}'. Supported: {', '.join(self.SUPPORTED_LANGUAGES.keys())}"
+            return (
+                False,
+                f"Unsupported language '{language}'. Supported: {', '.join(self.SUPPORTED_LANGUAGES.keys())}",
+            )
 
         # Validate OCR mode parameter
         ocr_mode = str(parameters.get("ocr_mode", "3"))
         if ocr_mode not in self.OCR_MODES:
-            return False, f"Invalid OCR mode '{ocr_mode}'. Supported: {', '.join(self.OCR_MODES.keys())}"
+            return (
+                False,
+                f"Invalid OCR mode '{ocr_mode}'. Supported: {', '.join(self.OCR_MODES.keys())}",
+            )
 
         # Validate preprocess parameter
         preprocess = parameters.get("preprocess", True)
@@ -181,7 +189,9 @@ class OCRTool(BaseTool):
                 self.logger.info("✅ BlobServiceClient created successfully (Azurite)")
             else:
                 # Production with Azure Managed Identity
-                storage_account_name = getattr(settings, "AZURE_STORAGE_ACCOUNT_NAME", None) or getattr(settings, "AZURE_ACCOUNT_NAME", None)
+                storage_account_name = getattr(
+                    settings, "AZURE_STORAGE_ACCOUNT_NAME", None
+                ) or getattr(settings, "AZURE_ACCOUNT_NAME", None)
                 if not storage_account_name:
                     self.logger.error("❌ Storage account name not configured")
                     raise ToolExecutionError(
@@ -192,7 +202,9 @@ class OCRTool(BaseTool):
                 self.logger.info(f"   Storage URL: {account_url}")
 
                 # Use AzureCliCredential for local/testing, DefaultAzureCredential for production
-                use_cli_auth = os.getenv("USE_AZURE_CLI_AUTH", "false").lower() == "true" or settings.DEBUG
+                use_cli_auth = (
+                    os.getenv("USE_AZURE_CLI_AUTH", "false").lower() == "true" or settings.DEBUG
+                )
 
                 if use_cli_auth:
                     self.logger.info(
@@ -232,7 +244,7 @@ class OCRTool(BaseTool):
 
             self.logger.info("✅ Image uploaded successfully to Azure Blob Storage")
             self.logger.info(f"   Blob name: {blob_name}")
-            self.logger.info(f"   Container: ocr-uploads")
+            self.logger.info("   Container: ocr-uploads")
             self.logger.info(f"   Size: {len(file_content):,} bytes")
             self.logger.info(f"   Execution ID: {execution_id}")
 
@@ -241,13 +253,14 @@ class OCRTool(BaseTool):
             self.logger.info("🚀 TRIGGERING AZURE FUNCTION FOR OCR PROCESSING")
             try:
                 import requests
+
                 base_url = getattr(settings, "AZURE_FUNCTION_BASE_URL", None)
 
                 if base_url:
                     # Construct full URL by appending endpoint
                     function_url = f"{base_url}/image/ocr"
                     # Extract input format from file extension (remove leading dot)
-                    input_format = file_ext.lstrip('.')
+                    input_format = file_ext.lstrip(".")
                     payload = {
                         "execution_id": execution_id,
                         "blob_name": f"ocr-uploads/{blob_name}",
@@ -268,7 +281,7 @@ class OCRTool(BaseTool):
                         try:
                             response = requests.post(function_url, json=payload, timeout=300)
 
-                            self.logger.info(f"📨 Response received from Azure Function")
+                            self.logger.info("📨 Response received from Azure Function")
                             self.logger.info(f"   Status code: {response.status_code}")
 
                             if response.status_code == 200:
@@ -278,48 +291,72 @@ class OCRTool(BaseTool):
                                     self.logger.info(f"   Response JSON: {response_json}")
 
                                     # Update the database if Azure Function succeeded
-                                    if response_json.get('status') == 'success':
+                                    if response_json.get("status") == "success":
                                         self.logger.info("=" * 80)
-                                        self.logger.info("📝 UPDATING DATABASE FROM AZURE FUNCTION RESPONSE")
-                                        from apps.tools.models import ToolExecution
+                                        self.logger.info(
+                                            "📝 UPDATING DATABASE FROM AZURE FUNCTION RESPONSE"
+                                        )
                                         from django.utils import timezone
+
+                                        from apps.tools.models import ToolExecution
 
                                         try:
                                             execution = ToolExecution.objects.get(id=execution_id)
 
                                             # Extract output filename from blob path
-                                            output_blob = response_json.get('output_blob', '')
-                                            output_filename = output_blob.split('/')[-1] if output_blob else ''
+                                            output_blob = response_json.get("output_blob", "")
+                                            output_filename = (
+                                                output_blob.split("/")[-1] if output_blob else ""
+                                            )
 
                                             # Calculate duration in seconds
                                             completed_at = timezone.now()
                                             duration_seconds = None
                                             if execution.created_at:
-                                                duration_seconds = (completed_at - execution.created_at).total_seconds()
+                                                duration_seconds = (
+                                                    completed_at - execution.created_at
+                                                ).total_seconds()
 
                                             # Update all fields
-                                            execution.status = 'completed'
+                                            execution.status = "completed"
                                             execution.output_blob_path = output_blob
                                             execution.output_filename = output_filename
-                                            execution.output_size = response_json.get('output_size_bytes')
+                                            execution.output_size = response_json.get(
+                                                "output_size_bytes"
+                                            )
                                             execution.completed_at = completed_at
                                             execution.duration_seconds = duration_seconds
-                                            execution.save(update_fields=[
-                                                'status', 'output_blob_path', 'output_filename',
-                                                'output_size', 'completed_at', 'duration_seconds', 'updated_at'
-                                            ])
+                                            execution.save(
+                                                update_fields=[
+                                                    "status",
+                                                    "output_blob_path",
+                                                    "output_filename",
+                                                    "output_size",
+                                                    "completed_at",
+                                                    "duration_seconds",
+                                                    "updated_at",
+                                                ]
+                                            )
 
-                                            self.logger.info(f"✅ Database updated successfully")
-                                            self.logger.info(f"   Status: completed")
-                                            self.logger.info(f"   Output filename: {output_filename}")
+                                            self.logger.info("✅ Database updated successfully")
+                                            self.logger.info("   Status: completed")
+                                            self.logger.info(
+                                                f"   Output filename: {output_filename}"
+                                            )
                                         except ToolExecution.DoesNotExist:
-                                            self.logger.error(f"❌ ToolExecution not found: {execution_id}")
+                                            self.logger.error(
+                                                f"❌ ToolExecution not found: {execution_id}"
+                                            )
                                         except Exception as db_err:
-                                            self.logger.error(f"❌ Failed to update database: {db_err}")
+                                            self.logger.error(
+                                                f"❌ Failed to update database: {db_err}"
+                                            )
                                         finally:
                                             self.logger.info("=" * 80)
                                 except Exception as json_err:
-                                    self.logger.warning(f"⚠️  Failed to parse JSON response: {json_err}")
+                                    self.logger.warning(
+                                        f"⚠️  Failed to parse JSON response: {json_err}"
+                                    )
                             else:
                                 self.logger.warning(
                                     f"⚠️  Azure Function returned non-200 status: {response.status_code}"
@@ -343,18 +380,18 @@ class OCRTool(BaseTool):
             self.logger.info("=" * 80)
             self.logger.info("✅ ASYNC IMAGE UPLOAD AND TRIGGER COMPLETED")
             self.logger.info(f"   Execution ID: {execution_id}")
-            self.logger.info(f"   Status: Pending async OCR processing")
+            self.logger.info("   Status: Pending async OCR processing")
             self.logger.info("=" * 80)
             return execution_id, None
 
         except Exception as e:
             self.logger.error("=" * 80)
-            self.logger.error(f"❌ FAILED TO UPLOAD IMAGE TO BLOB STORAGE")
+            self.logger.error("❌ FAILED TO UPLOAD IMAGE TO BLOB STORAGE")
             self.logger.error(f"   Execution ID: {execution_id}")
             self.logger.error(f"   Error type: {type(e).__name__}")
             self.logger.error(f"   Error message: {str(e)}")
             self.logger.error("=" * 80)
-            self.logger.error(f"Full traceback:", exc_info=True)
+            self.logger.error("Full traceback:", exc_info=True)
             raise ToolExecutionError(f"Failed to upload image for OCR processing: {str(e)}")
 
     def cleanup(self, *file_paths: str) -> None:

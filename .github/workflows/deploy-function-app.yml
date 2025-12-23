@@ -1,4 +1,5 @@
 name: Deploy Azure Function App
+# Force deployment - v1.0.0
 
 on:
   push:

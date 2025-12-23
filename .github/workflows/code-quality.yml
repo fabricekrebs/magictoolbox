@@ -1,0 +1,255 @@
+name: Code Quality
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - '**.py'
+      - 'requirements/**'
+      - 'pyproject.toml'
+      - 'ruff.toml'
+      - 'setup.cfg'
+      - '.github/workflows/code-quality.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - '**.py'
+      - 'requirements/**'
+      - 'pyproject.toml'
+      - 'ruff.toml'
+      - 'setup.cfg'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  lint-and-format:
+    name: Lint and Format Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Create virtual environment
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
+          echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          source .venv/bin/activate
+          pip install --upgrade pip setuptools wheel
+          pip install -r requirements/development.txt
+
+      - name: Run Black (format check)
+        run: |
+          source .venv/bin/activate
+          black --check --diff --color apps/ magictoolbox/ tests/ function_app/
+
+      - name: Run isort (import order check)
+        run: |
+          source .venv/bin/activate
+          isort --check-only --diff apps/ magictoolbox/ tests/ function_app/
+
+      - name: Run Ruff (linting)
+        run: |
+          source .venv/bin/activate
+          ruff check apps/ magictoolbox/ tests/ function_app/ --output-format=github
+
+  type-check:
+    name: Type Checking (mypy)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Create virtual environment
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
+          echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          source .venv/bin/activate
+          pip install --upgrade pip setuptools wheel
+          pip install -r requirements/development.txt
+
+      - name: Run mypy
+        run: |
+          source .venv/bin/activate
+          mypy apps/ magictoolbox/ --config-file=pyproject.toml || true
+        continue-on-error: true  # Don't fail build on type errors initially
+
+  security-check:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Create virtual environment
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
+          echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          source .venv/bin/activate
+          pip install --upgrade pip setuptools wheel
+          pip install bandit[toml] safety
+
+      - name: Run Bandit (security linter)
+        run: |
+          source .venv/bin/activate
+          bandit -r apps/ magictoolbox/ -f json -o bandit-report.json || true
+          bandit -r apps/ magictoolbox/ -f screen
+        continue-on-error: true
+
+      - name: Run Safety (dependency vulnerability check)
+        run: |
+          source .venv/bin/activate
+          safety check --json || true
+        continue-on-error: true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+
+  django-checks:
+    name: Django System Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Create virtual environment
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
+          echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          source .venv/bin/activate
+          pip install --upgrade pip setuptools wheel
+          pip install -r requirements/development.txt
+
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          SECRET_KEY=test-secret-key-for-ci
+          DEBUG=True
+          ALLOWED_HOSTS=localhost,127.0.0.1
+          DATABASE_URL=sqlite:///db.sqlite3
+          EOF
+
+      - name: Run Django system checks
+        run: |
+          source .venv/bin/activate
+          python manage.py check --fail-level WARNING
+
+      - name: Check for missing migrations
+        run: |
+          source .venv/bin/activate
+          python manage.py makemigrations --check --dry-run --no-input
+
+  complexity-check:
+    name: Code Complexity Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install tools
+        run: |
+          pip install radon
+
+      - name: Run complexity analysis
+        run: |
+          echo "=== Cyclomatic Complexity ==="
+          radon cc apps/ magictoolbox/ -a -nb || true
+          echo ""
+          echo "=== Maintainability Index ==="
+          radon mi apps/ magictoolbox/ -nb || true
+        continue-on-error: true
+
+  summary:
+    name: Quality Summary
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, type-check, security-check, django-checks, complexity-check]
+    if: always()
+
+    steps:
+      - name: Check job results
+        run: |
+          echo "Lint and Format: ${{ needs.lint-and-format.result }}"
+          echo "Type Check: ${{ needs.type-check.result }}"
+          echo "Security Check: ${{ needs.security-check.result }}"
+          echo "Django Checks: ${{ needs.django-checks.result }}"
+          echo "Complexity Check: ${{ needs.complexity-check.result }}"
+
+      - name: Evaluate overall status
+        run: |
+          if [[ "${{ needs.lint-and-format.result }}" == "failure" ]]; then
+            echo "❌ Code formatting or linting failed!"
+            exit 1
+          elif [[ "${{ needs.django-checks.result }}" == "failure" ]]; then
+            echo "❌ Django system checks failed!"
+            exit 1
+          fi
+          echo "✅ All required quality checks passed!"

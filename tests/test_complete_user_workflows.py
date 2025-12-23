@@ -56,7 +56,7 @@ Local Testing Setup:
 GitHub Actions (CI/CD):
     This test suite can be run automatically against deployed Azure environments
     using the GitHub Actions workflow: .github/workflows/e2e-tests.yml
-    
+
     See documentation:
     - .github/workflows/README.md - Workflow details
     - documentation/E2E_TESTING_GUIDE.md - Full testing guide
@@ -70,12 +70,14 @@ import time
 import uuid
 from pathlib import Path
 
-import pytest
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
+
 from rest_framework.test import APIClient
+
+import pytest
 
 from apps.tools.models import ToolExecution
 from apps.tools.registry import tool_registry
@@ -83,9 +85,7 @@ from apps.tools.registry import tool_registry
 User = get_user_model()
 
 # Check if Azure integration testing is enabled
-AZURE_INTEGRATION_ENABLED = (
-    os.getenv("AZURE_INTEGRATION_TEST_ENABLED", "false").lower() == "true"
-)
+AZURE_INTEGRATION_ENABLED = os.getenv("AZURE_INTEGRATION_TEST_ENABLED", "false").lower() == "true"
 AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 AZURE_FUNCTION_BASE_URL = os.getenv("AZURE_FUNCTION_BASE_URL")  # Updated variable name
 
@@ -105,56 +105,76 @@ class TestCompleteUserWorkflow:
     def storage_network_config(self):
         """Temporarily enable public network access for storage account during tests."""
         import subprocess
-        
+
         storage_account = "sawemagictoolboxdev01"
         resource_group = "rg-westeurope-magictoolbox-dev-01"
-        
+
         # Get current network rule set
         print(f"\n🔓 Enabling public network access for {storage_account}...")
         result = subprocess.run(
             [
-                "az", "storage", "account", "show",
-                "--name", storage_account,
-                "--resource-group", resource_group,
-                "--query", "networkRuleSet.defaultAction",
-                "--output", "tsv"
+                "az",
+                "storage",
+                "account",
+                "show",
+                "--name",
+                storage_account,
+                "--resource-group",
+                resource_group,
+                "--query",
+                "networkRuleSet.defaultAction",
+                "--output",
+                "tsv",
             ],
             capture_output=True,
-            text=True
+            text=True,
         )
         original_default_action = result.stdout.strip()
         print(f"   Original default action: {original_default_action}")
-        
+
         # Enable public access
         subprocess.run(
             [
-                "az", "storage", "account", "update",
-                "--name", storage_account,
-                "--resource-group", resource_group,
-                "--default-action", "Allow"
+                "az",
+                "storage",
+                "account",
+                "update",
+                "--name",
+                storage_account,
+                "--resource-group",
+                resource_group,
+                "--default-action",
+                "Allow",
             ],
             check=True,
-            capture_output=True
+            capture_output=True,
         )
-        print(f"   ✅ Public access enabled")
-        
+        print("   ✅ Public access enabled")
+
         # Wait a moment for changes to propagate
         import time
+
         time.sleep(5)
-        
+
         yield
-        
+
         # Restore original network rules
         print(f"\n🔒 Restoring network rules for {storage_account}...")
         subprocess.run(
             [
-                "az", "storage", "account", "update",
-                "--name", storage_account,
-                "--resource-group", resource_group,
-                "--default-action", original_default_action or "Deny"
+                "az",
+                "storage",
+                "account",
+                "update",
+                "--name",
+                storage_account,
+                "--resource-group",
+                resource_group,
+                "--default-action",
+                original_default_action or "Deny",
             ],
             check=True,
-            capture_output=True
+            capture_output=True,
         )
         print(f"   ✅ Network rules restored to: {original_default_action or 'Deny'}")
 
@@ -166,11 +186,11 @@ class TestCompleteUserWorkflow:
 
         # Use Azure CLI credential for local testing
         credential = AzureCliCredential()
-        
+
         # Extract storage account name from connection string or use environment variable
         storage_account_name = os.getenv("AZURE_STORAGE_ACCOUNT_NAME", "sawemagictoolboxdev01")
         account_url = f"https://{storage_account_name}.blob.core.windows.net"
-        
+
         client = BlobServiceClient(account_url=account_url, credential=credential)
         return client
 
@@ -207,7 +227,7 @@ class TestCompleteUserWorkflow:
         # Cleanup after test
         print(f"\n🧹 Cleaning up user: {user.username}")
         user.delete()
-        print(f"✅ User deleted")
+        print("✅ User deleted")
 
     @pytest.fixture
     def authenticated_client(self, registered_user, test_user_credentials):
@@ -236,14 +256,14 @@ class TestCompleteUserWorkflow:
                 b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01"
                 b"\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07"
                 b"\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14"
-                b"\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.\' \",#\x1c\x1c(7),01444"
-                b"\x1f\'9=82<.342\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01"
+                b"\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.' \",#\x1c\x1c(7),01444"
+                b"\x1f'9=82<.342\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01"
                 b"\x11\x00\xff\xc4\x00\x1f\x00\x00\x01\x05\x01\x01\x01\x01\x01"
                 b"\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06"
                 b"\x07\x08\t\n\x0b\xff\xc4\x00\xb5\x10\x00\x02\x01\x03\x03\x02"
                 b"\x04\x03\x05\x05\x04\x04\x00\x00\x01}\x01\x02\x03\x00\x04\x11"
-                b"\x05\x12!1A\x06\x13Qa\x07\"q\x142\x81\x91\xa1\x08#B\xb1\xc1"
-                b"\x15R\xd1\xf0$3br\x82\t\n\x16\x17\x18\x19\x1a%&\'()*456789"
+                b'\x05\x12!1A\x06\x13Qa\x07"q\x142\x81\x91\xa1\x08#B\xb1\xc1'
+                b"\x15R\xd1\xf0$3br\x82\t\n\x16\x17\x18\x19\x1a%&'()*456789"
                 b":CDEFGHIJSTUVWXYZcdefghijstuvwxyz\x83\x84\x85\x86\x87\x88\x89"
                 b"\x8a\x92\x93\x94\x95\x96\x97\x98\x99\x9a\xa2\xa3\xa4\xa5\xa6"
                 b"\xa7\xa8\xa9\xaa\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xc2\xc3"
@@ -254,7 +274,7 @@ class TestCompleteUserWorkflow:
             )
             files["jpeg"] = ("test_image.jpg", jpeg_data, "image/jpeg")
             files["png"] = ("test_image.png", jpeg_data, "image/jpeg")
-        
+
         # Load JPEG with EXIF data (for EXIF extractor testing)
         jpeg_exif_path = fixtures_dir / "sample_with_exif.jpg"
         if jpeg_exif_path.exists():
@@ -274,8 +294,7 @@ class TestCompleteUserWorkflow:
         else:
             # Fallback to minimal MP4
             mp4_data = (
-                b"\x00\x00\x00\x20ftypisom\x00\x00\x02\x00isomiso2avc1mp41"
-                b"\x00\x00\x00\x08free"
+                b"\x00\x00\x00\x20ftypisom\x00\x00\x02\x00isomiso2avc1mp41" b"\x00\x00\x00\x08free"
             )
             files["mp4"] = ("test_video.mp4", mp4_data, "video/mp4")
 
@@ -369,7 +388,7 @@ startxref
         7. Clean up
         """
         print(f"\n{'='*60}")
-        print(f"🧪 TEST 1: Image Format Converter")
+        print("🧪 TEST 1: Image Format Converter")
         print(f"{'='*60}")
 
         tool_name = "image-format-converter"
@@ -400,22 +419,24 @@ startxref
             )
 
         assert response.status_code in [200, 201, 202], f"API returned {response.status_code}"
-        print(f"  ✅ File uploaded and conversion initiated")
-        
+        print("  ✅ File uploaded and conversion initiated")
+
         # Check if response is async (202) or sync (200)
         is_async = response.status_code == 202
-        
+
         if is_async:
             # Async tools return JSON with execution ID
             response_data = response.json()
             print(f"  📋 Async response: {response_data}")
-            execution_id = response_data.get("executionId")
-            
+            response_data.get("executionId")
+
             # Step 3: Verify database record for async tools
             print("💾 Step 3: Verify database record")
-            execution = ToolExecution.objects.filter(
-                user=registered_user, tool_name=tool_name
-            ).order_by("-created_at").first()
+            execution = (
+                ToolExecution.objects.filter(user=registered_user, tool_name=tool_name)
+                .order_by("-created_at")
+                .first()
+            )
 
             assert execution is not None
             assert execution.input_filename == filename
@@ -425,7 +446,7 @@ startxref
             # Sync tools return file bytes directly (no ToolExecution record)
             print(f"  📋 Sync response: File bytes received ({len(response.content)} bytes)")
             assert len(response.content) > 0, "No file content received"
-            print(f"  ✅ File processed successfully (synchronous conversion)")
+            print("  ✅ File processed successfully (synchronous conversion)")
             # Skip database verification for sync tools
             print("💾 Step 3: Database record not created (synchronous tool)")
 
@@ -442,19 +463,19 @@ startxref
                     break
 
             if not blob_found:
-                print(f"  ⚠️  Blob not found (may use local storage in test mode)")
+                print("  ⚠️  Blob not found (may use local storage in test mode)")
 
             # Step 5: Cleanup
             print("🧹 Step 5: Cleanup")
             self.cleanup_blob_storage(blob_service_client, execution.id)
             execution.delete()
-            print(f"  ✅ Cleanup completed")
+            print("  ✅ Cleanup completed")
         else:
             print("☁️  Step 4: Azure Blob Storage - Skipped (synchronous tool)")
             print("🧹 Step 5: Cleanup - Not needed (no database record)")
 
         print(f"{'='*60}")
-        print(f"✅ TEST 1 PASSED: Image Format Converter")
+        print("✅ TEST 1 PASSED: Image Format Converter")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -471,12 +492,12 @@ startxref
     ):
         """Test complete workflow for GPX Analyzer."""
         print(f"\n{'='*60}")
-        print(f"🧪 TEST 2: GPX Analyzer")
+        print("🧪 TEST 2: GPX Analyzer")
         print(f"{'='*60}")
 
         tool_name = "gpx-analyzer"
         tool = tool_registry.get_tool(tool_name)
-        
+
         if tool is None:
             print(f"  ⚠️  Tool {tool_name} not found - skipping")
             pytest.skip(f"Tool {tool_name} not registered")
@@ -501,22 +522,24 @@ startxref
             )
 
         assert response.status_code in [200, 201, 202], f"API returned {response.status_code}"
-        print(f"  ✅ GPX file uploaded and analyzed")
-        
+        print("  ✅ GPX file uploaded and analyzed")
+
         # Check if response is async (202) or sync (200)
         is_async = response.status_code == 202
-        
+
         if is_async:
             # Async tools return JSON with execution ID
             response_data = response.json()
             print(f"  📋 Async response: {response_data}")
-            execution_id = response_data.get("executionId")
-            
+            response_data.get("executionId")
+
             # Step 3: Verify database record for async tools
             print("💾 Step 3: Verify database record")
-            execution = ToolExecution.objects.filter(
-                user=registered_user, tool_name=tool_name
-            ).order_by("-created_at").first()
+            execution = (
+                ToolExecution.objects.filter(user=registered_user, tool_name=tool_name)
+                .order_by("-created_at")
+                .first()
+            )
 
             assert execution is not None
             assert execution.input_filename == filename
@@ -526,7 +549,7 @@ startxref
             # Sync tools return file bytes directly (no ToolExecution record)
             print(f"  📋 Sync response: File bytes received ({len(response.content)} bytes)")
             assert len(response.content) > 0, "No file content received"
-            print(f"  ✅ File processed successfully (synchronous conversion)")
+            print("  ✅ File processed successfully (synchronous conversion)")
             # Skip database verification for sync tools
             print("💾 Step 3: Database record not created (synchronous tool)")
             execution = None
@@ -536,12 +559,12 @@ startxref
             print("🧹 Step 4: Cleanup")
             self.cleanup_blob_storage(blob_service_client, execution.id)
             execution.delete()
-            print(f"  ✅ Cleanup completed")
+            print("  ✅ Cleanup completed")
         else:
             print("🧹 Step 4: No cleanup needed (synchronous tool)")
 
         print(f"{'='*60}")
-        print(f"✅ TEST 2 PASSED: GPX Analyzer")
+        print("✅ TEST 2 PASSED: GPX Analyzer")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -558,12 +581,12 @@ startxref
     ):
         """Test complete workflow for GPX to KML Converter."""
         print(f"\n{'='*60}")
-        print(f"🧪 TEST 3: GPX to KML Converter")
+        print("🧪 TEST 3: GPX to KML Converter")
         print(f"{'='*60}")
 
         tool_name = "gpx-kml-converter"
         tool = tool_registry.get_tool(tool_name)
-        
+
         if tool is None:
             print(f"  ⚠️  Tool {tool_name} not found - skipping")
             pytest.skip(f"Tool {tool_name} not registered")
@@ -588,22 +611,24 @@ startxref
             )
 
         assert response.status_code in [200, 201, 202], f"API returned {response.status_code}"
-        print(f"  ✅ GPX converted to KML")
-        
+        print("  ✅ GPX converted to KML")
+
         # Check if response is async (202) or sync (200)
         is_async = response.status_code == 202
-        
+
         if is_async:
             # Async tools return JSON with execution ID
             response_data = response.json()
             print(f"  📋 Async response: {response_data}")
-            execution_id = response_data.get("executionId")
-            
+            response_data.get("executionId")
+
             # Step 3: Verify database record for async tools
             print("💾 Step 3: Verify database record")
-            execution = ToolExecution.objects.filter(
-                user=registered_user, tool_name=tool_name
-            ).order_by("-created_at").first()
+            execution = (
+                ToolExecution.objects.filter(user=registered_user, tool_name=tool_name)
+                .order_by("-created_at")
+                .first()
+            )
 
             assert execution is not None
             assert execution.input_filename == filename
@@ -613,7 +638,7 @@ startxref
             # Sync tools return file bytes directly (no ToolExecution record)
             print(f"  📋 Sync response: File bytes received ({len(response.content)} bytes)")
             assert len(response.content) > 0, "No file content received"
-            print(f"  ✅ File processed successfully (synchronous conversion)")
+            print("  ✅ File processed successfully (synchronous conversion)")
             # Skip database verification for sync tools
             print("💾 Step 3: Database record not created (synchronous tool)")
             execution = None
@@ -623,10 +648,10 @@ startxref
             print("🧹 Step 4: Cleanup")
             self.cleanup_blob_storage(blob_service_client, execution.id)
             execution.delete()
-        print(f"  ✅ Cleanup completed")
+        print("  ✅ Cleanup completed")
 
         print(f"{'='*60}")
-        print(f"✅ TEST 3 PASSED: GPX to KML Converter")
+        print("✅ TEST 3 PASSED: GPX to KML Converter")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -643,12 +668,12 @@ startxref
     ):
         """Test complete workflow for GPX Speed Modifier."""
         print(f"\n{'='*60}")
-        print(f"🧪 TEST 4: GPX Speed Modifier")
+        print("🧪 TEST 4: GPX Speed Modifier")
         print(f"{'='*60}")
 
         tool_name = "gpx-speed-modifier"
         tool = tool_registry.get_tool(tool_name)
-        
+
         if tool is None:
             print(f"  ⚠️  Tool {tool_name} not found - skipping")
             pytest.skip(f"Tool {tool_name} not registered")
@@ -676,22 +701,24 @@ startxref
             )
 
         assert response.status_code in [200, 201, 202], f"API returned {response.status_code}"
-        print(f"  ✅ GPX speed modified")
-        
+        print("  ✅ GPX speed modified")
+
         # Check if response is async (202) or sync (200)
         is_async = response.status_code == 202
-        
+
         if is_async:
             # Async tools return JSON with execution ID
             response_data = response.json()
             print(f"  📋 Async response: {response_data}")
-            execution_id = response_data.get("executionId")
-            
+            response_data.get("executionId")
+
             # Step 3: Verify database record for async tools
             print("💾 Step 3: Verify database record")
-            execution = ToolExecution.objects.filter(
-                user=registered_user, tool_name=tool_name
-            ).order_by("-created_at").first()
+            execution = (
+                ToolExecution.objects.filter(user=registered_user, tool_name=tool_name)
+                .order_by("-created_at")
+                .first()
+            )
 
             assert execution is not None
             assert execution.input_filename == filename
@@ -701,7 +728,7 @@ startxref
             # Sync tools return file bytes directly (no ToolExecution record)
             print(f"  📋 Sync response: File bytes received ({len(response.content)} bytes)")
             assert len(response.content) > 0, "No file content received"
-            print(f"  ✅ File processed successfully (synchronous conversion)")
+            print("  ✅ File processed successfully (synchronous conversion)")
             # Skip database verification for sync tools
             print("💾 Step 3: Database record not created (synchronous tool)")
             execution = None
@@ -711,12 +738,12 @@ startxref
             print("🧹 Step 4: Cleanup")
             self.cleanup_blob_storage(blob_service_client, execution.id)
             execution.delete()
-            print(f"  ✅ Cleanup completed")
+            print("  ✅ Cleanup completed")
         else:
             print("🧹 Step 4: Cleanup - Not needed (synchronous tool)")
 
         print(f"{'='*60}")
-        print(f"✅ TEST 4 PASSED: GPX Speed Modifier")
+        print("✅ TEST 4 PASSED: GPX Speed Modifier")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -732,12 +759,12 @@ startxref
     ):
         """Test complete workflow for Unit Converter."""
         print(f"\n{'='*60}")
-        print(f"🧪 TEST 5: Unit Converter")
+        print("🧪 TEST 5: Unit Converter")
         print(f"{'='*60}")
 
         tool_name = "unit-converter"
         tool = tool_registry.get_tool(tool_name)
-        
+
         if tool is None:
             print(f"  ⚠️  Tool {tool_name} not found - skipping")
             pytest.skip(f"Tool {tool_name} not registered")
@@ -761,23 +788,25 @@ startxref
         )
 
         assert response.status_code == 200
-        print(f"  ✅ Unit conversion completed")
+        print("  ✅ Unit conversion completed")
 
         print("💾 Step 3: Verify database record (if applicable)")
-        execution = ToolExecution.objects.filter(
-            user=registered_user, tool_name=tool_name
-        ).order_by("-created_at").first()
+        execution = (
+            ToolExecution.objects.filter(user=registered_user, tool_name=tool_name)
+            .order_by("-created_at")
+            .first()
+        )
 
         if execution:
             print(f"  ✅ Database record: ID={execution.id}, Status={execution.status}")
             print("🧹 Step 4: Cleanup")
             execution.delete()
-            print(f"  ✅ Cleanup completed")
+            print("  ✅ Cleanup completed")
         else:
-            print(f"  ℹ️  No database record (unit converter may not create executions)")
+            print("  ℹ️  No database record (unit converter may not create executions)")
 
         print(f"{'='*60}")
-        print(f"✅ TEST 5 PASSED: Unit Converter")
+        print("✅ TEST 5 PASSED: Unit Converter")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -794,12 +823,12 @@ startxref
     ):
         """Test complete workflow for Video Rotation (requires Azure integration)."""
         print(f"\n{'='*60}")
-        print(f"🧪 TEST 6: Video Rotation")
+        print("🧪 TEST 6: Video Rotation")
         print(f"{'='*60}")
 
         tool_name = "video-rotation"
         tool = tool_registry.get_tool(tool_name)
-        
+
         if tool is None:
             print(f"  ⚠️  Tool {tool_name} not found - skipping")
             pytest.skip(f"Tool {tool_name} not registered")
@@ -830,25 +859,27 @@ startxref
             try:
                 error_data = response.json()
                 print(f"  ❌ API Error {response.status_code}: {error_data}")
-            except:
+            except (ValueError, TypeError):
                 print(f"  ❌ API Error {response.status_code}: {response.content[:500]}")
         assert response.status_code in [200, 201, 202], f"API returned {response.status_code}"
-        print(f"  ✅ Video rotation initiated")
-        
+        print("  ✅ Video rotation initiated")
+
         # Check if response is async (202) or sync (200)
         is_async = response.status_code == 202
-        
+
         if is_async:
             # Async tools return JSON with execution ID
             response_data = response.json()
             print(f"  📋 Async response: {response_data}")
-            execution_id = response_data.get("executionId")
-            
+            response_data.get("executionId")
+
             # Step 3: Verify database record for async tools
             print("💾 Step 3: Verify database record")
-            execution = ToolExecution.objects.filter(
-                user=registered_user, tool_name=tool_name
-            ).order_by("-created_at").first()
+            execution = (
+                ToolExecution.objects.filter(user=registered_user, tool_name=tool_name)
+                .order_by("-created_at")
+                .first()
+            )
 
             assert execution is not None
             assert execution.input_filename == filename
@@ -858,7 +889,7 @@ startxref
             # Sync tools return file bytes directly (no ToolExecution record)
             print(f"  📋 Sync response: File bytes received ({len(response.content)} bytes)")
             assert len(response.content) > 0, "No file content received"
-            print(f"  ✅ File processed successfully (synchronous conversion)")
+            print("  ✅ File processed successfully (synchronous conversion)")
             # Skip database verification for sync tools
             print("💾 Step 3: Database record not created (synchronous tool)")
             execution = None
@@ -875,19 +906,19 @@ startxref
                     break
 
             if not blob_found:
-                print(f"  ⚠️  Blob not found (may use Azure Functions async processing)")
+                print("  ⚠️  Blob not found (may use Azure Functions async processing)")
 
             # Step 5: Cleanup
             print("🧹 Step 5: Cleanup")
             self.cleanup_blob_storage(blob_service_client, execution.id)
             execution.delete()
-            print(f"  ✅ Cleanup completed")
+            print("  ✅ Cleanup completed")
         else:
             print("☁️  Step 4: Blob storage not used (synchronous tool)")
             print("🧹 Step 5: No cleanup needed (synchronous tool)")
 
         print(f"{'='*60}")
-        print(f"✅ TEST 6 PASSED: Video Rotation")
+        print("✅ TEST 6 PASSED: Video Rotation")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -913,12 +944,12 @@ startxref
         7. Clean up
         """
         print(f"\n{'='*60}")
-        print(f"🧪 TEST 7: PDF to DOCX Converter (Azure Functions)")
+        print("🧪 TEST 7: PDF to DOCX Converter (Azure Functions)")
         print(f"{'='*60}")
 
         tool_name = "pdf-docx-converter"
         tool = tool_registry.get_tool(tool_name)
-        
+
         if tool is None:
             print(f"  ⚠️  Tool {tool_name} not found - skipping")
             pytest.skip(f"Tool {tool_name} not registered")
@@ -946,25 +977,27 @@ startxref
             try:
                 error_data = response.json()
                 print(f"  ❌ API Error {response.status_code}: {error_data}")
-            except:
+            except (ValueError, TypeError):
                 print(f"  ❌ API Error {response.status_code}: {response.content[:500]}")
         assert response.status_code in [200, 201, 202], f"API returned {response.status_code}"
-        print(f"  ✅ PDF file uploaded")
-        
+        print("  ✅ PDF file uploaded")
+
         # Check if response is async (202) or sync (200)
         is_async = response.status_code == 202
-        
+
         if is_async:
             # Async tools return JSON with execution ID
             response_data = response.json()
             print(f"  📋 Async response: {response_data}")
-            execution_id = response_data.get("executionId")
-            
+            response_data.get("executionId")
+
             # Step 3: Verify database record for async tools
             print("💾 Step 3: Verify database record")
-            execution = ToolExecution.objects.filter(
-                user=registered_user, tool_name=tool_name
-            ).order_by("-created_at").first()
+            execution = (
+                ToolExecution.objects.filter(user=registered_user, tool_name=tool_name)
+                .order_by("-created_at")
+                .first()
+            )
 
             assert execution is not None
             assert execution.input_filename == filename
@@ -974,7 +1007,7 @@ startxref
             # Sync tools return file bytes directly (no ToolExecution record)
             print(f"  📋 Sync response: File bytes received ({len(response.content)} bytes)")
             assert len(response.content) > 0, "No file content received"
-            print(f"  ✅ File processed successfully (synchronous conversion)")
+            print("  ✅ File processed successfully (synchronous conversion)")
             # Skip database verification for sync tools
             print("💾 Step 3: Database record not created (synchronous tool)")
             execution = None
@@ -984,16 +1017,17 @@ startxref
             print("☁️  Step 4: Verify Azure Blob Storage upload")
             blob_name = f"pdf/{execution.id}.pdf"
             blob_found = self.verify_blob_exists(blob_service_client, "uploads", blob_name)
-            
+
             if blob_found:
                 print(f"  ✅ PDF uploaded to blob storage: {blob_name}")
             else:
-                print(f"  ⚠️  Blob not found (may be processed immediately)")
+                print("  ⚠️  Blob not found (may be processed immediately)")
 
-            if AZURE_FUNCTIONS_URL:
+            azure_functions_enabled = getattr(settings, "USE_AZURE_FUNCTIONS_PDF_CONVERSION", False)
+            if azure_functions_enabled:
                 print("⚙️  Step 5: Azure Function processing")
-                print(f"  ℹ️  Waiting for Azure Function to process...")
-                
+                print("  ℹ️  Waiting for Azure Function to process...")
+
                 # Wait up to 60 seconds for processing
                 max_wait = 60
                 for i in range(max_wait):
@@ -1005,26 +1039,26 @@ startxref
                     time.sleep(1)
 
                 print(f"  ✅ Final status: {execution.status}")
-                
+
                 if execution.status == "completed":
-                    print(f"  ✅ Azure Function processed successfully")
+                    print("  ✅ Azure Function processed successfully")
                     output_blob_name = f"pdf/{execution.id}.docx"
                     if self.verify_blob_exists(blob_service_client, "processed", output_blob_name):
-                        print(f"  ✅ Output DOCX found in blob storage")
+                        print("  ✅ Output DOCX found in blob storage")
             else:
-                print(f"  ℹ️  AZURE_FUNCTIONS_URL not set - skipping async processing test")
+                print("  ℹ️  AZURE_FUNCTIONS_URL not set - skipping async processing test")
 
             # Step 6: Cleanup
             print("🧹 Step 6: Cleanup")
             self.cleanup_blob_storage(blob_service_client, execution.id)
             execution.delete()
-            print(f"  ✅ Cleanup completed")
+            print("  ✅ Cleanup completed")
         else:
             print("☁️  Step 4: Blob storage not used (synchronous tool)")
             print("🧹 Step 5: No cleanup needed (synchronous tool)")
 
         print(f"{'='*60}")
-        print(f"✅ TEST 7 PASSED: PDF to DOCX Converter")
+        print("✅ TEST 7 PASSED: PDF to DOCX Converter")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -1035,7 +1069,7 @@ startxref
     def test_08_multi_user_isolation(self, db, blob_service_client, sample_files):
         """Test that users can only see their own executions."""
         print(f"\n{'='*60}")
-        print(f"🧪 TEST 8: Multi-User Isolation")
+        print("🧪 TEST 8: Multi-User Isolation")
         print(f"{'='*60}")
 
         # Create two users
@@ -1089,7 +1123,7 @@ startxref
             user=user1, input_filename="user2_image.png"
         ).exists()
 
-        print(f"  ✅ User isolation verified")
+        print("  ✅ User isolation verified")
 
         # Cleanup
         exec1.delete()
@@ -1097,10 +1131,10 @@ startxref
         user1.delete()
         user2.delete()
 
-        print(f"  ✅ Cleanup completed")
+        print("  ✅ Cleanup completed")
 
         print(f"{'='*60}")
-        print(f"✅ TEST 8 PASSED: Multi-User Isolation")
+        print("✅ TEST 8 PASSED: Multi-User Isolation")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -1115,7 +1149,7 @@ startxref
     ):
         """Test error handling with invalid files."""
         print(f"\n{'='*60}")
-        print(f"🧪 TEST 9: Error Handling - Invalid Files")
+        print("🧪 TEST 9: Error Handling - Invalid Files")
         print(f"{'='*60}")
 
         tool_name = "image-format-converter"
@@ -1149,7 +1183,7 @@ startxref
         print(f"  ✅ Wrong file type handled (status: {response.status_code})")
 
         print(f"{'='*60}")
-        print(f"✅ TEST 9 PASSED: Error Handling")
+        print("✅ TEST 9 PASSED: Error Handling")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -1160,30 +1194,31 @@ startxref
     def test_10_final_summary(self, registered_user):
         """Display final test summary."""
         print(f"\n{'='*60}")
-        print(f"📊 FINAL TEST SUMMARY")
+        print("📊 FINAL TEST SUMMARY")
         print(f"{'='*60}")
-        print(f"\n✅ All tests completed successfully!")
-        print(f"\nTest Coverage:")
-        print(f"  ✅ User registration and authentication")
-        print(f"  ✅ Image Format Converter (PNG → JPEG)")
-        print(f"  ✅ GPX Analyzer")
-        print(f"  ✅ GPX to KML Converter")
-        print(f"  ✅ GPX Speed Modifier")
-        print(f"  ✅ Unit Converter")
-        print(f"  ✅ Video Rotation")
-        print(f"  ✅ PDF to DOCX Converter (Azure Functions)")
-        print(f"  ✅ Multi-user isolation")
-        print(f"  ✅ Error handling")
-        print(f"\nAzure Integration:")
-        print(f"  ✅ Real blob storage uploads")
-        print(f"  ✅ Real blob storage downloads")
-        print(f"  ✅ Blob cleanup")
-        print(f"  ✅ Database user tracking")
-        print(f"  {'✅' if AZURE_FUNCTIONS_URL else '⚠️ '} Azure Functions processing")
+        print("\n✅ All tests completed successfully!")
+        print("\nTest Coverage:")
+        print("  ✅ User registration and authentication")
+        print("  ✅ Image Format Converter (PNG → JPEG)")
+        print("  ✅ GPX Analyzer")
+        print("  ✅ GPX to KML Converter")
+        print("  ✅ GPX Speed Modifier")
+        print("  ✅ Unit Converter")
+        print("  ✅ Video Rotation")
+        print("  ✅ PDF to DOCX Converter (Azure Functions)")
+        print("  ✅ Multi-user isolation")
+        print("  ✅ Error handling")
+        print("\nAzure Integration:")
+        print("  ✅ Real blob storage uploads")
+        print("  ✅ Real blob storage downloads")
+        print("  ✅ Blob cleanup")
+        print("  ✅ Database user tracking")
+        azure_functions_enabled = getattr(settings, "USE_AZURE_FUNCTIONS_PDF_CONVERSION", False)
+        print(f"  {'✅' if azure_functions_enabled else '⚠️ '} Azure Functions processing")
         print(f"\nTest User: {registered_user.username}")
         print(f"  Email: {registered_user.email}")
         print(f"  ID: {registered_user.id}")
-        print(f"\n🧹 Test user will be deleted after test completion")
+        print("\n🧹 Test user will be deleted after test completion")
         print(f"{'='*60}\n")
 
 
@@ -1191,10 +1226,11 @@ startxref
 # NEW COMPREHENSIVE API-BASED E2E TESTS
 # ================================================================================
 
+
 class TestCompleteAPIWorkflow:
     """
     Comprehensive API-based E2E tests that simulate ALL user actions.
-    
+
     Tests every API endpoint for each tool with full validation:
     - HTTP status codes
     - Response structure
@@ -1211,11 +1247,11 @@ class TestCompleteAPIWorkflow:
 
         # Use Azure CLI credential for local testing
         credential = AzureCliCredential()
-        
+
         # Extract storage account name from connection string or use environment variable
         storage_account_name = os.getenv("AZURE_STORAGE_ACCOUNT_NAME", "sawemagictoolboxdev01")
         account_url = f"https://{storage_account_name}.blob.core.windows.net"
-        
+
         client = BlobServiceClient(account_url=account_url, credential=credential)
         return client
 
@@ -1246,7 +1282,7 @@ class TestCompleteAPIWorkflow:
         # Cleanup after test
         print(f"\n🧹 Cleaning up user: {user.username}")
         user.delete()
-        print(f"✅ User deleted")
+        print("✅ User deleted")
 
     @pytest.fixture
     def authenticated_client(self, registered_user):
@@ -1259,7 +1295,7 @@ class TestCompleteAPIWorkflow:
     def sample_files(self):
         """Create sample test files for all tool types."""
         from pathlib import Path
-        
+
         files = {}
         fixtures_dir = Path(__file__).parent / "fixtures"
 
@@ -1270,7 +1306,7 @@ class TestCompleteAPIWorkflow:
             b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
         )
         files["png"] = ("test_image.png", png_data, "image/png")
-        
+
         # JPEG with EXIF data (for EXIF extractor testing)
         jpeg_exif_path = fixtures_dir / "sample_with_exif.jpg"
         if jpeg_exif_path.exists():
@@ -1302,8 +1338,7 @@ class TestCompleteAPIWorkflow:
 
         # Video file (minimal MP4)
         mp4_data = (
-            b"\x00\x00\x00\x20ftypisom\x00\x00\x02\x00isomiso2avc1mp41"
-            b"\x00\x00\x00\x08free"
+            b"\x00\x00\x00\x20ftypisom\x00\x00\x02\x00isomiso2avc1mp41" b"\x00\x00\x00\x08free"
         )
         files["mp4"] = ("test_video.mp4", mp4_data, "video/mp4")
 
@@ -1338,7 +1373,7 @@ startxref
     def test_api_01_list_all_tools(self, authenticated_client):
         """
         Test GET /api/v1/tools/ - List all available tools
-        
+
         Validates:
         - HTTP 200 status
         - Response is a list
@@ -1346,33 +1381,40 @@ startxref
         - Tool names match expected registered tools
         """
         print(f"\n{'='*60}")
-        print(f"🧪 API TEST 1: List All Tools")
+        print("🧪 API TEST 1: List All Tools")
         print(f"{'='*60}")
 
         # Make API request
         response = authenticated_client.get("/api/v1/tools/")
-        
+
         # Validate response
         print(f"📋 Response status: {response.status_code}")
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-        
+
         # Validate response structure
         data = response.json()
         print(f"📋 Response type: {type(data)}")
         assert isinstance(data, list), f"Expected list, got {type(data)}"
-        
+
         print(f"📋 Number of tools: {len(data)}")
         assert len(data) > 0, "No tools found"
-        
+
         # Validate each tool has required fields (API returns snake_case)
-        required_fields = ["name", "display_name", "description", "category", "allowed_input_types", "max_file_size"]
+        required_fields = [
+            "name",
+            "display_name",
+            "description",
+            "category",
+            "allowed_input_types",
+            "max_file_size",
+        ]
         for tool in data:
             print(f"  ✅ Tool: {tool.get('name')} ({tool.get('display_name')})")
             for field in required_fields:
                 assert field in tool, f"Tool {tool.get('name')} missing field: {field}"
-        
+
         print(f"{'='*60}")
-        print(f"✅ API TEST 1 PASSED: List All Tools")
+        print("✅ API TEST 1 PASSED: List All Tools")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -1383,7 +1425,7 @@ startxref
     def test_api_02_get_tool_metadata(self, authenticated_client):
         """
         Test GET /api/v1/tools/{tool_name}/ - Get specific tool metadata
-        
+
         Validates:
         - HTTP 200 for existing tool
         - HTTP 404 for non-existent tool
@@ -1391,15 +1433,15 @@ startxref
         - All metadata fields present
         """
         print(f"\n{'='*60}")
-        print(f"🧪 API TEST 2: Get Tool Metadata")
+        print("🧪 API TEST 2: Get Tool Metadata")
         print(f"{'='*60}")
 
         # Test 1: Get existing tool
         print("📋 Test 2.1: Get image-format-converter metadata")
         response = authenticated_client.get("/api/v1/tools/image-format-converter/")
-        
+
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-        
+
         data = response.json()
         assert data["name"] == "image-format-converter"
         assert "display_name" in data
@@ -1410,14 +1452,14 @@ startxref
         # Test 2: Get non-existent tool
         print("📋 Test 2.2: Get non-existent tool (should fail)")
         response = authenticated_client.get("/api/v1/tools/non-existent-tool/")
-        
+
         assert response.status_code == 404, f"Expected 404, got {response.status_code}"
         data = response.json()
         assert "error" in data
         print(f"  ✅ Non-existent tool returns 404: {data.get('error')}")
 
         print(f"{'='*60}")
-        print(f"✅ API TEST 2 PASSED: Get Tool Metadata")
+        print("✅ API TEST 2 PASSED: Get Tool Metadata")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -1425,7 +1467,9 @@ startxref
     # ========================================================================
 
     @pytest.mark.django_db
-    def test_api_03_image_format_converter(self, authenticated_client, registered_user, sample_files):
+    def test_api_03_image_format_converter(
+        self, authenticated_client, registered_user, sample_files
+    ):
         """
         Test complete workflow for Image Format Converter via API:
         1. Upload image
@@ -1433,11 +1477,11 @@ startxref
         3. Check response contains file bytes
         """
         print(f"\n{'='*60}")
-        print(f"🧪 API TEST 3: Image Format Converter (Sync)")
+        print("🧪 API TEST 3: Image Format Converter (Sync)")
         print(f"{'='*60}")
 
         filename, file_data, content_type = sample_files["png"]
-        
+
         # Upload and convert
         print(f"📤 Uploading PNG file: {filename}")
         with io.BytesIO(file_data) as file_io:
@@ -1450,24 +1494,30 @@ startxref
                 },
                 format="multipart",
             )
-        
+
         # Validate response
         print(f"📋 Response status: {response.status_code}")
-        assert response.status_code in [200, 201, 202], f"Expected 200/201/202, got {response.status_code}"
-        
+        assert response.status_code in [
+            200,
+            201,
+            202,
+        ], f"Expected 200/201/202, got {response.status_code}"
+
         if response.status_code == 200:
             # Sync response - file bytes
             assert len(response.content) > 0, "No file content received"
-            assert response['Content-Type'].startswith('image/'), f"Expected image, got {response['Content-Type']}"
+            assert response["Content-Type"].startswith(
+                "image/"
+            ), f"Expected image, got {response['Content-Type']}"
             print(f"  ✅ Sync conversion successful: {len(response.content)} bytes")
         else:
             # Async response - JSON with execution ID
             data = response.json()
             assert "executionId" in data
             print(f"  ✅ Async conversion initiated: {data['executionId']}")
-        
+
         print(f"{'='*60}")
-        print(f"✅ API TEST 3 PASSED: Image Format Converter")
+        print("✅ API TEST 3 PASSED: Image Format Converter")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -1483,11 +1533,11 @@ startxref
         3. Check calculation correctness
         """
         print(f"\n{'='*60}")
-        print(f"🧪 API TEST 4: Unit Converter (No File)")
+        print("🧪 API TEST 4: Unit Converter (No File)")
         print(f"{'='*60}")
 
         # Submit conversion
-        print(f"📤 Converting 100 kilometer to mile")
+        print("📤 Converting 100 kilometer to mile")
         response = authenticated_client.post(
             "/api/v1/tools/unit-converter/convert/",
             {
@@ -1498,19 +1548,19 @@ startxref
             },
             format="json",
         )
-        
+
         # Validate response
         print(f"📋 Response status: {response.status_code}")
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-        
+
         data = response.json()
         # Unit converter returns output_value field
-        assert "output_value" in data, f"Missing output_value field"
+        assert "output_value" in data, "Missing output_value field"
         result = data.get("output_value")
         print(f"  ✅ Conversion successful: 100 kilometer = {result} mile")
-        
+
         print(f"{'='*60}")
-        print(f"✅ API TEST 4 PASSED: Unit Converter")
+        print("✅ API TEST 4 PASSED: Unit Converter")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -1528,13 +1578,13 @@ startxref
         5. Delete execution
         """
         print(f"\n{'='*60}")
-        print(f"🧪 API TEST 5: Async Tool Workflow (PDF to DOCX)")
+        print("🧪 API TEST 5: Async Tool Workflow (PDF to DOCX)")
         print(f"{'='*60}")
 
         filename, file_data, content_type = sample_files["pdf"]
-        
+
         # Step 1: Upload file
-        print(f"📤 Step 1: Upload PDF file")
+        print("📤 Step 1: Upload PDF file")
         with io.BytesIO(file_data) as file_io:
             file_io.name = filename
             response = authenticated_client.post(
@@ -1542,19 +1592,18 @@ startxref
                 {"file": file_io},
                 format="multipart",
             )
-        
+
         assert response.status_code == 202, f"Expected 202, got {response.status_code}"
         data = response.json()
         assert "executionId" in data
         assert "statusUrl" in data
         execution_id = data["executionId"]
-        status_url = data["statusUrl"]
         print(f"  ✅ File uploaded: execution_id={execution_id}")
 
         # Step 2: Check status
-        print(f"📋 Step 2: Check status via API")
+        print("📋 Step 2: Check status via API")
         response = authenticated_client.get(f"/api/v1/executions/{execution_id}/status/")
-        
+
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
         data = response.json()
         assert "status" in data
@@ -1562,37 +1611,41 @@ startxref
         print(f"  ✅ Status retrieved: {data['status']}")
 
         # Step 3: Verify execution record created
-        print(f"💾 Step 3: Verify database record")
+        print("💾 Step 3: Verify database record")
         execution = ToolExecution.objects.filter(id=execution_id, user=registered_user).first()
         assert execution is not None, "Execution record not found"
         assert execution.tool_name == "pdf-docx-converter"
         print(f"  ✅ Database record verified: status={execution.status}")
 
         # Step 4: List execution history
-        print(f"📋 Step 4: List execution history via API")
-        response = authenticated_client.get("/api/v1/executions/?tool_name=pdf-docx-converter&limit=10")
-        
+        print("📋 Step 4: List execution history via API")
+        response = authenticated_client.get(
+            "/api/v1/executions/?tool_name=pdf-docx-converter&limit=10"
+        )
+
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
         data = response.json()
         assert "results" in data or isinstance(data, list)
         results = data.get("results", data) if isinstance(data, dict) else data
         assert len(results) > 0, "No execution history found"
-        assert any(ex.get("id") == execution_id for ex in results), "Current execution not in history"
+        assert any(
+            ex.get("id") == execution_id for ex in results
+        ), "Current execution not in history"
         print(f"  ✅ Execution history retrieved: {len(results)} items")
 
         # Step 5: Delete execution
-        print(f"🗑️  Step 5: Delete execution via API")
+        print("🗑️  Step 5: Delete execution via API")
         response = authenticated_client.delete(f"/api/v1/executions/{execution_id}/")
-        
+
         assert response.status_code == 204, f"Expected 204, got {response.status_code}"
-        
+
         # Verify deletion
         execution = ToolExecution.objects.filter(id=execution_id).first()
         assert execution is None, "Execution record still exists after deletion"
-        print(f"  ✅ Execution deleted successfully")
+        print("  ✅ Execution deleted successfully")
 
         print(f"{'='*60}")
-        print(f"✅ API TEST 5 PASSED: Async Tool Workflow")
+        print("✅ API TEST 5 PASSED: Async Tool Workflow")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -1609,27 +1662,27 @@ startxref
         4. Missing required parameters
         """
         print(f"\n{'='*60}")
-        print(f"🧪 API TEST 6: Error Handling")
+        print("🧪 API TEST 6: Error Handling")
         print(f"{'='*60}")
 
         # Test 1: Missing file parameter
-        print(f"📋 Test 6.1: Missing file parameter")
+        print("📋 Test 6.1: Missing file parameter")
         response = authenticated_client.post(
             "/api/v1/tools/image-format-converter/convert/",
             {"output_format": "jpeg"},
             format="multipart",
         )
         assert response.status_code == 400, f"Expected 400, got {response.status_code}"
-        print(f"  ✅ Missing file returns 400")
+        print("  ✅ Missing file returns 400")
 
         # Test 2: Invalid tool name
-        print(f"📋 Test 6.2: Invalid tool name")
+        print("📋 Test 6.2: Invalid tool name")
         response = authenticated_client.get("/api/v1/tools/invalid-tool-name/")
         assert response.status_code == 404, f"Expected 404, got {response.status_code}"
-        print(f"  ✅ Invalid tool returns 404")
+        print("  ✅ Invalid tool returns 404")
 
         # Test 3: Unsupported file type (text file to image converter)
-        print(f"📋 Test 6.3: Unsupported file type")
+        print("📋 Test 6.3: Unsupported file type")
         filename, file_data, content_type = sample_files["text"]
         with io.BytesIO(file_data) as file_io:
             file_io.name = filename
@@ -1642,10 +1695,10 @@ startxref
                 format="multipart",
             )
         assert response.status_code == 400, f"Expected 400, got {response.status_code}"
-        print(f"  ✅ Unsupported file type returns 400")
+        print("  ✅ Unsupported file type returns 400")
 
         # Test 4: Missing required parameter
-        print(f"📋 Test 6.4: Missing required parameter")
+        print("📋 Test 6.4: Missing required parameter")
         filename, file_data, content_type = sample_files["png"]
         with io.BytesIO(file_data) as file_io:
             file_io.name = filename
@@ -1655,10 +1708,10 @@ startxref
                 format="multipart",
             )
         assert response.status_code == 400, f"Expected 400, got {response.status_code}"
-        print(f"  ✅ Missing parameter returns 400")
+        print("  ✅ Missing parameter returns 400")
 
         print(f"{'='*60}")
-        print(f"✅ API TEST 6 PASSED: Error Handling")
+        print("✅ API TEST 6 PASSED: Error Handling")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -1674,13 +1727,13 @@ startxref
         3. GPX Speed Modifier
         """
         print(f"\n{'='*60}")
-        print(f"🧪 API TEST 7: GPX Tools")
+        print("🧪 API TEST 7: GPX Tools")
         print(f"{'='*60}")
 
         filename, file_data, content_type = sample_files["gpx"]
 
         # Test 1: GPX Analyzer
-        print(f"📋 Test 7.1: GPX Analyzer")
+        print("📋 Test 7.1: GPX Analyzer")
         with io.BytesIO(file_data) as file_io:
             file_io.name = filename
             response = authenticated_client.post(
@@ -1692,7 +1745,7 @@ startxref
         print(f"  ✅ GPX Analyzer: status={response.status_code}")
 
         # Test 2: GPX to KML Converter
-        print(f"📋 Test 7.2: GPX to KML Converter")
+        print("📋 Test 7.2: GPX to KML Converter")
         with io.BytesIO(file_data) as file_io:
             file_io.name = filename
             response = authenticated_client.post(
@@ -1704,7 +1757,7 @@ startxref
         print(f"  ✅ GPX to KML Converter: status={response.status_code}")
 
         # Test 3: GPX Speed Modifier
-        print(f"📋 Test 7.3: GPX Speed Modifier")
+        print("📋 Test 7.3: GPX Speed Modifier")
         with io.BytesIO(file_data) as file_io:
             file_io.name = filename
             response = authenticated_client.post(
@@ -1719,7 +1772,7 @@ startxref
         print(f"  ✅ GPX Speed Modifier: status={response.status_code}")
 
         print(f"{'='*60}")
-        print(f"✅ API TEST 7 PASSED: GPX Tools")
+        print("✅ API TEST 7 PASSED: GPX Tools")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -1736,11 +1789,11 @@ startxref
         4. Verify blob uploaded to video-uploads container
         """
         print(f"\n{'='*60}")
-        print(f"🧪 API TEST 8: Video Rotation (Async)")
+        print("🧪 API TEST 8: Video Rotation (Async)")
         print(f"{'='*60}")
 
         filename, file_data, content_type = sample_files["mp4"]
-        
+
         # Upload and convert
         print(f"📤 Uploading MP4 file: {filename}")
         with io.BytesIO(file_data) as file_io:
@@ -1753,27 +1806,29 @@ startxref
                 },
                 format="multipart",
             )
-        
+
         # Validate async response
         print(f"📋 Response status: {response.status_code}")
         if response.status_code != 202:
             print(f"❌ Error response: {response.json() if response.content else 'No content'}")
-        assert response.status_code == 202, f"Expected 202 for async tool, got {response.status_code}"
-        
+        assert (
+            response.status_code == 202
+        ), f"Expected 202 for async tool, got {response.status_code}"
+
         data = response.json()
         assert "executionId" in data, "Missing executionId in response"
         execution_id = data["executionId"]
         print(f"  ✅ Async conversion initiated: execution_id={execution_id}")
-        
+
         # Verify database record
         execution = ToolExecution.objects.filter(id=execution_id, user=registered_user).first()
         assert execution is not None, "Execution record not found"
         assert execution.tool_name == "video-rotation"
         assert execution.input_filename == filename
         print(f"  ✅ Database record created: status={execution.status}")
-        
+
         # Poll status (max 30 seconds)
-        print(f"⏳ Polling status...")
+        print("⏳ Polling status...")
         max_polls = 15
         for i in range(max_polls):
             response = authenticated_client.get(f"/api/v1/executions/{execution_id}/status/")
@@ -1781,17 +1836,17 @@ startxref
             data = response.json()
             status = data.get("status")
             print(f"  Attempt {i+1}/{max_polls}: status={status}")
-            
+
             if status == "completed":
-                print(f"  ✅ Processing completed!")
+                print("  ✅ Processing completed!")
                 break
             elif status == "failed":
                 pytest.fail(f"Processing failed: {data.get('error', 'Unknown error')}")
-            
+
             time.sleep(2)
-        
+
         print(f"{'='*60}")
-        print(f"✅ API TEST 8 PASSED: Video Rotation")
+        print("✅ API TEST 8 PASSED: Video Rotation")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -1807,11 +1862,11 @@ startxref
         3. Verify blob uploaded to ocr-uploads container
         """
         print(f"\n{'='*60}")
-        print(f"🧪 API TEST 9: OCR Tool (Async)")
+        print("🧪 API TEST 9: OCR Tool (Async)")
         print(f"{'='*60}")
 
         filename, file_data, content_type = sample_files["png"]
-        
+
         # Upload and extract text
         print(f"📤 Uploading image for OCR: {filename}")
         with io.BytesIO(file_data) as file_io:
@@ -1821,25 +1876,27 @@ startxref
                 {"file": file_io},
                 format="multipart",
             )
-        
+
         # Validate async response
         print(f"📋 Response status: {response.status_code}")
-        assert response.status_code == 202, f"Expected 202 for async tool, got {response.status_code}"
-        
+        assert (
+            response.status_code == 202
+        ), f"Expected 202 for async tool, got {response.status_code}"
+
         data = response.json()
         assert "executionId" in data, "Missing executionId in response"
         execution_id = data["executionId"]
         print(f"  ✅ Async OCR initiated: execution_id={execution_id}")
-        
+
         # Verify database record
         execution = ToolExecution.objects.filter(id=execution_id, user=registered_user).first()
         assert execution is not None, "Execution record not found"
         assert execution.tool_name == "ocr-tool"
         assert execution.input_filename == filename
         print(f"  ✅ Database record created: status={execution.status}")
-        
+
         print(f"{'='*60}")
-        print(f"✅ API TEST 9 PASSED: OCR Tool")
+        print("✅ API TEST 9 PASSED: OCR Tool")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -1855,13 +1912,13 @@ startxref
         3. Verify blobs uploaded to gpx-uploads container
         """
         print(f"\n{'='*60}")
-        print(f"🧪 API TEST 10: GPX Merger (Async)")
+        print("🧪 API TEST 10: GPX Merger (Async)")
         print(f"{'='*60}")
 
         filename, file_data, content_type = sample_files["gpx"]
-        
+
         # Upload multiple GPX files for merging
-        print(f"📤 Uploading 2 GPX files for merging")
+        print("📤 Uploading 2 GPX files for merging")
         with io.BytesIO(file_data) as file1, io.BytesIO(file_data) as file2:
             file1.name = "track1.gpx"
             file2.name = "track2.gpx"
@@ -1872,17 +1929,17 @@ startxref
                 },
                 format="multipart",
             )
-        
+
         # Validate async response
         print(f"📋 Response status: {response.status_code}")
         assert response.status_code in [200, 202], f"Expected 200/202, got {response.status_code}"
-        
+
         if response.status_code == 202:
             data = response.json()
             assert "executionId" in data, "Missing executionId in response"
             execution_id = data["executionId"]
             print(f"  ✅ Async merge initiated: execution_id={execution_id}")
-            
+
             # Verify database record
             execution = ToolExecution.objects.filter(id=execution_id, user=registered_user).first()
             assert execution is not None, "Execution record not found"
@@ -1890,9 +1947,9 @@ startxref
             print(f"  ✅ Database record created: status={execution.status}")
         else:
             print(f"  ✅ Sync merge completed: {len(response.content)} bytes")
-        
+
         print(f"{'='*60}")
-        print(f"✅ API TEST 10 PASSED: GPX Merger")
+        print("✅ API TEST 10 PASSED: GPX Merger")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -1907,11 +1964,11 @@ startxref
         2. EXIF Extractor
         """
         print(f"\n{'='*60}")
-        print(f"🧪 API TEST 11: Sync Tools (Base64 & EXIF)")
+        print("🧪 API TEST 11: Sync Tools (Base64 & EXIF)")
         print(f"{'='*60}")
 
         # Test Base64 Encoder
-        print(f"📋 Test 11.1: Base64 Encoder")
+        print("📋 Test 11.1: Base64 Encoder")
         # Note: Base64 encoder works with text input, not file uploads in typical use
         # For this test, we send a small text to encode
         response = authenticated_client.post(
@@ -1922,11 +1979,13 @@ startxref
             },
             format="json",  # Use JSON format for text-based tool
         )
-        assert response.status_code == 200, f"Expected 200 for sync tool, got {response.status_code}"
+        assert (
+            response.status_code == 200
+        ), f"Expected 200 for sync tool, got {response.status_code}"
         print(f"  ✅ Base64 Encoder: status={response.status_code}")
 
         # Test EXIF Extractor
-        print(f"📋 Test 11.2: EXIF Extractor")
+        print("📋 Test 11.2: EXIF Extractor")
         filename, file_data, content_type = sample_files["jpeg_exif"]  # Using sample_with_exif.jpg
         with io.BytesIO(file_data) as file_io:
             file_io.name = filename
@@ -1937,11 +1996,13 @@ startxref
             )
         if response.status_code != 200:
             print(f"  ❌ Error response: {response.json() if response.content else 'No content'}")
-        assert response.status_code == 200, f"Expected 200 for sync tool, got {response.status_code}"
+        assert (
+            response.status_code == 200
+        ), f"Expected 200 for sync tool, got {response.status_code}"
         print(f"  ✅ EXIF Extractor: status={response.status_code}")
 
         print(f"{'='*60}")
-        print(f"✅ API TEST 11 PASSED: Sync Tools")
+        print("✅ API TEST 11 PASSED: Sync Tools")
         print(f"{'='*60}\n")
 
     # ========================================================================
@@ -1952,37 +2013,37 @@ startxref
     def test_api_12_final_summary(self):
         """Display final test summary."""
         print(f"\n{'='*60}")
-        print(f"📊 API E2E TESTS - FINAL SUMMARY")
+        print("📊 API E2E TESTS - FINAL SUMMARY")
         print(f"{'='*60}")
-        print(f"\n✅ All API-based E2E tests completed successfully!")
-        print(f"\nAPI Coverage:")
-        print(f"  ✅ GET /api/v1/tools/ - List all tools")
-        print(f"  ✅ GET /api/v1/tools/{{name}}/ - Get tool metadata")
-        print(f"  ✅ POST /api/v1/tools/{{name}}/convert/ - Upload & process files")
-        print(f"  ✅ GET /api/v1/executions/{{id}}/status/ - Check processing status")
-        print(f"  ✅ GET /api/v1/executions/?tool_name={{name}} - List execution history")
-        print(f"  ✅ DELETE /api/v1/executions/{{id}}/ - Delete execution")
-        print(f"\nAsync Tools Tested (Azure Functions + Blob Storage):")
-        print(f"  ✅ pdf-docx-converter → pdf-uploads/pdf-processed containers")
-        print(f"  ✅ image-format-converter → image-uploads/image-processed containers")
-        print(f"  ✅ video-rotation → video-uploads/video-processed containers")
-        print(f"  ✅ ocr-tool → ocr-uploads/ocr-processed containers")
-        print(f"  ✅ gpx-kml-converter → gpx-uploads/gpx-processed containers")
-        print(f"  ✅ gpx-merger → gpx-uploads/gpx-processed containers")
-        print(f"  ✅ gpx-speed-modifier → gpx-uploads/gpx-processed containers")
-        print(f"\nSync Tools Tested (Direct Processing):")
-        print(f"  ✅ unit-converter (no file upload)")
-        print(f"  ✅ base64-encoder")
-        print(f"  ✅ exif-extractor")
-        print(f"  ✅ gpx-analyzer")
-        print(f"\nValidation Coverage:")
-        print(f"  ✅ HTTP status codes (200, 201, 202, 400, 404)")
-        print(f"  ✅ Response structure validation")
-        print(f"  ✅ Data type validation")
-        print(f"  ✅ Business logic validation")
-        print(f"  ✅ Error handling validation")
-        print(f"  ✅ Async/sync tool workflow validation")
-        print(f"  ✅ Tool-specific blob container validation")
+        print("\n✅ All API-based E2E tests completed successfully!")
+        print("\nAPI Coverage:")
+        print("  ✅ GET /api/v1/tools/ - List all tools")
+        print("  ✅ GET /api/v1/tools/{name}/ - Get tool metadata")
+        print("  ✅ POST /api/v1/tools/{name}/convert/ - Upload & process files")
+        print("  ✅ GET /api/v1/executions/{id}/status/ - Check processing status")
+        print("  ✅ GET /api/v1/executions/?tool_name={name} - List execution history")
+        print("  ✅ DELETE /api/v1/executions/{id}/ - Delete execution")
+        print("\nAsync Tools Tested (Azure Functions + Blob Storage):")
+        print("  ✅ pdf-docx-converter → pdf-uploads/pdf-processed containers")
+        print("  ✅ image-format-converter → image-uploads/image-processed containers")
+        print("  ✅ video-rotation → video-uploads/video-processed containers")
+        print("  ✅ ocr-tool → ocr-uploads/ocr-processed containers")
+        print("  ✅ gpx-kml-converter → gpx-uploads/gpx-processed containers")
+        print("  ✅ gpx-merger → gpx-uploads/gpx-processed containers")
+        print("  ✅ gpx-speed-modifier → gpx-uploads/gpx-processed containers")
+        print("\nSync Tools Tested (Direct Processing):")
+        print("  ✅ unit-converter (no file upload)")
+        print("  ✅ base64-encoder")
+        print("  ✅ exif-extractor")
+        print("  ✅ gpx-analyzer")
+        print("\nValidation Coverage:")
+        print("  ✅ HTTP status codes (200, 201, 202, 400, 404)")
+        print("  ✅ Response structure validation")
+        print("  ✅ Data type validation")
+        print("  ✅ Business logic validation")
+        print("  ✅ Error handling validation")
+        print("  ✅ Async/sync tool workflow validation")
+        print("  ✅ Tool-specific blob container validation")
         print(f"{'='*60}\n")
 
 
@@ -1990,14 +2051,18 @@ if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("Complete User Workflow Integration Tests")
     print("=" * 60)
-    print(f"\nConfiguration:")
+    print("\nConfiguration:")
     print(f"  Azure Integration: {'✅ Enabled' if AZURE_INTEGRATION_ENABLED else '❌ Disabled'}")
-    print(f"  Storage Connection: {'✅ Configured' if AZURE_STORAGE_CONNECTION_STRING else '❌ Not configured'}")
-    print(f"  Functions Base URL: {'✅ Configured' if AZURE_FUNCTION_BASE_URL else '❌ Not configured'}")
-    print(f"\nTo enable:")
-    print(f"  export AZURE_INTEGRATION_TEST_ENABLED=true")
-    print(f"  export AZURE_STORAGE_CONNECTION_STRING='...'")
-    print(f"  export AZURE_FUNCTION_BASE_URL='https://func-xxx.azurewebsites.net'")
-    print(f"\nRun with:")
-    print(f"  pytest tests/test_complete_user_workflows.py -v -s")
+    print(
+        f"  Storage Connection: {'✅ Configured' if AZURE_STORAGE_CONNECTION_STRING else '❌ Not configured'}"
+    )
+    print(
+        f"  Functions Base URL: {'✅ Configured' if AZURE_FUNCTION_BASE_URL else '❌ Not configured'}"
+    )
+    print("\nTo enable:")
+    print("  export AZURE_INTEGRATION_TEST_ENABLED=true")
+    print("  export AZURE_STORAGE_CONNECTION_STRING='...'")
+    print("  export AZURE_FUNCTION_BASE_URL='https://func-xxx.azurewebsites.net'")
+    print("\nRun with:")
+    print("  pytest tests/test_complete_user_workflows.py -v -s")
     print("=" * 60 + "\n")

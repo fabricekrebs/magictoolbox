@@ -72,7 +72,7 @@ class ToolExecutionSerializer(serializers.ModelSerializer):
 
 class ToolExecutionListSerializer(serializers.ModelSerializer):
     """Simplified serializer for tool execution list."""
-    
+
     download_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -89,10 +89,18 @@ class ToolExecutionListSerializer(serializers.ModelSerializer):
             "created_at",
             "download_url",
         ]
-        read_only_fields = ["id", "tool_name", "status", "input_filename", 
-                           "output_filename", "duration_seconds", "input_size", 
-                           "output_size", "created_at"]
-    
+        read_only_fields = [
+            "id",
+            "tool_name",
+            "status",
+            "input_filename",
+            "output_filename",
+            "duration_seconds",
+            "input_size",
+            "output_size",
+            "created_at",
+        ]
+
     def get_download_url(self, obj):
         """Return download URL only if execution is completed and has output."""
         if obj.status == "completed":
