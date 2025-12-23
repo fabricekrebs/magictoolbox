@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.0](https://github.com/fabricekrebs/magictoolbox/compare/v1.0.0...v2.0.0) (2025-12-23)
+
+### ⚠ BREAKING CHANGES
+
+* Deployments now require passing code quality checks and tests
+
+### Features
+
+* add comprehensive code quality checks and testing to CI/CD pipeline ([25a6abe](https://github.com/fabricekrebs/magictoolbox/commit/25a6abe3f672b8ab2952e6644f1b75a73327e670))
+
+### Bug Fixes
+
+* **ci:** configure tests to work in CI without Azure resources ([249c99b](https://github.com/fabricekrebs/magictoolbox/commit/249c99b2a7195c819361d8c757baf9d6d86d3e00))
+* **infra:** add AZURE_CLIENT_ID env var for user-assigned managed identity auth ([081070c](https://github.com/fabricekrebs/magictoolbox/commit/081070c50d2f139ad39eaf252574647ead90b340))
+* **tests:** add automatic Azure service mocking for unit tests ([533b19e](https://github.com/fabricekrebs/magictoolbox/commit/533b19ed3075fcab46d3424f5c921b0a4c47633f))
+* **tools:** improve video rotation Azure Function trigger reliability ([90aef40](https://github.com/fabricekrebs/magictoolbox/commit/90aef407862d7f65bab0d487c2097f23636fa17e))
+
 ## [6.0.0](https://github.com/fabricekrebs/magictoolbox/compare/v5.0.0...v6.0.0) (2025-12-18)
 
 ### ⚠ BREAKING CHANGES
