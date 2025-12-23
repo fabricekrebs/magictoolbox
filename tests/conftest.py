@@ -24,7 +24,7 @@ User = get_user_model()
 def mock_azure_storage(request, monkeypatch):
     """
     Automatically mock Azure Blob Storage for all tests except azure_integration tests.
-    
+
     This prevents tests from trying to connect to real Azure storage.
     """
     # Skip mocking for tests marked with azure_integration
@@ -76,10 +76,18 @@ def mock_azure_credentials(request):
     # Mock DefaultAzureCredential
     mock_cred = MagicMock()
 
-    with patch("apps.tools.plugins.pdf_docx_converter.DefaultAzureCredential", return_value=mock_cred):
-        with patch("apps.tools.plugins.video_rotation.DefaultAzureCredential", return_value=mock_cred):
-            with patch("apps.tools.plugins.ocr_tool.DefaultAzureCredential", return_value=mock_cred):
-                with patch("apps.tools.plugins.gpx_merger.DefaultAzureCredential", return_value=mock_cred):
+    with patch(
+        "apps.tools.plugins.pdf_docx_converter.DefaultAzureCredential", return_value=mock_cred
+    ):
+        with patch(
+            "apps.tools.plugins.video_rotation.DefaultAzureCredential", return_value=mock_cred
+        ):
+            with patch(
+                "apps.tools.plugins.ocr_tool.DefaultAzureCredential", return_value=mock_cred
+            ):
+                with patch(
+                    "apps.tools.plugins.gpx_merger.DefaultAzureCredential", return_value=mock_cred
+                ):
                     yield mock_cred
 
 
